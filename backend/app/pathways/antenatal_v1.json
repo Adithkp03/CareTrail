@@ -1,0 +1,38 @@
+{
+  "template_id": "antenatal",
+  "version": "v1",
+  "name": "Normal antenatal pathway (FOGSI/WHO-aligned)",
+  "note": "One normal, low-risk antenatal pathway. Windows are gestational-age weeks. Thresholds and danger signs are set by the team's doctor; the rules engine - never an LLM - compares values against them.",
+  "thresholds": {
+    "hb":              {"min": 11.0, "unit": "g/dL",  "label": "Haemoglobin",        "message": "Haemoglobin is below 11 g/dL (anaemia in pregnancy)."},
+    "bp_sys":          {"max": 140,  "unit": "mmHg",  "label": "Systolic BP",        "message": "Systolic blood pressure is 140 or above."},
+    "bp_dia":          {"max": 90,   "unit": "mmHg",  "label": "Diastolic BP",       "message": "Diastolic blood pressure is 90 or above."},
+    "glucose_fasting": {"max": 92,   "unit": "mg/dL", "label": "Fasting glucose",    "message": "Fasting glucose is 92 mg/dL or above (IADPSG)."},
+    "glucose_ogtt_1h": {"max": 180,  "unit": "mg/dL", "label": "OGTT 1-hour",        "message": "OGTT 1-hour glucose is 180 mg/dL or above (IADPSG)."},
+    "glucose_ogtt_2h": {"max": 153,  "unit": "mg/dL", "label": "OGTT 2-hour",        "message": "OGTT 2-hour glucose is 153 mg/dL or above (IADPSG)."}
+  },
+  "danger_signs": [
+    "Bleeding or leaking fluid",
+    "Severe headache or blurred vision",
+    "Reduced or absent baby movements",
+    "Severe abdominal pain",
+    "High fever",
+    "Swelling of face and hands with headache"
+  ],
+  "milestones": [
+    {"key": "first_consultation",      "title": "First consultation (booking visit)", "type": "visit",       "window": [6, 10],  "required_tests": [],                                        "prep_notes": "Bring any previous prescriptions and reports. Note the first day of your last period."},
+    {"key": "baseline_bloods",         "title": "Baseline blood tests",               "type": "test",        "window": [6, 12],  "required_tests": ["hb", "bp_sys", "bp_dia", "blood_group", "hiv", "hbsag", "vdrl", "urine_routine", "glucose_fasting"], "prep_notes": "No fasting needed except if a fasting glucose is planned."},
+    {"key": "nt_scan",                 "title": "NT scan (first trimester ultrasound)","type": "scan",       "window": [11, 14], "required_tests": [],                                        "prep_notes": "Done between 11 and 13+6 weeks. A moderately full bladder helps."},
+    {"key": "second_trimester_review", "title": "Second-trimester review",            "type": "visit",       "window": [18, 24], "required_tests": ["hb", "bp_sys", "bp_dia"],                "prep_notes": "Weight, blood pressure and growth check. List any new symptoms."},
+    {"key": "anomaly_scan",            "title": "Anomaly scan (TIFFA)",               "type": "scan",        "window": [18, 23], "required_tests": [],                                        "prep_notes": "Detailed scan of the baby's organs, usually 18-22 weeks. No fasting needed."},
+    {"key": "consultation_24w",        "title": "Antenatal consultation (24 weeks)",  "type": "visit",       "window": [24, 26], "required_tests": ["bp_sys", "bp_dia"],                      "prep_notes": "Bring the anomaly scan report."},
+    {"key": "ogtt",                    "title": "Glucose tolerance test (OGTT)",      "type": "test",        "window": [24, 28], "required_tests": ["glucose_fasting", "glucose_ogtt_1h", "glucose_ogtt_2h"], "prep_notes": "Come fasting (8-10 hours, water allowed). The test takes about 2 hours."},
+    {"key": "tdap_vaccine",            "title": "Tdap/TT vaccination",                "type": "vaccination", "window": [27, 36], "required_tests": [],                                        "prep_notes": "Protects the baby from whooping cough and tetanus."},
+    {"key": "third_trimester_review",  "title": "Third-trimester review",             "type": "visit",       "window": [28, 32], "required_tests": ["hb", "bp_sys", "bp_dia"],                "prep_notes": "Repeat haemoglobin. Mention any swelling, headache or reduced movements."},
+    {"key": "growth_scan",             "title": "Growth scan",                        "type": "scan",        "window": [28, 32], "required_tests": [],                                        "prep_notes": "Checks the baby's growth and fluid levels."},
+    {"key": "review_34w",              "title": "Antenatal review (34 weeks)",        "type": "visit",       "window": [34, 36], "required_tests": ["bp_sys", "bp_dia"],                      "prep_notes": "Track baby movements daily from now on."},
+    {"key": "review_36w",              "title": "Antenatal review (36 weeks)",        "type": "visit",       "window": [36, 38], "required_tests": ["bp_sys", "bp_dia"],                      "prep_notes": "Discuss birth plan and warning signs."},
+    {"key": "review_38w",              "title": "Antenatal review (38 weeks)",        "type": "visit",       "window": [38, 40], "required_tests": ["bp_sys", "bp_dia"],                      "prep_notes": "Know when to go to the hospital: regular pains, leaking, bleeding."},
+    {"key": "birth_plan",              "title": "Birth plan review",                  "type": "review",      "window": [36, 40], "required_tests": [],                                        "prep_notes": "Confirm hospital, transport, and who accompanies you."}
+  ]
+}
