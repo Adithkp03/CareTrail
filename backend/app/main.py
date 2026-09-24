@@ -2,9 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
-from .routers import auth, demo, documents, flags, journeys, milestones, prep, signoffs, voice
+from .migrate import apply as apply_migrations
+from .routers import auth, demo, documents, flags, journeys, milestones, prep, signoffs, trust, voice
 
 Base.metadata.create_all(engine)
+apply_migrations()
 
 app = FastAPI(title="CareTrail API", version="0.1.0")
 
@@ -25,6 +27,7 @@ app.include_router(signoffs.router)
 app.include_router(demo.router)
 app.include_router(voice.router)
 app.include_router(prep.router)
+app.include_router(trust.router)
 
 
 @app.get("/health")

@@ -1,0 +1,17 @@
+[
+  {"id": 1, "text": "Haemoglobin: 12.1 g/dL\nDate: 2026-09-01", "expected": {"hb": 12.1}},
+  {"id": 2, "text": "Haemoglobin: 10.4 g/dL\nDate: 2026-09-01", "expected": {"hb": 10.4}},
+  {"id": 3, "text": "ഹീമോഗ്ലോബിൻ: 9.8 g/dL\nതീയതി: 2026-09-02", "expected": {"hb": 9.8}},
+  {"id": 4, "text": "हीमोग्लोबिन: 11.2 g/dL\nदिनांक: 2026-09-02", "expected": {"hb": 11.2}},
+  {"id": 5, "text": "Blood pressure: 128/84 mmHg\nDate: 2026-09-03", "expected": {"bp_sys": 128, "bp_dia": 84}},
+  {"id": 6, "text": "രക്തസമ്മർദ്ദം: 146/96 mmHg\nതീയതി: 2026-09-03", "expected": {"bp_sys": 146, "bp_dia": 96}},
+  {"id": 7, "text": "रक्तचाप: 118/78 mmHg\nदिनांक: 2026-09-04", "expected": {"bp_sys": 118, "bp_dia": 78}},
+  {"id": 8, "text": "Fasting glucose: 88 mg/dL\nDate: 2026-09-05", "expected": {"glucose_fasting": 88}},
+  {"id": 9, "text": "Fasting glucose: 5.1 mmol/L\nDate: 2026-09-05", "expected": {"glucose_fasting": 91.8}},
+  {"id": 10, "text": "Fasting glucose: 96 mg/dL\n1 hour glucose: 182 mg/dL\n2 hour glucose: 150 mg/dL\nDate: 2026-09-06", "expected": {"glucose_fasting": 96, "glucose_ogtt_1h": 182, "glucose_ogtt_2h": 150}},
+  {"id": 11, "text": "Hb: 13.2 g/dL\nBP: 122/80\nDate: 2026-09-07", "expected": {"hb": 13.2, "bp_sys": 122, "bp_dia": 80}},
+  {"id": 12, "text": "Haemoglobin: 105 g/L\nDate: 2026-09-08", "expected": {"hb": 10.5}},
+  {"id": 13, "text": "ഉപവാസ ഗ്ലൂക്കോസ്: 90 mg/dL\nതീയതി: 2026-09-09", "expected": {"glucose_fasting": 90}},
+  {"id": 14, "text": "उपवास ग्लूकोज: 94 mg/dL\nदिनांक: 2026-09-10", "expected": {"glucose_fasting": 94}},
+  {"id": 15, "text": "Fasting blood sugar: 101 mg/dL\nDate: 2026-09-11", "expected": {"glucose_fasting": 101}}
+]

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -26,6 +26,7 @@ class Patient(Base):
     language: Mapped[str] = mapped_column(String(8), default="en")  # en / ml / hi ...
     password_hash: Mapped[str] = mapped_column(String(200))
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     journeys: Mapped[list["Journey"]] = relationship(back_populates="patient")
@@ -156,4 +157,19 @@ class ExplanationCache(Base):
     language: Mapped[str] = mapped_column(String(8), default="en")
     provider: Mapped[str] = mapped_column(String(20), default="curated")
     audio_path: Mapped[str] = mapped_column(String(400), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AiCallTrace(Base):
+    """One row per AI provider call: prompt, output, latency. The eval/trust story."""
+
+    __tablename__ = "ai_call_traces"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    provider: Mapped[str] = mapped_column(String(30))
+    kind: Mapped[str] = mapped_column(String(30))  # chat | translate | tts | stt | vision | embed
+    prompt: Mapped[str] = mapped_column(Text, default="")
+    output: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(10), default="ok")
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

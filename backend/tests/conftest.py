@@ -32,7 +32,7 @@ def client():
 def signup(client, phone="9876543210", name="Test Mother", password="secret123", language="en"):
     r = client.post(
         "/auth/signup",
-        json={"name": name, "phone": phone, "password": password, "language": language},
+        json={"name": name, "phone": phone, "password": password, "language": language, "consent": True},
     )
     assert r.status_code == 201, r.text
     return r.json()

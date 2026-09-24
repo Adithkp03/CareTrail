@@ -5,6 +5,9 @@ report themselves unavailable instead of failing weirdly."""
 import base64
 import os
 
+from .privacy import strip_pii
+from .tracing import trace as _trace
+
 SARVAM_BASE = "https://api.sarvam.ai"
 CHAT_MODEL = os.getenv("SARVAM_CHAT_MODEL", "sarvam-m")
 TTS_MODEL = os.getenv("SARVAM_TTS_MODEL", "bulbul:v3")
@@ -28,20 +31,26 @@ def _client():
     )
 
 
-def chat(prompt: str) -> str | None:
+def chat(prompt: str, db=None) -> str | None:
     """Sarvam-105B / sarvam-m text generation. None when unavailable."""
     if not available():
         return None
+    safe_prompt = strip_pii(prompt)
     with _client() as c:
-        r = c.post("/v1/chat/completions", json={"model": CHAT_MODEL, "messages": [{"role": "user", "content": prompt}]})
+        r = c.post("/v1/chat/completions", json={"model": CHAT_MODEL, "messages": [{"role": "user", "content": safe_prompt}]})
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"].strip()
+        out = r.json()["choices"][0]["message"]["content"].strip()
+    if db is not None:
+        with _trace(db, "sarvam", "chat", safe_prompt) as t:
+            t.finish(out)
+    return out
 
 
-def translate(text: str, target_language: str, source_language: str = "en") -> str | None:
+def translate(text: str, target_language: str, source_language: str = "en", db=None) -> str | None:
     """Sarvam Translate. None when unavailable."""
     if not available():
         return None
+    text = strip_pii(text)
     with _client() as c:
         r = c.post(
             "/translate",

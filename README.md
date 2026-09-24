@@ -174,3 +174,21 @@ records in the browser). Tests: 45 passing.
 
 Tests: 54 passing (9 new: citations, grounded vs ungrounded answers, next-up,
 brief, sign-off state transitions, ownership).
+
+## Phase 6: trust layer and evals
+
+- **PII stripping** (`app/privacy.py`): phone numbers, emails and name lines are
+  masked before any text reaches a cloud model (Presidio when installed, regex
+  fallback always). Clinical values pass through untouched.
+- **AI traces** (`app/tracing.py` + `GET /ai-traces`): every provider call is
+  logged with prompt, output and latency - the "show me a trace" moment for judges.
+- **Eval set** (`backend/evals/`): 15 synthetic reports (en/ml/hi, unit variants)
+  with known-correct values. `python3 evals/run_eval.py` prints one accuracy
+  number; current offline parser: **100% (22/22 fields)**. A test keeps it >= 95%.
+- **Consent at sign-up**: required checkbox, timestamp stored on the patient;
+  signup without consent is rejected. Existing audit log continues.
+- **Guidance loader** (`backend/scripts/load_guidance.py`): downloads the team's
+  chosen FOGSI/MoHFW/WHO PDFs from their official URLs, chunks them into a local
+  corpus (`guidance_corpus.local.json`, gitignored - source documents are never
+  redistributed through the repo). Demo corpus remains the fallback. Team doctor
+  picks the documents and checks usage terms.

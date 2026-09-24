@@ -8,6 +8,7 @@ class SignupRequest(BaseModel):
     phone: str = Field(min_length=6, max_length=32)
     password: str = Field(min_length=6, max_length=128)
     language: str = Field(default="en", pattern="^[a-z]{2}$")
+    consent: bool = False
 
 
 class LoginRequest(BaseModel):

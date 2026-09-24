@@ -7,8 +7,12 @@ cached in-process); otherwise a deterministic keyword-overlap scorer, so tests a
 the no-key demo work offline.
 """
 
+import json
 import os
 import re
+from pathlib import Path
+
+_LOCAL_CORPUS = Path(__file__).with_name("guidance_corpus.local.json")
 
 CORPUS: list[dict] = [
     {"id": "anc-schedule", "topic": "antenatal visits", "source": "FOGSI/WHO antenatal guidance (curated summary, demo corpus - replace with licensed source text)",
@@ -32,6 +36,14 @@ CORPUS: list[dict] = [
     {"id": "movements", "topic": "baby movements", "source": "FOGSI/WHO antenatal guidance (curated summary, demo corpus - replace with licensed source text)",
      "text": "Most mothers feel movements by 20-24 weeks. From 28 weeks, count movements daily. Clearly fewer movements than usual needs a same-day check."},
 ]
+
+# The team's real guideline chunks (scripts/load_guidance.py) take precedence when
+# present; the curated demo corpus above is the fallback.
+if _LOCAL_CORPUS.exists():
+    try:
+        CORPUS = json.loads(_LOCAL_CORPUS.read_text())
+    except Exception:
+        pass
 
 _STOP = {"the", "a", "an", "is", "are", "was", "what", "why", "how", "when", "for", "and", "with", "this", "that", "your", "you", "about", "does", "mean", "my", "need", "day", "days", "week", "weeks", "time", "will", "can"}
 

@@ -3,7 +3,7 @@ first consultation and baseline bloods done, second-trimester review now,
 anomaly scan upcoming, next consultation already scheduled.
 Demo only - real patients sign up and create their own journeys."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,7 @@ def seed_anjali(db: Session, today: date | None = None) -> dict:
             language="ml",
             password_hash=hash_password(DEMO_PASSWORD),
             is_demo=True,
+            consent_at=datetime.now(timezone.utc),
         )
         db.add(patient)
         db.flush()
