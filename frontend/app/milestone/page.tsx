@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { api, getToken } from "@/lib/api";
+import { api, apiForm, getToken } from "@/lib/api";
 import { t, type Lang } from "@/lib/i18n";
 import type { Milestone } from "@/lib/types";
 
@@ -15,8 +15,77 @@ function MilestoneView() {
   const [lang] = useState<Lang>("en");
   const [scheduleDate, setScheduleDate] = useState("");
   const [error, setError] = useState("");
+  const [explanation, setExplanation] = useState<{ text: string; provider: string } | null>(null);
+  const [listenMsg, setListenMsg] = useState("");
+  const [askOpen, setAskOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<{ answer: string; urgent: boolean; note?: string } | null>(null);
+  const [asking, setAsking] = useState(false);
 
-  async function load() { setM(await api<Milestone>(`/milestones/${id}`)); }
+  async function load() {
+    setM(await api<Milestone>(`/milestones/${id}`));
+    try {
+      setExplanation(await api(`/milestones/${id}/explanation?lang=${lang}`));
+    } catch { /* explanation is best-effort */ }
+  }
+
+  async function listen() {
+    setListenMsg("");
+    try {
+      const token = getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/milestones/${id}/explanation/audio?lang=${lang}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("no-audio");
+      const blob = await res.blob();
+      new Audio(URL.createObjectURL(blob)).play();
+    } catch {
+      setListenMsg(lang === "en" ? "Audio needs the Sarvam key (Bulbul)." : "ഓഡിയോയ്ക്ക് Sarvam കീ വേണം.");
+    }
+  }
+
+  async function ask() {
+    if (!question.trim()) return;
+    setAsking(true);
+    setAnswer(null);
+    try {
+      setAnswer(await api("/ask", { method: "POST", body: JSON.stringify({ question, lang }) }));
+    } catch (e) {
+      setAnswer({ answer: e instanceof Error ? e.message : "Failed", urgent: false });
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  async function askVoice() {
+    setListenMsg("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      const done = new Promise<void>((resolve) => { rec.onstop = () => resolve(); });
+      rec.start();
+      setListenMsg("Recording… tap Ask again to stop");
+      await new Promise((r) => setTimeout(r, 4000));
+      rec.stop();
+      await done;
+      stream.getTracks().forEach((tr) => tr.stop());
+      const form = new FormData();
+      form.append("file", new Blob(chunks, { type: rec.mimeType }), "question.webm");
+      form.append("lang", lang);
+      setAsking(true);
+      const res = await apiForm<{ transcript: string; answer: string; urgent: boolean; audio_base64: string | null }>("/ask/voice", form);
+      setQuestion(res.transcript);
+      setAnswer({ answer: res.answer, urgent: res.urgent });
+      if (res.audio_base64) new Audio(`data:audio/mpeg;base64,${res.audio_base64}`).play();
+      setListenMsg("");
+    } catch {
+      setListenMsg("Voice Ask needs the Sarvam key (Saarika). Text Ask works without it.");
+    } finally {
+      setAsking(false);
+    }
+  }
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
     load().catch((e) => setError(e instanceof Error ? e.message : "Failed"));
@@ -64,15 +133,41 @@ function MilestoneView() {
         </section>
       ) : null}
 
+      {explanation ? (
+        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="text-sm text-ink/80">{explanation.text}</p>
+        </section>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button disabled title={t("comingVoice", lang)} className="rounded-xl bg-white p-3 text-sm font-medium text-ink/40 shadow-sm">
-          🔊 {t("listen", lang)}*
+        <button onClick={listen} className="rounded-xl bg-white p-3 text-sm font-medium shadow-sm">
+          🔊 {t("listen", lang)}
         </button>
-        <button disabled title={t("comingVoice", lang)} className="rounded-xl bg-white p-3 text-sm font-medium text-ink/40 shadow-sm">
-          🎙️ {t("ask", lang)}*
+        <button onClick={() => setAskOpen(!askOpen)} className="rounded-xl bg-white p-3 text-sm font-medium shadow-sm">
+          🎙️ {t("ask", lang)}
         </button>
       </div>
-      <p className="mt-1 text-center text-xs text-ink/40">* {t("comingVoice", lang)}</p>
+      {listenMsg ? <p className="mt-1 text-center text-xs text-ink/50">{listenMsg}</p> : null}
+
+      {askOpen ? (
+        <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex gap-2">
+            <input value={question} onChange={(e) => setQuestion(e.target.value)}
+              placeholder={lang === "en" ? "Ask about this check-up…" : "ചോദിക്കൂ…"}
+              className="flex-1 rounded-xl border border-ink/15 p-3 text-sm" />
+            <button onClick={ask} disabled={asking} className="rounded-xl bg-brand px-4 text-sm font-semibold text-white disabled:opacity-40">
+              {asking ? "…" : t("ask", lang)}
+            </button>
+            <button onClick={askVoice} disabled={asking} title="Ask by voice" className="rounded-xl border border-brand px-3 text-brand disabled:opacity-40">🎙️</button>
+          </div>
+          {answer ? (
+            <p className={`mt-3 rounded-xl p-3 text-sm ${answer.urgent ? "bg-red-50 text-red-800 ring-1 ring-red-200" : "bg-ink/5 text-ink/80"}`}>
+              {answer.answer}
+              {answer.note ? <span className="block mt-1 text-xs text-ink/50">{answer.note}</span> : null}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {m.observations && m.observations.length > 0 ? (
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">

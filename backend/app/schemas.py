@@ -62,3 +62,8 @@ class ConfirmValue(BaseModel):
 class DocumentConfirmRequest(BaseModel):
     milestone_id: str | None = None
     values: list[ConfirmValue] = Field(min_length=1, max_length=50)
+
+
+class AskTextRequest(BaseModel):
+    question: str = Field(min_length=2, max_length=1000)
+    lang: str | None = Field(default=None, pattern="^(en|ml|hi)$")

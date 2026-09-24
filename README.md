@@ -130,3 +130,27 @@ Hindi note with high blood pressure. Upload them from the app's upload screen.
 Tests: `cd backend && pip install -r requirements.txt && python3 -m pytest tests/ -q`
 (33 tests, including the full upload -> extract -> confirm -> flag path and
 cross-patient access checks).
+
+## Phase 4: language and voice layer (Sarvam)
+
+Everything the mother sees can be read or heard in her language, and she can ask
+questions by voice.
+
+- `GET /milestones/{id}/explanation?lang=` - plain-language explanation (what it is,
+  why it matters, what's normal, what to do). Generated once and cached per
+  milestone + language + template version (`explanation_cache` table) - never
+  regenerated per page load. With `SARVAM_API_KEY` the text comes from Sarvam and is
+  translated with Sarvam Translate; without keys, curated content (English for all
+  milestones, Malayalam/Hindi for the demo ones - native-speaker review pending).
+- `GET /milestones/{id}/explanation/audio?lang=` - Bulbul v3 speech, generated once
+  and stored. 503 without the Sarvam key.
+- `POST /ask` - text question. The doctor's danger-sign list is matched IN CODE and
+  always returns "contact your doctor now"; other questions are answered from her
+  own timeline (flags) and milestone grounding - no grounding means "ask your
+  doctor", never a guess.
+- `POST /ask/voice` - audio question: Saarika v2.5 transcribes (code-mixed speech
+  works), the same grounded pipeline answers, Bulbul speaks the answer back.
+  503 without the Sarvam key; the text Ask works with zero keys.
+
+Milestone page: explanation card plus working Listen and Ask buttons (voice Ask
+records in the browser). Tests: 45 passing.

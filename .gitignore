@@ -10,3 +10,5 @@ __pycache__/
 frontend/android/app/build/
 frontend/android/app/src/main/assets/public/
 frontend/out/
+backend/storage/
+backend/caretrail.db

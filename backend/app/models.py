@@ -142,3 +142,18 @@ class AuditLog(Base):
     entity_id: Mapped[str] = mapped_column(String(40))
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ExplanationCache(Base):
+    """Generated explanation text (and its audio), cached by milestone/result key +
+    language + template version so each string is generated once, not per page load."""
+
+    __tablename__ = "explanation_cache"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    cache_key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    text: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(8), default="en")
+    provider: Mapped[str] = mapped_column(String(20), default="curated")
+    audio_path: Mapped[str] = mapped_column(String(400), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
