@@ -50,7 +50,7 @@ def get_milestone_explanation_audio(
     audio = explanation_audio(db, m.key, lang)
     if audio is None:
         raise HTTPException(status_code=503, detail="Audio needs SARVAM_API_KEY (Bulbul text-to-speech)")
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=audio, media_type="audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg")
 
 
 @router.get("/observations/{code}/explanation")
