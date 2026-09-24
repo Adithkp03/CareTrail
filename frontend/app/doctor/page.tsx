@@ -3,13 +3,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import { t, type Lang } from "@/lib/i18n";
-import type { Flag, Journey } from "@/lib/types";
+import type { Brief, Flag, Journey } from "@/lib/types";
 
 // Hackathon shell of the doctor view: the flags queue plus the sign-off that
 // lands on the mother's timeline. A real doctor login lands in the hardening phase.
 export default function DoctorPage() {
   const router = useRouter();
   const [journey, setJourney] = useState<Journey | null>(null);
+  const [brief, setBrief] = useState<Brief | null>(null);
   const [doctorName, setDoctorName] = useState("");
   const [message, setMessage] = useState("");
   const lang: Lang = "en";
@@ -17,7 +18,9 @@ export default function DoctorPage() {
   async function load() {
     const list = await api<{ journeys: { journey_id: string }[] }>("/journeys");
     if (list.journeys.length === 0) return;
-    setJourney(await api<Journey>(`/journey/${list.journeys[0].journey_id}`));
+    const j = await api<Journey>(`/journey/${list.journeys[0].journey_id}`);
+    setJourney(j);
+    api<Brief>(`/journey/${j.journey_id}/brief`).then(setBrief).catch(() => {});
   }
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
@@ -47,6 +50,28 @@ export default function DoctorPage() {
         value={doctorName} onChange={(e) => setDoctorName(e.target.value)} />
       {message && <p className="mt-2 text-sm text-brand">{message}</p>}
 
+      {brief ? (
+        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/50">Pre-consult brief</h2>
+          <p className="mt-1 text-sm text-ink/70">
+            {brief.gestational_age.weeks}w{brief.gestational_age.plus_days}d · EDD {brief.edd}
+            {brief.next_appointment ? ` · Next: ${brief.next_appointment.title} (${brief.next_appointment.scheduled_date})` : ""}
+          </p>
+          {brief.latest_values.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {brief.latest_values.map((v) => (
+                <span key={v.code} className="rounded-full bg-ink/5 px-3 py-1 text-xs text-ink/70">
+                  {v.code.replace(/_/g, " ")}: {v.value} {v.unit}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {brief.recent_reports.length > 0 ? (
+            <p className="mt-2 text-xs text-ink/50">Latest report: {brief.recent_reports[0].filename} ({brief.recent_reports[0].status})</p>
+          ) : null}
+        </section>
+      ) : null}
+
       <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-ink/50">{t("flagsQueue", lang)}</h2>
       {journey.flags.length === 0 ? (
         <p className="mt-2 rounded-2xl bg-white p-4 text-sm text-ink/60 shadow-sm">{t("noFlags", lang)}</p>
@@ -57,9 +82,13 @@ export default function DoctorPage() {
               <p className="font-medium">{f.label}: {f.value} {f.unit}</p>
               <p className="mt-1 text-sm text-amber-900">{f.message}</p>
               <p className="mt-1 text-xs text-ink/50">{f.observed_on}</p>
-              <button onClick={() => signOff(f)} className="mt-3 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white">
-                {t("signOff", lang)}
-              </button>
+              {f.signed_off ? (
+                <p className="mt-3 text-sm text-green-700">✅ {t("signedOffBy", lang)} {f.signed_off.doctor_name}{f.signed_off.note ? ` - ${f.signed_off.note}` : ""}</p>
+              ) : (
+                <button onClick={() => signOff(f)} className="mt-3 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white">
+                  {t("signOff", lang)}
+                </button>
+              )}
             </div>
           ))}
         </div>

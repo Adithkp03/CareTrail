@@ -154,3 +154,23 @@ questions by voice.
 
 Milestone page: explanation card plus working Listen and Ask buttons (voice Ask
 records in the browser). Tests: 45 passing.
+
+## Phase 5: grounding, next-up prep and the doctor loop
+
+- **Grounded answers** (`app/guidance.py`): Ask now retrieves from a curated corpus
+  of antenatal guidance (demo summaries aligned to FOGSI/WHO topics - the team must
+  replace these with the licensed source documents; clinical thresholds always come
+  from the doctor-approved pathway template, never from this corpus or an LLM).
+  Answers cite their source; no grounding means "ask your doctor". Gemini embeddings
+  are used when `GEMINI_API_KEY` is set, otherwise a deterministic keyword scorer.
+- **Next-up card**: `GET /journey/{id}/next-up` - what the next visit is for, what to
+  bring, fasting rules, questions worth asking. Shown on the timeline home.
+- **Pre-consult brief**: `GET /journey/{id}/brief` - one screen for the doctor:
+  gestational age, open vs signed flags, latest values, next appointment, recent
+  reports. Shown in the doctor view.
+- **Sign-off loop**: flags carry their sign-off state; once the doctor signs off a
+  flag it leaves the open queue and shows the doctor's badge and note. The badge
+  also appears on the mother's timeline.
+
+Tests: 54 passing (9 new: citations, grounded vs ungrounded answers, next-up,
+brief, sign-off state transitions, ownership).

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
-from .routers import auth, demo, documents, flags, journeys, milestones, signoffs, voice
+from .routers import auth, demo, documents, flags, journeys, milestones, prep, signoffs, voice
 
 Base.metadata.create_all(engine)
 
@@ -24,6 +24,7 @@ app.include_router(flags.router)
 app.include_router(signoffs.router)
 app.include_router(demo.router)
 app.include_router(voice.router)
+app.include_router(prep.router)
 
 
 @app.get("/health")

@@ -14,10 +14,11 @@ from sqlalchemy.orm import Session
 from . import voice
 from .explanations import MILESTONE_EXPLANATIONS_EN, MILESTONE_EXPLANATIONS_LOCAL
 from .flags import compute_flags
+from .guidance import retrieve
 from .models import Journey
 
 DANGER_SIGN_KEYWORDS = {
-    "en": ["bleeding", "leaking", "headache", "blurred vision", "baby movements", "reduced movements", "abdominal pain", "fever", "swelling"],
+    "en": ["bleeding", "leaking", "headache", "blurred vision", "reduced movements", "less movement", "no movement", "not moving", "stopped moving", "abdominal pain", "fever", "swelling"],
     "ml": ["രക്തസ്രാവം", "ചോർച്ച", "തലവേദന", "കുഞ്ഞിന്റെ ചലനം", "വയറ്റുവേദന", "പനി", "നീര്"],
     "hi": ["खून", "रक्तस्राव", "सिरदर्द", "बच्चे की हलचल", "पेट दर्द", "बुखार", "सूजन"],
 }
@@ -45,13 +46,16 @@ def detect_question_language(text: str) -> str:
     return "en"
 
 
+DANGER_SIGN_PAIRS = [("reduced", "movement"), ("less", "movement"), ("no", "movement"), ("not", "moving"), ("stopped", "moving")]
+
+
 def _matches_danger_sign(question: str) -> bool:
     q = question.lower()
     for words in DANGER_SIGN_KEYWORDS.values():
         for w in words:
             if w.lower() in q:
                 return True
-    return False
+    return any(a in q and b in q for a, b in DANGER_SIGN_PAIRS)
 
 
 def _milestone_from_question(db: Session, journey: Journey, question: str) -> dict | None:
@@ -77,24 +81,31 @@ def answer_question(db: Session, journey: Journey, question: str, language: str,
     hit = _milestone_from_question(db, journey, question)
     flags = compute_flags(db, journey.id, template)
     flag_mentioned = next((f for f in flags if f["label"].lower() in question.lower() or f["code"] in question.lower()), None)
+    guidance = retrieve(question)
+    citation = {"source": guidance[0]["source"], "topic": guidance[0]["topic"]} if guidance else None
 
     if flag_mentioned:
         base_en = (
             f"Your latest {flag_mentioned['label']} was {flag_mentioned['value']} {flag_mentioned['unit']}. "
             f"{flag_mentioned['message']} Your doctor has this on their review list."
         )
+        if guidance:
+            base_en += " " + guidance[0]["text"]
         source = "timeline-flag"
     elif hit:
         base_en = hit["text_en"]
         source = f"milestone:{hit['key']}"
+    elif guidance:
+        base_en = guidance[0]["text"]
+        source = f"guidance:{guidance[0]['id']}"
     else:
-        return {"answer": ASK_DOCTOR[language], "source": "none", "urgent": False}
+        return {"answer": ASK_DOCTOR[language], "source": "none", "urgent": False, "citation": None}
 
     if language == "en":
-        return {"answer": base_en, "source": source, "urgent": False}
+        return {"answer": base_en, "source": source, "urgent": False, "citation": citation}
     if hit and (hit["key"], language) in MILESTONE_EXPLANATIONS_LOCAL and not flag_mentioned:
-        return {"answer": MILESTONE_EXPLANATIONS_LOCAL[(hit["key"], language)], "source": source, "urgent": False}
+        return {"answer": MILESTONE_EXPLANATIONS_LOCAL[(hit["key"], language)], "source": source, "urgent": False, "citation": citation}
     translated = voice.translate(base_en, language)
     if translated:
-        return {"answer": translated, "source": source, "urgent": False}
-    return {"answer": base_en, "source": source, "urgent": False, "note": "shown in English - translation needs the Sarvam key"}
+        return {"answer": translated, "source": source, "urgent": False, "citation": citation}
+    return {"answer": base_en, "source": source, "urgent": False, "citation": citation, "note": "shown in English - translation needs the Sarvam key"}
