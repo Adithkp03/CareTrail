@@ -190,9 +190,72 @@ def provider_extract(text: str, language: str, template: dict) -> tuple[list[dic
     return None, "no-key"
 
 
+def _gemini_json(parts: list[dict]):
+    """Call Gemini Flash (falling back to Flash-Lite when overloaded) and parse its JSON reply."""
+    import json
+
+    import httpx
+
+    body = {"contents": [{"parts": parts}], "generationConfig": {"responseMimeType": "application/json"}}
+    resp = None
+    for model in ("gemini-flash-latest", "gemini-flash-lite-latest"):
+        resp = httpx.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+            json=body,
+            timeout=45,
+        )
+        if resp.status_code not in (404, 429, 500, 503):
+            break
+    resp.raise_for_status()
+    return json.loads(resp.json()["candidates"][0]["content"]["parts"][0]["text"])
+
+
+def extract_image(raw: bytes, mime: str, template: dict) -> tuple[list[dict], str, str]:
+    """Photo/scan of a report -> (values, provider, language) via Gemini vision.
+    Returns ([], reason, 'en') when no key or the call fails."""
+    import base64
+
+    if not os.getenv("GEMINI_API_KEY"):
+        return [], "no-key", "en"
+    prompt = (
+        "This is a photo of a pregnancy-related lab report (it may be in English, Malayalam or Hindi). "
+        'Return ONLY JSON: {"language": "en"|"ml"|"hi", "values": [{"code","value","unit","observed_on","confidence"}]}. '
+        f"Allowed codes: {sorted(KNOWN_TEST_CODES)}. Blood pressure 120/80 means bp_sys 120 and bp_dia 80. "
+        "Dates as YYYY-MM-DD (use the sample/report date). Skip tests not in the allowed list. No prose."
+    )
+    try:
+        parsed = _gemini_json([{"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(raw).decode()}}])
+    except Exception as exc:
+        resp = getattr(exc, "response", None)
+        print(f"[extraction] vision error: {type(exc).__name__} {getattr(resp, 'status_code', '')} {(getattr(resp, 'text', '') or '')[:200]}")
+        return [], "provider-error", "en"
+    if isinstance(parsed, list):
+        parsed = {"values": parsed}
+    lang = parsed.get("language") if parsed.get("language") in ("en", "ml", "hi") else "en"
+    return _normalize(parsed.get("values") or [], template), "gemini-vision", lang
+
+
 def extract_values(text: str, language: str, template: dict) -> tuple[list[dict], str]:
     """Try the routed provider first; fall back to the offline parser."""
     values, provider = provider_extract(text, language, template)
+    if not values and language in ("ml", "hi") and os.getenv("GEMINI_API_KEY"):
+        # Sarvam unavailable -> Gemini reads Malayalam/Hindi reports too
+        try:
+            parsed = _gemini_json([{"text": "Extract lab test values from this report. "
+                'Return ONLY a JSON array of objects: {"code","value","unit","observed_on","confidence"}. '
+                f"Allowed codes: {sorted(KNOWN_TEST_CODES)}. Dates as YYYY-MM-DD. No prose.\n\n" + text}])
+            if isinstance(parsed, dict):
+                parsed = parsed.get("values") or next((v for v in parsed.values() if isinstance(v, list)), [])
+            values, provider = parsed, "gemini-flash"
+        except Exception as exc:
+            print(f"[extraction] gemini fallback error: {type(exc).__name__}")
+    if values:
+        return _normalize(values, template), provider
+    return offline_extract(text, template), "offline-parser"
+
+
+def _normalize(values: list[dict], template: dict) -> list[dict]:
     if values:
         thresholds = template.get("thresholds", {})
         out = []
@@ -216,5 +279,5 @@ def extract_values(text: str, language: str, template: dict) -> tuple[list[dict]
                     "confidence": float(v.get("confidence") or 0.6),
                 }
             )
-        return out, provider
-    return offline_extract(text, template), "offline-parser"
+        return out
+    return []

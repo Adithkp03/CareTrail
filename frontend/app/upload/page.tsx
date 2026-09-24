@@ -67,7 +67,7 @@ export default function UploadPage() {
       setExtractMessage(ext.message ?? "");
       setStep("confirm");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : tr("Upload failed"));
       setStep("pick");
     }
   }
@@ -75,7 +75,7 @@ export default function UploadPage() {
   async function onConfirm() {
     setError("");
     const chosen = values.filter((v) => v.include);
-    if (chosen.length === 0) { setError("Nothing selected to save."); return; }
+    if (chosen.length === 0) { setError(tr("Nothing selected to save.")); return; }
     try {
       const res = await api<{ observations: unknown[]; flags: Flag[] }>(`/documents/${documentId}/confirm`, {
         method: "POST",
