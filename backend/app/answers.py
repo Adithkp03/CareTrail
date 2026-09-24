@@ -78,10 +78,20 @@ def answer_question(db: Session, journey: Journey, question: str, language: str,
     if _matches_danger_sign(question):
         return {"answer": CONTACT_DOCTOR[language], "source": "danger-sign-rule", "urgent": True}
 
-    hit = _milestone_from_question(db, journey, question)
+    # Match and retrieve on an English rendering too, so Malayalam/Hindi questions
+    # find the same milestones and guidance as English ones.
+    search_q = question
+    if language != "en":
+        try:
+            q_en = voice.translate(question, "en", source_language=language)
+        except Exception:
+            q_en = None
+        if q_en:
+            search_q = f"{question} {q_en}"
+    hit = _milestone_from_question(db, journey, search_q)
     flags = compute_flags(db, journey.id, template)
-    flag_mentioned = next((f for f in flags if f["label"].lower() in question.lower() or f["code"] in question.lower()), None)
-    guidance = retrieve(question)
+    flag_mentioned = next((f for f in flags if f["label"].lower() in search_q.lower() or f["code"] in search_q.lower()), None)
+    guidance = retrieve(q_en if language != "en" and search_q != question else question) or (retrieve(question) if search_q != question else [])
     citation = {"source": guidance[0]["source"], "topic": guidance[0]["topic"]} if guidance else None
 
     if flag_mentioned:
