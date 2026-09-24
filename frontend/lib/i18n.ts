@@ -1,3 +1,6 @@
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 export type Lang = "en" | "ml" | "hi";
 
 export const LANGS: { code: Lang; label: string }[] = [
@@ -46,7 +49,105 @@ const dict: Record<string, Record<Lang, string>> = {
   reports: { en: "Reports", ml: "റിപ്പോർട്ടുകൾ", hi: "रिपोर्ट" },
   results: { en: "Results", ml: "ഫലങ്ങൾ", hi: "परिणाम" },
   window: { en: "Usual window", ml: "സാധാരണ സമയം", hi: "सामान्य समय" },
+  loading: { en: "Loading…", ml: "ലോഡ് ചെയ്യുന്നു…", hi: "लोड हो रहा है…" },
+  tagline: { en: "Done, now, next - in her own language.", ml: "കഴിഞ്ഞത്, ഇപ്പോൾ, അടുത്തത് - അവളുടെ സ്വന്തം ഭാഷയിൽ.", hi: "हो चुका, अभी, आगे - उसकी अपनी भाषा में." },
+  journeyIntro: { en: "We build your timeline from one date. Everything after that updates on its own.", ml: "ഒരു തീയതിയിൽ നിന്ന് ഞങ്ങൾ നിങ്ങളുടെ ടൈംലൈൻ തയ്യാറാക്കും. ബാക്കിയെല്ലാം സ്വയം പുതുക്കപ്പെടും.", hi: "हम एक तारीख से आपकी टाइमलाइन बनाते हैं। उसके बाद सब कुछ अपने आप अपडेट होता है।" },
+  giveOneDate: { en: "Give one of the two dates", ml: "രണ്ട് തീയതികളിൽ ഒന്ന് നൽകൂ", hi: "दोनों में से एक तारीख दें" },
+  couldNotStart: { en: "Could not start journey", ml: "യാത്ര തുടങ്ങാൻ കഴിഞ്ഞില്ല", hi: "यात्रा शुरू नहीं हो सकी" },
+  loginFailed: { en: "Login failed", ml: "ലോഗിൻ പരാജയപ്പെട്ടു", hi: "लॉग इन विफल" },
+  signupFailed: { en: "Signup failed", ml: "അക്കൗണ്ട് ഉണ്ടാക്കാൻ കഴിഞ്ഞില്ല", hi: "साइन अप विफल" },
+  noAccount: { en: "New here?", ml: "പുതിയ ആളാണോ?", hi: "नए हैं?" },
+  haveAccount: { en: "Already have an account?", ml: "അക്കൗണ്ട് ഉണ്ടോ?", hi: "पहले से खाता है?" },
+  consent: {
+    en: "I understand CareTrail keeps my pregnancy timeline and reports on this service, uses AI to read my reports and answer questions, and never replaces my doctor. I agree to my data being used this way.",
+    ml: "CareTrail എന്റെ ഗർഭകാല ടൈംലൈനും റിപ്പോർട്ടുകളും ഈ സേവനത്തിൽ സൂക്ഷിക്കുമെന്നും, റിപ്പോർട്ടുകൾ വായിക്കാനും ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകാനും AI ഉപയോഗിക്കുമെന്നും, ഒരിക്കലും എന്റെ ഡോക്ടർക്ക് പകരമാവില്ലെന്നും ഞാൻ മനസ്സിലാക്കുന്നു. എന്റെ വിവരങ്ങൾ ഇങ്ങനെ ഉപയോഗിക്കുന്നതിന് ഞാൻ സമ്മതിക്കുന്നു.",
+    hi: "मैं समझती हूँ कि CareTrail मेरी गर्भावस्था की टाइमलाइन और रिपोर्ट इस सेवा पर रखता है, मेरी रिपोर्ट पढ़ने और सवालों के जवाब देने के लिए AI का उपयोग करता है, और कभी मेरे डॉक्टर की जगह नहीं लेता। मैं अपने डेटा के इस उपयोग के लिए सहमत हूँ।",
+  },
+  orEmail: { en: "Or sign in with email", ml: "അല്ലെങ്കിൽ ഇമെയിൽ വഴി ലോഗിൻ ചെയ്യൂ", hi: "या ईमेल से साइन इन करें" },
+  email: { en: "Email", ml: "ഇമെയിൽ", hi: "ईमेल" },
+  tickConsent: { en: "Please tick the consent box first.", ml: "ആദ്യം സമ്മത ബോക്സ് ടിക്ക് ചെയ്യൂ.", hi: "कृपया पहले सहमति बॉक्स पर टिक करें।" },
+  checkEmail: { en: "Check your email for the sign-in link.", ml: "ലോഗിൻ ലിങ്കിനായി ഇമെയിൽ നോക്കൂ.", hi: "साइन-इन लिंक के लिए अपना ईमेल देखें।" },
+  wrongLogin: { en: "Wrong phone or password", ml: "ഫോൺ നമ്പറോ പാസ്‌വേഡോ തെറ്റാണ്", hi: "फ़ोन नंबर या पासवर्ड गलत है" },
+  demoFailed: { en: "Could not open the demo. Please try again.", ml: "ഡെമോ തുറക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കൂ.", hi: "डेमो नहीं खुल सका। फिर से कोशिश करें।" },
+  emailConsent: { en: "I consent to CareTrail storing my pregnancy data to personalize my care.", ml: "എന്റെ പരിചരണം വ്യക്തിഗതമാക്കാൻ CareTrail എന്റെ ഗർഭകാല വിവരങ്ങൾ സൂക്ഷിക്കുന്നതിന് ഞാൻ സമ്മതിക്കുന്നു.", hi: "मैं अपनी देखभाल को व्यक्तिगत बनाने के लिए CareTrail द्वारा मेरी गर्भावस्था का डेटा रखने की सहमति देती हूँ।" },
+  phoneExists: { en: "An account with this phone already exists", ml: "ഈ ഫോൺ നമ്പറിൽ ഇതിനകം ഒരു അക്കൗണ്ട് ഉണ്ട്", hi: "इस फ़ोन नंबर से पहले से एक खाता है" },
+  signinFailed: { en: "Sign-in failed", ml: "ലോഗിൻ പരാജയപ്പെട്ടു", hi: "साइन इन विफल" },
+  sendLink: { en: "Email me a sign-in link", ml: "ലോഗിൻ ലിങ്ക് അയയ്ക്കൂ", hi: "साइन-इन लिंक भेजें" },
 };
+
+const LANG_KEY = "ct:lang";
+
+/** The chosen language, shared by every screen and remembered across visits. */
+export function useLang(initial?: string): [Lang, (l: Lang) => void] {
+  const [lang, setLangState] = useState<Lang>("en");
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem(LANG_KEY) : null;
+    const pick = stored ?? initial;
+    if (pick === "en" || pick === "ml" || pick === "hi") setLangState(pick);
+  }, [initial]);
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    if (typeof window !== "undefined") localStorage.setItem(LANG_KEY, l);
+  }, []);
+  return [lang, setLang];
+}
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+/** Translates any English text shown on screen (content from the server, labels,
+ * tips) into `lang`. Strings are batched, translated once by Sarvam on the server,
+ * and cached on the phone so the next visit is instant and works offline. */
+export function useTr(lang: Lang): (text: string | null | undefined) => string {
+  const [cache, setCache] = useState<Record<string, string>>({});
+  const pending = useRef<Set<string>>(new Set());
+  const inflight = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (lang === "en") { setCache({}); return; }
+    try { setCache(JSON.parse(localStorage.getItem(`ct:tr:${lang}`) ?? "{}")); } catch { setCache({}); }
+  }, [lang]);
+
+  useEffect(() => {
+    if (lang === "en") return;
+    const todo = Array.from(pending.current).filter((s) => !(s in cache) && !inflight.current.has(s));
+    pending.current.clear();
+    if (todo.length === 0) return;
+    todo.forEach((s) => inflight.current.add(s));
+    const token = typeof window !== "undefined" ? localStorage.getItem("caretrail_token") : null;
+    if (!token) return;
+    const chunks: string[][] = [];
+    for (let i = 0; i < todo.length; i += 60) chunks.push(todo.slice(i, i + 60));
+    chunks.forEach((chunk) => {
+      fetch(`${API}/i18n/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ texts: chunk, lang }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((res) => {
+          if (!res?.translations) return;
+          setCache((prev) => {
+            const next = { ...prev, ...res.translations };
+            try { localStorage.setItem(`ct:tr:${lang}`, JSON.stringify(next)); } catch { /* storage full */ }
+            return next;
+          });
+        })
+        .catch(() => { /* keep English */ })
+        .finally(() => chunk.forEach((s) => inflight.current.delete(s)));
+    });
+  });
+
+  return useCallback(
+    (text) => {
+      if (!text) return "";
+      if (lang === "en") return text;
+      if (text in cache) return cache[text];
+      pending.current.add(text);
+      return text;
+    },
+    [lang, cache]
+  );
+}
 
 export function t(key: keyof typeof dict, lang: Lang): string {
   return dict[key]?.[lang] ?? dict[key]?.en ?? key;

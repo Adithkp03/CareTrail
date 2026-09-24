@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiForm, getToken } from "@/lib/api";
-import { t, type Lang } from "@/lib/i18n";
+import { t, useLang, useTr } from "@/lib/i18n";
 import type { Milestone } from "@/lib/types";
 
 const STATUS_COLOR = { done: "bg-green-100 text-green-800", now: "bg-brand text-white", upcoming: "bg-blue-100 text-blue-800", next: "bg-ink/10 text-ink/60" } as const;
@@ -12,7 +12,8 @@ function MilestoneView() {
   const id = useSearchParams().get("id") ?? "";
   const router = useRouter();
   const [m, setM] = useState<Milestone | null>(null);
-  const [lang] = useState<Lang>("en");
+  const [lang] = useLang();
+  const tr = useTr(lang);
   const [scheduleDate, setScheduleDate] = useState("");
   const [error, setError] = useState("");
   const [explanation, setExplanation] = useState<{ text: string; provider: string } | null>(null);
@@ -53,7 +54,7 @@ function MilestoneView() {
       const blob = await res.blob();
       new Audio(URL.createObjectURL(blob)).play();
     } catch {
-      setListenMsg(lang === "en" ? "Audio needs the Sarvam key (Bulbul)." : "ഓഡിയോയ്ക്ക് Sarvam കീ വേണം.");
+      setListenMsg(tr("Audio is not available right now. Please try again."));
     }
   }
 
@@ -64,7 +65,7 @@ function MilestoneView() {
     try {
       setAnswer(await api("/ask", { method: "POST", body: JSON.stringify({ question, lang }) }));
     } catch (e) {
-      setAnswer({ answer: e instanceof Error ? e.message : "Failed", urgent: false });
+      setAnswer({ answer: e instanceof Error ? e.message : tr("Something went wrong. Please try again."), urgent: false });
     } finally {
       setAsking(false);
     }
@@ -79,7 +80,7 @@ function MilestoneView() {
       rec.ondataavailable = (e) => chunks.push(e.data);
       const done = new Promise<void>((resolve) => { rec.onstop = () => resolve(); });
       rec.start();
-      setListenMsg("Recording… tap Ask again to stop");
+      setListenMsg(tr("Listening… speak your question now"));
       await new Promise((r) => setTimeout(r, 4000));
       rec.stop();
       await done;
@@ -91,10 +92,10 @@ function MilestoneView() {
       const res = await apiForm<{ transcript: string; answer: string; urgent: boolean; audio_base64: string | null }>("/ask/voice", form);
       setQuestion(res.transcript);
       setAnswer({ answer: res.answer, urgent: res.urgent });
-      if (res.audio_base64) new Audio(`data:audio/mpeg;base64,${res.audio_base64}`).play();
+      if (res.audio_base64) new Audio(`data:audio/wav;base64,${res.audio_base64}`).play();
       setListenMsg("");
     } catch {
-      setListenMsg("Voice Ask needs the Sarvam key (Saarika). Text Ask works without it.");
+      setListenMsg(tr("Voice questions are not available right now. You can type your question instead."));
     } finally {
       setAsking(false);
     }
@@ -102,7 +103,7 @@ function MilestoneView() {
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
     load().catch((e) => setError(e instanceof Error ? e.message : "Failed"));
-  }, [id, router]);
+  }, [id, router, lang]);
 
   async function complete() {
     await api(`/milestones/${id}/complete`, { method: "POST", body: JSON.stringify({}) });
@@ -115,13 +116,13 @@ function MilestoneView() {
   }
 
   if (error) return <main className="pt-16 text-red-600">{error}</main>;
-  if (!m) return <main className="pt-16 text-ink/50">Loading…</main>;
+  if (!m) return <main className="pt-16 text-ink/50">{t("loading", lang)}</main>;
 
   return (
     <main className="pt-6">
       <button onClick={() => router.back()} className="text-sm text-brand">← {t("appName", lang)}</button>
       <div className="mt-2 flex items-start justify-between gap-2">
-        <h1 className="text-xl font-bold">{m.title}</h1>
+        <h1 className="text-xl font-bold">{tr(m.title)}</h1>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLOR[m.status]}`}>
           {t(m.status, lang)}{m.overdue ? ` · ${t("overdue", lang)}` : ""}
         </span>
@@ -135,14 +136,14 @@ function MilestoneView() {
       {m.signoff ? (
         <div className="mt-4 rounded-2xl border border-green-300 bg-green-50 p-3 text-sm">
           ✅ {t("signedOffBy", lang)} <b>{m.signoff.doctor_name}</b>
-          {m.signoff.note ? <p className="mt-1 text-ink/70">{m.signoff.note}</p> : null}
+          {m.signoff.note ? <p className="mt-1 text-ink/70">{tr(m.signoff.note)}</p> : null}
         </div>
       ) : null}
 
       {m.prep_notes ? (
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="text-sm font-semibold">{t("prepNotes", lang)}</h2>
-          <p className="mt-1 text-sm text-ink/70">{m.prep_notes}</p>
+          <p className="mt-1 text-sm text-ink/70">{tr(m.prep_notes)}</p>
         </section>
       ) : null}
 
@@ -166,18 +167,18 @@ function MilestoneView() {
         <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex gap-2">
             <input value={question} onChange={(e) => setQuestion(e.target.value)}
-              placeholder={lang === "en" ? "Ask about this check-up…" : "ചോദിക്കൂ…"}
+              placeholder={tr("Ask about this check-up…")}
               className="flex-1 rounded-xl border border-ink/15 p-3 text-sm" />
             <button onClick={ask} disabled={asking} className="rounded-xl bg-brand px-4 text-sm font-semibold text-white disabled:opacity-40">
               {asking ? "…" : t("ask", lang)}
             </button>
-            <button onClick={askVoice} disabled={asking} title="Ask by voice" className="rounded-xl border border-brand px-3 text-brand disabled:opacity-40">🎙️</button>
+            <button onClick={askVoice} disabled={asking} title={tr("Ask by voice")} className="rounded-xl border border-brand px-3 text-brand disabled:opacity-40">🎙️</button>
           </div>
           {answer ? (
             <p className={`mt-3 rounded-xl p-3 text-sm ${answer.urgent ? "bg-red-50 text-red-800 ring-1 ring-red-200" : "bg-ink/5 text-ink/80"}`}>
               {answer.answer}
-              {answer.note ? <span className="block mt-1 text-xs text-ink/50">{answer.note}</span> : null}
-              {answer.citation ? <span className="block mt-1 text-xs text-ink/50">Source: {answer.citation.source}</span> : null}
+              {answer.note ? <span className="block mt-1 text-xs text-ink/50">{tr(answer.note)}</span> : null}
+              {answer.citation ? <span className="block mt-1 text-xs text-ink/50">{tr("Source")}: {tr(answer.citation.source)}</span> : null}
             </p>
           ) : null}
         </section>
@@ -189,7 +190,7 @@ function MilestoneView() {
           <ul className="mt-2 space-y-1 text-sm">
             {m.observations.map((o) => (
               <li key={o.id} className="flex justify-between">
-                <span className="uppercase text-ink/60">{o.code.replace(/_/g, " ")}</span>
+                <span className="uppercase text-ink/60">{tr(o.code.replace(/_/g, " "))}</span>
                 <span className="font-medium">{o.value} {o.unit}</span>
               </li>
             ))}
@@ -201,7 +202,7 @@ function MilestoneView() {
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="text-sm font-semibold">{t("reports", lang)}</h2>
           <ul className="mt-2 space-y-1 text-sm text-ink/70">
-            {m.documents.map((d) => <li key={d.id}>📄 {d.filename} ({d.status})</li>)}
+            {m.documents.map((d) => <li key={d.id}>📄 {d.filename} ({tr(d.status)})</li>)}
           </ul>
         </section>
       ) : null}
@@ -226,7 +227,7 @@ function MilestoneView() {
 
 export default function MilestonePage() {
   return (
-    <Suspense fallback={<main className="pt-16 text-ink/50">Loading…</main>}>
+    <Suspense fallback={<main className="pt-16 text-ink/50">…</main>}>
       <MilestoneView />
     </Suspense>
   );

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken, setToken } from "@/lib/api";
-import { t, LANGS, type Lang } from "@/lib/i18n";
+import { t, LANGS, useLang, useTr, type Lang } from "@/lib/i18n";
 import type { Journey, Milestone, MilestoneStatus, NextUp } from "@/lib/types";
 
 const TYPE_ICON: Record<Milestone["type"], string> = {
@@ -10,14 +10,14 @@ const TYPE_ICON: Record<Milestone["type"], string> = {
 };
 const ZONE_ORDER: MilestoneStatus[] = ["now", "upcoming", "next", "done"];
 
-function MilestoneCard({ m, lang }: { m: Milestone; lang: Lang }) {
+function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: string) => string }) {
   const router = useRouter();
   return (
     <button onClick={() => router.push(`/milestone?id=${m.id}`)}
       className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm">
       <span className="text-xl">{TYPE_ICON[m.type]}</span>
       <span className="flex-1">
-        <span className="block font-medium">{m.title}</span>
+        <span className="block font-medium">{tr(m.title)}</span>
         <span className="block text-xs text-ink/50">
           {m.status === "done" && m.completed_at ? `✓ ${m.completed_at}` : null}
           {m.status === "upcoming" && m.scheduled_date ? `📅 ${m.scheduled_date}` : null}
@@ -35,7 +35,9 @@ export default function HomePage() {
   const router = useRouter();
   const [journey, setJourney] = useState<Journey | null>(null);
   const [nextUp, setNextUp] = useState<NextUp | null>(null);
-  const [lang, setLang] = useState<Lang>("en");
+  const [patientLang, setPatientLang] = useState<string | undefined>(undefined);
+  const [lang, setLang] = useLang(patientLang);
+  const tr = useTr(lang);
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(false);
 
@@ -54,7 +56,7 @@ export default function HomePage() {
             const cached = localStorage.getItem("ct:nextup");
             if (cached) setNextUp(JSON.parse(cached));
           });
-        setLang((["en", "ml", "hi"].includes(j.patient.language) ? j.patient.language : "en") as Lang);
+        setPatientLang(j.patient.language);
       } catch (err) {
         // Offline fallback: last-loaded timeline from localStorage.
         const cached = localStorage.getItem("ct:journey");
@@ -63,7 +65,7 @@ export default function HomePage() {
           setJourney(j);
           const cu = localStorage.getItem("ct:nextup");
           if (cu) setNextUp(JSON.parse(cu));
-          setLang((["en", "ml", "hi"].includes(j.patient.language) ? j.patient.language : "en") as Lang);
+          setPatientLang(j.patient.language);
           setOffline(true);
         } else {
           setError(err instanceof Error ? err.message : "Failed to load");
@@ -73,7 +75,7 @@ export default function HomePage() {
   }, [router]);
 
   if (error) return <main className="pt-16 text-red-600">{error}</main>;
-  if (!journey) return <main className="pt-16 text-ink/50">Loading…</main>;
+  if (!journey) return <main className="pt-16 text-ink/50">{t("loading", lang)}</main>;
 
   const zones: Record<MilestoneStatus, Milestone[]> = { now: [], upcoming: [], next: [], done: [] };
   for (const m of journey.milestones) zones[m.status].push(m);
@@ -106,22 +108,22 @@ export default function HomePage() {
       {journey.next_appointment ? (
         <div className="mt-4 rounded-2xl bg-brand p-4 text-white shadow">
           <p className="text-xs uppercase tracking-wide opacity-80">{t("nextAppointment", lang)}</p>
-          <p className="mt-1 font-semibold">{journey.next_appointment.title}</p>
+          <p className="mt-1 font-semibold">{tr(journey.next_appointment.title)}</p>
           <p className="text-sm opacity-90">📅 {journey.next_appointment.scheduled_date}</p>
         </div>
       ) : null}
 
       {nextUp?.milestone ? (
         <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">Get ready: {nextUp.milestone.title}</p>
-          {nextUp.purpose ? <p className="mt-2 text-sm text-ink/80">{nextUp.purpose}</p> : null}
-          {nextUp.what_to_bring ? <p className="mt-2 text-sm">🎒 <span className="text-ink/80">{nextUp.what_to_bring}</span></p> : null}
-          {nextUp.fasting ? <p className="mt-2 text-sm">🍽️ <span className="font-medium text-amber-800">{nextUp.fasting}</span></p> : null}
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">{tr("Get ready")}: {tr(nextUp.milestone.title)}</p>
+          {nextUp.purpose ? <p className="mt-2 text-sm text-ink/80">{tr(nextUp.purpose)}</p> : null}
+          {nextUp.what_to_bring ? <p className="mt-2 text-sm">🎒 <span className="text-ink/80">{tr(nextUp.what_to_bring)}</span></p> : null}
+          {nextUp.fasting ? <p className="mt-2 text-sm">🍽️ <span className="font-medium text-amber-800">{tr(nextUp.fasting)}</span></p> : null}
           {nextUp.questions && nextUp.questions.length > 0 ? (
             <details className="mt-2 text-sm">
-              <summary className="cursor-pointer text-brand">Questions worth asking</summary>
+              <summary className="cursor-pointer text-brand">{tr("Questions worth asking")}</summary>
               <ul className="mt-1 list-disc pl-5 text-ink/70">
-                {nextUp.questions.map((q) => <li key={q}>{q}</li>)}
+                {nextUp.questions.map((q) => <li key={q}>{tr(q)}</li>)}
               </ul>
             </details>
           ) : null}
@@ -142,7 +144,7 @@ export default function HomePage() {
                 {t(zone, lang)} · {zones[zone].length}
               </h2>
               <div className={`space-y-2 ${zone === "done" ? "opacity-70" : ""}`}>
-                {zones[zone].map((m) => <MilestoneCard key={m.id} m={m} lang={lang} />)}
+                {zones[zone].map((m) => <MilestoneCard key={m.id} m={m} lang={lang} tr={tr} />)}
               </div>
             </section>
           )
@@ -152,7 +154,7 @@ export default function HomePage() {
       <section className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4">
         <h2 className="text-sm font-semibold text-red-800">{t("dangerSigns", lang)}:</h2>
         <ul className="mt-1 list-inside list-disc text-sm text-red-700">
-          {journey.danger_signs.map((s) => <li key={s}>{s}</li>)}
+          {journey.danger_signs.map((s) => <li key={s}>{tr(s)}</li>)}
         </ul>
       </section>
 
