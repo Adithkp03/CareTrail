@@ -36,7 +36,10 @@ export default function DoctorPage() {
       body: JSON.stringify({ journey_id: journey.journey_id, observation_id: flag.observation_id, note: "Reviewed." }),
     });
     setMessage(`✅ ${tr(flag.label)}`);
-    await load();
+    // show the sign-off right away; a re-fetch can come back stale
+    const who = doctorName.trim();
+    setJourney((j) => j && { ...j, flags: j.flags.map((f) => f.observation_id === flag.observation_id ? { ...f, signed_off: { doctor_name: who, note: "Reviewed.", signed_at: new Date().toISOString() } } : f) });
+    load().catch(() => {});
   }
 
   async function resetDemo() {
