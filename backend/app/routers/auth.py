@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,11 +23,14 @@ def _issue_token(db: Session, patient: Patient) -> dict:
 def signup(body: SignupRequest, db: Session = Depends(get_db)):
     if db.query(Patient).filter(Patient.phone == body.phone).first():
         raise HTTPException(status_code=409, detail="An account with this phone already exists")
+    if not body.consent:
+        raise HTTPException(status_code=422, detail="Consent is required to create an account")
     patient = Patient(
         name=body.name.strip(),
         phone=body.phone.strip(),
         language=body.language,
         password_hash=hash_password(body.password),
+        consent_at=datetime.now(timezone.utc),
     )
     db.add(patient)
     db.commit()

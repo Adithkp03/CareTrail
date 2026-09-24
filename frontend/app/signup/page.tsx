@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [lang, setLang] = useState<Lang>("en");
+  const [consent, setConsent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +20,7 @@ export default function SignupPage() {
     try {
       const res = await api<{ token: string }>("/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), password, language: lang }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), password, language: lang, consent }),
       }, false);
       setToken(res.token);
       router.push("/new-journey");
@@ -45,8 +46,12 @@ export default function SignupPage() {
             </button>
           ))}
         </div>
+        <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-sm text-ink/70 shadow-sm">
+          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+          <span>I understand CareTrail keeps my pregnancy timeline and reports on this service, uses AI to read my reports and answer questions, and never replaces my doctor. I agree to my data being used this way.</span>
+        </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button disabled={busy} className="w-full rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-50">
+        <button disabled={busy || !consent} className="w-full rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-50">
           {t("signup", lang)}
         </button>
       </form>
