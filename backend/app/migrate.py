@@ -6,7 +6,11 @@ from sqlalchemy import inspect, text
 from .database import engine
 
 _PATCHES = {
-    "patients": {"consent_at": "ALTER TABLE patients ADD COLUMN consent_at DATETIME"},
+    "patients": {
+        "consent_at": "ALTER TABLE patients ADD COLUMN consent_at DATETIME",
+        "supabase_id": "ALTER TABLE patients ADD COLUMN supabase_id VARCHAR(64)",
+        "email": "ALTER TABLE patients ADD COLUMN email VARCHAR(200)",
+    },
 }
 
 

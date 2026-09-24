@@ -1,6 +1,9 @@
+import secrets
 from datetime import datetime, timezone
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -8,6 +11,7 @@ from ..deps import get_current_patient
 from ..models import AuthToken, Patient
 from ..schemas import LoginRequest, SignupRequest
 from ..security import hash_password, new_token, token_expiry, verify_password
+from ..supabase_auth import verify_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -53,3 +57,44 @@ def me(patient: Patient = Depends(get_current_patient)):
         "phone": patient.phone,
         "language": patient.language,
     }
+
+
+class SupabaseExchangeRequest(BaseModel):
+    access_token: str
+    consent: bool = False
+    language: str = "en"
+
+
+@router.post("/supabase")
+def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_db)):
+    """Bridge Supabase Auth into CareTrail sessions. The frontend signs the user
+    in with Supabase (email magic link / OTP), then trades the Supabase access
+    token for a CareTrail token. First sign-in provisions the patient row."""
+    try:
+        ident = verify_access_token(body.access_token)
+    except RuntimeError:
+        raise HTTPException(status_code=501, detail="Supabase auth is not configured on this server")
+    except (jwt.PyJWTError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid Supabase token")
+
+    patient = db.query(Patient).filter(Patient.supabase_id == ident["sub"]).first()
+    if patient is None:
+        if not body.consent:
+            raise HTTPException(status_code=422, detail="Consent is required to create an account")
+        # Phone comes from a Supabase phone claim when present; otherwise a
+        # placeholder keeps the unique column satisfied (user can add one later).
+        phone = ident["phone"] or ("sb-" + ident["sub"].replace("-", "")[:29])
+        name = ident["name"] or (ident["email"].split("@")[0] if ident["email"] else "Patient")
+        patient = Patient(
+            name=name[:120],
+            phone=phone,
+            email=ident["email"] or None,
+            supabase_id=ident["sub"],
+            language=body.language if body.language in ("en", "ml", "hi") else "en",
+            # Unguessable password: legacy login stays closed for this account.
+            password_hash=hash_password(secrets.token_hex(16)),
+            consent_at=datetime.now(timezone.utc),
+        )
+        db.add(patient)
+        db.commit()
+    return _issue_token(db, patient)
