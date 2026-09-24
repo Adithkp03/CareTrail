@@ -66,7 +66,7 @@ def _embed(texts: list[str]) -> list[list[float]] | None:
             for text in texts:
                 r = c.post(
                     "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-                    params={"key": os.environ["GEMINI_API_KEY"]},
+                    headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
                     json={"content": {"parts": [{"text": text}]}},
                 )
                 r.raise_for_status()

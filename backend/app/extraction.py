@@ -159,19 +159,33 @@ def provider_extract(text: str, language: str, template: dict) -> tuple[list[dic
             raw = data.get("output") or data.get("text") or "[]"
             return json.loads(raw), "sarvam-vision"
         if language == "en" and os.getenv("GEMINI_API_KEY"):
-            resp = httpx.post(
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-                params={"key": os.environ["GEMINI_API_KEY"]},
-                json={
-                    "contents": [{"parts": [{"text": "Extract lab test values from this report.\n" + schema_hint + "\n\n" + text}]}],
-                    "generationConfig": {"responseMimeType": "application/json"},
-                },
-                timeout=30,
-            )
+            body = {
+                "contents": [{"parts": [{"text": "Extract lab test values from this report.\n" + schema_hint + "\n\n" + text}]}],
+                "generationConfig": {"responseMimeType": "application/json"},
+            }
+            resp = None
+            # key goes in a header so it never shows up in URLs or logs;
+            # fall through to a lighter model when one is overloaded (503/429)
+            for model in ("gemini-flash-latest", "gemini-flash-lite-latest"):
+                resp = httpx.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
+                    json=body,
+                    timeout=30,
+                )
+                if resp.status_code not in (404, 429, 500, 503):
+                    break
             resp.raise_for_status()
             raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(raw), "gemini-flash"
-    except Exception:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                parsed = parsed.get("values") or parsed.get("results") or next((v for v in parsed.values() if isinstance(v, list)), [])
+            return parsed, "gemini-flash"
+    except Exception as exc:  # keep the offline fallback, but leave a trace in the logs
+        resp = getattr(exc, "response", None)
+        status = getattr(resp, "status_code", "")
+        detail = (getattr(resp, "text", "") or "")[:200]
+        print(f"[extraction] provider error: {type(exc).__name__} {status} {detail}")
         return None, "provider-error"
     return None, "no-key"
 

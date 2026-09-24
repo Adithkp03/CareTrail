@@ -103,7 +103,10 @@ def explanation_audio(db: Session, cache_prefix: str, language: str) -> bytes | 
     if row.audio_path:
         from .storage import read_upload
 
-        return read_upload(row.audio_path)
+        try:
+            return read_upload(row.audio_path)
+        except OSError:
+            pass  # serverless /tmp is per-instance; regenerate below
     audio = voice.tts(row.text, language)
     if audio is None:
         return None
