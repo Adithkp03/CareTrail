@@ -87,3 +87,21 @@ supabase/
 
 Next: phase 2 (timeline UI) consumes `GET /journey/{id}`; phase 3 adds report upload and
 extraction through Sarvam Vision / Gemini, writing Observation rows this API already serves.
+
+## Android app (APK)
+
+The frontend is wrapped with Capacitor (`frontend/android`, app id `com.caretrail.app`):
+the Next.js app is statically exported (`next build` -> `out/`) and embedded in the shell.
+
+**Get the APK from CI:** every push to `main` that touches `frontend/` (or a manual
+"Android APK (debug)" run from the Actions tab) builds `app-debug.apk` and uploads it as
+the `caretrail-debug-apk` artifact. Download, copy to the phone, allow "install unknown
+apps", install. Debug build - sideloading only, no Play Store signing.
+
+**The phone must be able to reach the backend.** The API URL is baked in at build time:
+set the repo variable `APK_API_URL` (Settings > Secrets and variables > Actions) to your
+laptop's LAN IP while testing at home (`http://192.168.x.x:8000`), or to the hosted API
+once the backend is deployed (Render/Railway, per the build plan - the hosting step).
+`http://localhost:8000` works on your laptop but never from a phone.
+
+**Build locally instead:** needs Android Studio / Android SDK. `cd frontend && npm run build && npx cap sync && npx cap open android`, then Build > Build APK.
