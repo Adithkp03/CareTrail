@@ -23,10 +23,23 @@ function MilestoneView() {
   const [asking, setAsking] = useState(false);
 
   async function load() {
-    setM(await api<Milestone>(`/milestones/${id}`));
+    // Offline fallback: serve last-loaded content from localStorage on failure.
     try {
-      setExplanation(await api(`/milestones/${id}/explanation?lang=${lang}`));
-    } catch { /* explanation is best-effort */ }
+      const fresh = await api<Milestone>(`/milestones/${id}`);
+      setM(fresh);
+      localStorage.setItem(`ct:ms:${id}`, JSON.stringify(fresh));
+    } catch {
+      const cached = localStorage.getItem(`ct:ms:${id}`);
+      if (cached) setM(JSON.parse(cached));
+    }
+    try {
+      const ex = await api<{ text: string; provider: string }>(`/milestones/${id}/explanation?lang=${lang}`);
+      setExplanation(ex);
+      localStorage.setItem(`ct:expl:${id}:${lang}`, JSON.stringify(ex));
+    } catch {
+      const cached = localStorage.getItem(`ct:expl:${id}:${lang}`);
+      if (cached) setExplanation(JSON.parse(cached));
+    }
   }
 
   async function listen() {

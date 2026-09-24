@@ -37,6 +37,7 @@ export default function HomePage() {
   const [nextUp, setNextUp] = useState<NextUp | null>(null);
   const [lang, setLang] = useState<Lang>("en");
   const [error, setError] = useState("");
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
@@ -46,9 +47,28 @@ export default function HomePage() {
         if (list.journeys.length === 0) { router.replace("/new-journey"); return; }
         const j = await api<Journey>(`/journey/${list.journeys[0].journey_id}`);
         setJourney(j);
-        api<NextUp>(`/journey/${j.journey_id}/next-up`).then(setNextUp).catch(() => {});
+        localStorage.setItem("ct:journey", JSON.stringify(j));
+        api<NextUp>(`/journey/${j.journey_id}/next-up`)
+          .then((n) => { setNextUp(n); localStorage.setItem("ct:nextup", JSON.stringify(n)); })
+          .catch(() => {
+            const cached = localStorage.getItem("ct:nextup");
+            if (cached) setNextUp(JSON.parse(cached));
+          });
         setLang((["en", "ml", "hi"].includes(j.patient.language) ? j.patient.language : "en") as Lang);
-      } catch (err) { setError(err instanceof Error ? err.message : "Failed to load"); }
+      } catch (err) {
+        // Offline fallback: last-loaded timeline from localStorage.
+        const cached = localStorage.getItem("ct:journey");
+        if (cached) {
+          const j = JSON.parse(cached) as Journey;
+          setJourney(j);
+          const cu = localStorage.getItem("ct:nextup");
+          if (cu) setNextUp(JSON.parse(cu));
+          setLang((["en", "ml", "hi"].includes(j.patient.language) ? j.patient.language : "en") as Lang);
+          setOffline(true);
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load");
+        }
+      }
     })();
   }, [router]);
 
@@ -60,6 +80,11 @@ export default function HomePage() {
 
   return (
     <main className="pt-6">
+      {offline && (
+        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Offline - showing your last loaded timeline.
+        </p>
+      )}
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm text-ink/60">{journey.patient.name}</p>
