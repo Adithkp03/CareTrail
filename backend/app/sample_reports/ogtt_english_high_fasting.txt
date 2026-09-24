@@ -1,0 +1,9 @@
+LAB REPORT - Oral Glucose Tolerance Test (75 g OGTT)
+Patient: Demo Patient
+Date: 2026-09-21
+
+Fasting glucose: 95 mg/dL   (reference: < 92)
+1 hour glucose: 171 mg/dL   (reference: < 180)
+2 hour glucose: 140 mg/dL   (reference: < 153)
+
+Note: synthetic report for demo use.

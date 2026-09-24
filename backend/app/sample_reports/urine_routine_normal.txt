@@ -1,0 +1,11 @@
+LAB REPORT - Urine Routine
+Patient: Demo Patient
+Date: 2026-09-20
+
+Colour: pale yellow
+pH: 6.0
+Pus cells: 2-3 /hpf
+Albumin: nil
+Sugar: nil
+
+Note: synthetic report for demo use. No tracked values - confirms cleanly with no flags.
