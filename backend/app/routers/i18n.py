@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from .. import voice
 from ..database import get_db
 from ..deps import get_current_patient
+from ..i18n_curated import curated
 from ..models import ExplanationCache, Patient
 
 router = APIRouter(tags=["i18n"])
@@ -46,6 +47,11 @@ def translate_batch(body: TranslateRequest, patient: Patient = Depends(get_curre
         return {"lang": body.lang, "translations": {t: t for t in texts}}
 
     out: dict[str, str] = {}
+    for t in texts:
+        c = curated(t, body.lang)
+        if c:
+            out[t] = c
+    texts = [t for t in texts if t not in out]
     keys = {t: _key(t, body.lang) for t in texts}
     rows = db.query(ExplanationCache).filter(ExplanationCache.cache_key.in_(list(keys.values()))).all()
     cached = {r.cache_key: r.text for r in rows}
@@ -64,6 +70,6 @@ def translate_batch(body: TranslateRequest, patient: Patient = Depends(get_curre
                 out[t] = tr
                 db.add(ExplanationCache(cache_key=keys[t], text=tr, language=body.lang, provider="sarvam-translate", audio_path=""))
         db.commit()
-    for t in texts:
+    for t in body.texts:
         out.setdefault(t, t)  # fall back to English for anything that failed
     return {"lang": body.lang, "translations": out}
