@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 .pytest_cache/
 .DS_Store
+
+# Capacitor build output
+frontend/android/app/build/
+frontend/android/app/src/main/assets/public/
+frontend/out/

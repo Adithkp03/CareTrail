@@ -50,3 +50,15 @@ class SignOffCreateRequest(BaseModel):
     milestone_id: str | None = None
     observation_id: str | None = None
     note: str = ""
+
+
+class ConfirmValue(BaseModel):
+    code: str
+    value: float
+    unit: str = ""
+    observed_on: date | None = None
+
+
+class DocumentConfirmRequest(BaseModel):
+    milestone_id: str | None = None
+    values: list[ConfirmValue] = Field(min_length=1, max_length=50)

@@ -105,3 +105,28 @@ once the backend is deployed (Render/Railway, per the build plan - the hosting s
 `http://localhost:8000` works on your laptop but never from a phone.
 
 **Build locally instead:** needs Android Studio / Android SDK. `cd frontend && npm run build && npx cap sync && npx cap open android`, then Build > Build APK.
+## Phase 3: reports in, flags out
+
+Upload a lab report and its values land on the mother's timeline, with a flag if
+anything is outside the doctor's thresholds.
+
+Flow: `POST /journeys/{id}/documents/upload` (multipart) stores the file,
+`POST /documents/{id}/extract` proposes values without saving them, the app shows an
+"Is this right?" card, and `POST /documents/{id}/confirm` writes the approved values
+as Observations. Flags come from the rules engine (`app/flags.py`) comparing values
+to the pathway template thresholds - an LLM never decides a flag.
+
+Extraction routing (`app/extraction.py`): Malayalam/Hindi reports go to Sarvam
+Vision, English ones to Gemini Flash with a strict JSON schema - when
+`SARVAM_API_KEY` / `GEMINI_API_KEY` are set in `backend/.env` (never committed).
+Without keys, a deterministic offline parser reads the same value patterns,
+including Malayalam and Hindi test labels, so the demo and tests work anywhere.
+Units are normalised (mmol/L -> mg/dL, g/L -> g/dL) before thresholds are applied.
+
+Five synthetic demo reports live in `backend/app/sample_reports/` - including a
+Malayalam CBC with low haemoglobin (10.2 g/dL) that raises the anaemia flag, and a
+Hindi note with high blood pressure. Upload them from the app's upload screen.
+
+Tests: `cd backend && pip install -r requirements.txt && python3 -m pytest tests/ -q`
+(33 tests, including the full upload -> extract -> confirm -> flag path and
+cross-patient access checks).

@@ -1,0 +1,8 @@
+LAB REPORT - Complete Blood Count
+Patient: Demo Patient
+Date: 2026-09-20
+
+Haemoglobin: 12.4 g/dL   (reference: 11.0 - 14.0)
+Blood pressure: 118/76 mmHg
+
+Note: synthetic report for demo use.
