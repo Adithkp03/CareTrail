@@ -171,7 +171,9 @@ def provider_extract(text: str, language: str, template: dict) -> tuple[list[dic
             resp.raise_for_status()
             raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
             return json.loads(raw), "gemini-flash"
-    except Exception:
+    except Exception as exc:  # keep the offline fallback, but leave a trace in the logs
+        detail = getattr(getattr(exc, "response", None), "text", "")[:300]
+        print(f"[extraction] provider error: {type(exc).__name__}: {exc} {detail}")
         return None, "provider-error"
     return None, "no-key"
 

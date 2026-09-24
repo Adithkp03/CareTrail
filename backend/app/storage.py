@@ -4,7 +4,8 @@ Storage in production (set STORAGE_DIR, or swap this module)."""
 import os
 from pathlib import Path
 
-STORAGE_DIR = Path(os.getenv("STORAGE_DIR", str(Path(__file__).resolve().parent.parent / "storage")))
+_DEFAULT_DIR = "/tmp/caretrail-storage" if os.getenv("VERCEL") else str(Path(__file__).resolve().parent.parent / "storage")
+STORAGE_DIR = Path(os.getenv("STORAGE_DIR", _DEFAULT_DIR))
 
 
 def save_upload(journey_id: str, document_id: str, filename: str, data: bytes) -> str:

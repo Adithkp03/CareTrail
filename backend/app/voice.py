@@ -9,8 +9,10 @@ from .privacy import strip_pii
 from .tracing import trace as _trace
 
 SARVAM_BASE = "https://api.sarvam.ai"
-CHAT_MODEL = os.getenv("SARVAM_CHAT_MODEL", "sarvam-m")
+CHAT_MODEL = os.getenv("SARVAM_CHAT_MODEL", "sarvam-105b")
 TTS_MODEL = os.getenv("SARVAM_TTS_MODEL", "bulbul:v3")
+# bulbul:v3 voices (anushka etc. were v2-only and now return 400)
+TTS_SPEAKER = os.getenv("SARVAM_TTS_SPEAKER", "priya")
 STT_MODEL = os.getenv("SARVAM_STT_MODEL", "saarika:v2.5")
 TRANSLATE_MODEL = os.getenv("SARVAM_TRANSLATE_MODEL", "mayura:v1")
 
@@ -39,7 +41,13 @@ def chat(prompt: str, db=None) -> str | None:
     with _client() as c:
         r = c.post("/v1/chat/completions", json={"model": CHAT_MODEL, "messages": [{"role": "user", "content": safe_prompt}]})
         r.raise_for_status()
-        out = r.json()["choices"][0]["message"]["content"].strip()
+        msg = r.json()["choices"][0]["message"]
+        out = (msg.get("content") or "").strip()
+        # sarvam-105b is a reasoning model; drop any inline thinking block
+        if "</think>" in out:
+            out = out.split("</think>", 1)[1].strip()
+        if not out:
+            return None
     if db is not None:
         with _trace(db, "sarvam", "chat", safe_prompt) as t:
             t.finish(out)
@@ -76,7 +84,7 @@ def tts(text: str, language: str) -> bytes | None:
                 "inputs": [text],
                 "target_language_code": LANG_NAMES.get(language, "en-IN"),
                 "model": TTS_MODEL,
-                "speaker": "anushka",
+                "speaker": TTS_SPEAKER,
             },
         )
         r.raise_for_status()
