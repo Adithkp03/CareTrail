@@ -27,6 +27,8 @@ class Patient(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    supabase_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     journeys: Mapped[list["Journey"]] = relationship(back_populates="patient")

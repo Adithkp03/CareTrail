@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
 import { t, LANGS, type Lang } from "@/lib/i18n";
+import SupabaseSignIn from "./supabase-signin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,6 +58,7 @@ export default function LoginPage() {
       <p className="mt-4 text-center text-sm">
         <a className="text-brand underline" href="/signup">{t("signup", lang)}</a>
       </p>
+      <SupabaseSignIn />
       <div className="mt-8 flex justify-center gap-2">
         {LANGS.map((l) => (
           <button key={l.code} onClick={() => setLang(l.code)}
