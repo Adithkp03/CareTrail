@@ -164,3 +164,23 @@ def test_signoff_lands_on_the_timeline_and_audit_trail_records_actions(client):
     db = next(iter(client.app.dependency_overrides[get_db]()))
     actions = [row.action for row in db.query(AuditLog).all()]
     assert "signoff" in actions
+
+
+def test_demo_seed_is_idempotent_and_resets_state(client):
+    """Clicking 'Try the demo' twice must not 500, and must restore Anjali's start state."""
+    first = client.post("/demo/seed")
+    assert first.status_code == 200
+    token = client.post("/auth/login", json={"phone": DEMO_PHONE, "password": DEMO_PASSWORD}).json()["token"]
+    jid = first.json()["journey_id"]
+    journey = client.get(f"/journey/{jid}", headers=auth(token)).json()
+    review = next(m for m in journey["milestones"] if m["key"] == "second_trimester_review")
+    client.post(f"/milestones/{review['id']}/complete", json={}, headers=auth(token))
+
+    second = client.post("/demo/seed")
+    assert second.status_code == 200, second.text
+    fresh_jid = second.json()["journey_id"]
+    fresh = client.get(f"/journey/{fresh_jid}", headers=auth(token)).json()
+    status = {m["key"]: m["status"] for m in fresh["milestones"]}
+    assert status["second_trimester_review"] == "now"  # reset, not still done
+    assert status["anomaly_scan"] == "upcoming"
+    assert (fresh["gestational_age"]["weeks"], fresh["gestational_age"]["plus_days"]) == (22, 0)
