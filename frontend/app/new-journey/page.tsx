@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { t, type Lang } from "@/lib/i18n";
+import { t, useLang } from "@/lib/i18n";
 
 export default function NewJourneyPage() {
   const router = useRouter();
@@ -10,23 +10,23 @@ export default function NewJourneyPage() {
   const [edd, setEdd] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const lang: Lang = "en";
+  const [lang] = useLang();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!lmp && !edd) { setError("Give one of the two dates"); return; }
+    if (!lmp && !edd) { setError(t("giveOneDate", lang)); return; }
     setBusy(true); setError("");
     try {
       await api("/journeys", { method: "POST", body: JSON.stringify(lmp ? { lmp } : { edd }) });
       router.push("/");
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not start journey"); setBusy(false); }
+    } catch (err) { setError(err instanceof Error ? err.message : t("couldNotStart", lang)); setBusy(false); }
   }
 
   return (
     <main className="pt-16">
       <h1 className="text-2xl font-bold text-brand">{t("startJourney", lang)}</h1>
       <p className="mt-2 text-sm text-ink/60">
-        We build your timeline from one date. Everything after that updates on its own.
+        {t("journeyIntro", lang)}
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-5">
         <div>

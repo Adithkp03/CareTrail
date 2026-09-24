@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
-import { t, LANGS, type Lang } from "@/lib/i18n";
+import { t, LANGS, useLang } from "@/lib/i18n";
 import SupabaseSignIn from "./supabase-signin";
 
 export default function LoginPage() {
@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLang] = useLang();
 
   async function doLogin(p: string, pw: string) {
     const res = await api<{ token: string }>("/auth/login", {
@@ -26,7 +26,7 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true); setError("");
     try { await doLogin(phone.trim(), password); }
-    catch (err) { setError(err instanceof Error ? err.message : "Login failed"); setBusy(false); }
+    catch (err) { setError(err instanceof Error && err.message === "Wrong phone or password" ? t("wrongLogin", lang) : t("loginFailed", lang)); setBusy(false); }
   }
 
   async function tryDemo() {
@@ -34,13 +34,13 @@ export default function LoginPage() {
     try {
       await api("/demo/seed", { method: "POST" }, false);
       await doLogin("9000000001", "demo1234");
-    } catch (err) { setError(err instanceof Error ? err.message : "Demo failed"); setBusy(false); }
+    } catch { setError(t("demoFailed", lang)); setBusy(false); }
   }
 
   return (
     <main className="pt-16">
       <h1 className="text-3xl font-bold text-brand">{t("appName", lang)}</h1>
-      <p className="mt-1 text-sm text-ink/60">Done, now, next - in her own language.</p>
+      <p className="mt-1 text-sm text-ink/60">{t("tagline", lang)}</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("phone", lang)}
           value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
@@ -58,7 +58,7 @@ export default function LoginPage() {
       <p className="mt-4 text-center text-sm">
         <a className="text-brand underline" href="/signup">{t("signup", lang)}</a>
       </p>
-      <SupabaseSignIn />
+      <SupabaseSignIn lang={lang} />
       <div className="mt-8 flex justify-center gap-2">
         {LANGS.map((l) => (
           <button key={l.code} onClick={() => setLang(l.code)}

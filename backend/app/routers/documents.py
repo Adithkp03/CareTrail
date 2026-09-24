@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
-from ..extraction import KNOWN_TEST_CODES, detect_language, extract_values, normalize_value
+from ..extraction import KNOWN_TEST_CODES, detect_language, extract_image, extract_values, normalize_value
 from ..flags import compute_flags
 from ..models import Document, Milestone, Observation, Patient
 from ..schemas import DocumentConfirmRequest
@@ -84,11 +84,20 @@ def extract_document(
             raise HTTPException(status_code=415, detail="PDF text reading needs the pypdf package (or an API key for vision extraction)")
         if not text.strip():
             raise HTTPException(status_code=422, detail="No readable text in this PDF (scanned reports need a vision API key)")
+    elif doc.content_type.startswith("image/") or doc.filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".heic")):
+        text = None
     else:
-        raise HTTPException(status_code=415, detail="This file type needs a vision API key (photo/scan extraction)")
+        raise HTTPException(status_code=415, detail="Unsupported file type. Upload a photo, PDF or text report.")
 
-    doc.language = detect_language(text)
-    proposed, provider = extract_values(text, doc.language, template)
+    if text is None:
+        ext = doc.filename.lower().rsplit(".", 1)[-1]
+        mime = doc.content_type if doc.content_type.startswith("image/") else {"jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "heic": "image/heic"}.get(ext, "image/png")
+        proposed, provider, doc.language = extract_image(raw, mime, template)
+        if provider in ("no-key", "provider-error"):
+            raise HTTPException(status_code=503, detail="Could not read this photo right now. Please try again, or upload a PDF.")
+    else:
+        doc.language = detect_language(text)
+        proposed, provider = extract_values(text, doc.language, template)
     doc.status = "extracted"
     audit(db, f"patient:{patient.id}", "extract_document", "document", doc.id, {"provider": provider, "language": doc.language})
     db.commit()

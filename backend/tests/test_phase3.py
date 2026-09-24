@@ -216,3 +216,38 @@ def test_report_with_no_tracked_values_confirms_clean(client):
     assert ext["proposed"] == [] and ext["message"]
     # confirming with zero observations is a client choice; API requires >= 1 value,
     # so a no-value report simply needs no confirm call.
+
+
+def test_photo_report_extracts_via_vision(client, monkeypatch):
+    import app.extraction as ex
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setattr(ex, "_gemini_json", lambda parts: {"language": "en", "values": [
+        {"code": "hb", "value": 10.2, "unit": "g/dL", "observed_on": "2026-09-20", "confidence": 0.9},
+        {"code": "bp_sys", "value": 128, "unit": "mmHg", "observed_on": "2026-09-20", "confidence": 0.9},
+        {"code": "made_up", "value": 1, "unit": "x"},
+    ]})
+    token = signup(client)["token"]
+    j = make_journey(client, token)
+    r = client.post(
+        f"/journeys/{j['journey_id']}/documents/upload",
+        files={"file": ("report.jpg", io.BytesIO(b"\xff\xd8fakejpeg"), "image/jpeg")},
+        headers=auth(token),
+    )
+    doc_id = r.json()["document_id"]
+    body = client.post(f"/documents/{doc_id}/extract", headers=auth(token)).json()
+    assert body["provider"] == "gemini-vision"
+    assert sorted(v["code"] for v in body["proposed"]) == ["bp_sys", "hb"]
+
+
+def test_photo_without_key_gives_clear_error(client, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    token = signup(client)["token"]
+    j = make_journey(client, token)
+    r = client.post(
+        f"/journeys/{j['journey_id']}/documents/upload",
+        files={"file": ("report.png", io.BytesIO(b"\x89PNGfake"), "image/png")},
+        headers=auth(token),
+    )
+    r = client.post(f"/documents/{r.json()['document_id']}/extract", headers=auth(token))
+    assert r.status_code == 503

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from .migrate import apply as apply_migrations
-from .routers import auth, demo, documents, flags, journeys, milestones, prep, signoffs, trust, voice
+from .routers import auth, demo, documents, flags, i18n, journeys, milestones, prep, signoffs, trust, voice
 
 Base.metadata.create_all(engine)
 apply_migrations()
@@ -28,6 +28,7 @@ app.include_router(demo.router)
 app.include_router(voice.router)
 app.include_router(prep.router)
 app.include_router(trust.router)
+app.include_router(i18n.router)
 
 
 @app.get("/health")

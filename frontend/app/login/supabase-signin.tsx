@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
+import { t, type Lang } from "@/lib/i18n";
 
-export default function SupabaseSignIn() {
+export default function SupabaseSignIn({ lang = "en" }: { lang?: Lang }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -32,7 +33,7 @@ export default function SupabaseSignIn() {
         await supabase.auth.signOut();
         router.push("/");
       } catch (e) {
-        setMsg(e instanceof Error ? e.message : "Sign-in failed");
+        setMsg(t("signinFailed", lang));
         setBusy(false);
       }
     });
@@ -42,7 +43,7 @@ export default function SupabaseSignIn() {
 
   async function sendLink(e: React.FormEvent) {
     e.preventDefault();
-    if (!consent) { setMsg("Please tick the consent box first."); return; }
+    if (!consent) { setMsg(t("tickConsent", lang)); return; }
     setBusy(true); setMsg("");
     const { error } = await supabase!.auth.signInWithOtp({
       email: email.trim(),
@@ -50,22 +51,22 @@ export default function SupabaseSignIn() {
     });
     if (error) { setMsg(error.message); setBusy(false); return; }
     localStorage.setItem("caretrail_consent", "yes");
-    setMsg("Check your email for the sign-in link.");
+    setMsg(t("checkEmail", lang));
     setBusy(false);
   }
 
   return (
     <form onSubmit={sendLink} className="mt-6 rounded-2xl border border-ink/10 bg-white p-4">
-      <p className="text-sm font-semibold text-ink/70">Or sign in with email</p>
-      <input className="mt-2 w-full rounded-xl border border-ink/15 bg-white p-3" placeholder="Email"
+      <p className="text-sm font-semibold text-ink/70">{t("orEmail", lang)}</p>
+      <input className="mt-2 w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("email", lang)}
         type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <label className="mt-2 flex items-start gap-2 text-xs text-ink/60">
         <input type="checkbox" className="mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        I consent to CareTrail storing my pregnancy data to personalize my care.
+        {t("emailConsent", lang)}
       </label>
       {msg && <p className="mt-2 text-sm text-brand">{msg}</p>}
       <button disabled={busy} className="mt-2 w-full rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-50">
-        Email me a sign-in link
+        {t("sendLink", lang)}
       </button>
     </form>
   );
