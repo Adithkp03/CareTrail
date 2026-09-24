@@ -13,3 +13,4 @@ frontend/out/
 backend/storage/
 backend/caretrail.db
 backend/app/guidance_corpus.local.json
+tsconfig.tsbuildinfo

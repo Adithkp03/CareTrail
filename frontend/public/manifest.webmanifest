@@ -1,0 +1,12 @@
+{
+  "name": "CareTrail",
+  "short_name": "CareTrail",
+  "description": "Done, now, next - pregnancy care in her own language.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#2f6f5e",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

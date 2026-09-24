@@ -38,12 +38,24 @@ export default function DoctorPage() {
     await load();
   }
 
+  async function resetDemo() {
+    if (!confirm("Reset the demo journey? This restores Anjali to the starting state.")) return;
+    await api("/demo/seed", { method: "POST" }, false);
+    setMessage("✅ Demo reset - Anjali is back to the starting state.");
+    await load();
+  }
+
   if (!journey) return <main className="pt-16 text-ink/50">{message || "Loading…"}</main>;
 
   return (
     <main className="pt-6">
       <a href="/" className="text-sm text-brand">← {t("appName", lang)}</a>
-      <h1 className="mt-2 text-xl font-bold">{t("doctorView", lang)}</h1>
+      <div className="mt-2 flex items-center justify-between">
+        <h1 className="text-xl font-bold">{t("doctorView", lang)}</h1>
+        <button onClick={resetDemo} className="rounded-lg border border-brand px-3 py-1 text-xs font-semibold text-brand">
+          Reset demo
+        </button>
+      </div>
       <p className="text-sm text-ink/60">{journey.patient.name} · {journey.gestational_age.weeks} {t("weeks", lang)}</p>
 
       <input className="mt-4 w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("doctorName", lang)}
