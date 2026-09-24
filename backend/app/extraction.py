@@ -166,14 +166,14 @@ def provider_extract(text: str, language: str, template: dict) -> tuple[list[dic
             resp = None
             # key goes in a header so it never shows up in URLs or logs;
             # fall through to a lighter model when one is overloaded (503/429)
-            for model in ("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"):
+            for model in ("gemini-flash-latest", "gemini-flash-lite-latest"):
                 resp = httpx.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                     headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]},
                     json=body,
                     timeout=30,
                 )
-                if resp.status_code not in (429, 500, 503):
+                if resp.status_code not in (404, 429, 500, 503):
                     break
             resp.raise_for_status()
             raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
