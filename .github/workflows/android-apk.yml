@@ -2,7 +2,10 @@ name: Android APK (debug)
 
 on:
   push:
-    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
     paths:
       - 'frontend/**'
       - '.github/workflows/android-apk.yml'
