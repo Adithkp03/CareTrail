@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from . import engine as journey_engine
-from .models import Journey, Milestone, Observation, Patient
+from .models import Document, Journey, Milestone, Observation, Patient, SignOff
 from .security import hash_password
 from .template_loader import load_template
 
@@ -34,9 +34,24 @@ def seed_anjali(db: Session, today: date | None = None) -> dict:
         db.add(patient)
         db.flush()
     else:
-        # reset any previous demo journey so re-seeding restores the starting state
-        for j in db.query(Journey).filter(Journey.patient_id == patient.id).all():
-            db.delete(j)
+        # Reset any previous demo journey so re-seeding restores the starting state.
+        # Children must be deleted explicitly: the relationships do not cascade, so a
+        # bare db.delete(journey) nullifies milestone.journey_id and violates NOT NULL.
+        journey_ids = [
+            j.id for j in db.query(Journey).filter(Journey.patient_id == patient.id).all()
+        ]
+        if journey_ids:
+            milestone_ids = [
+                m.id for m in db.query(Milestone).filter(Milestone.journey_id.in_(journey_ids)).all()
+            ]
+            for model, column in [
+                (SignOff, SignOff.journey_id),
+                (Observation, Observation.journey_id),
+                (Document, Document.journey_id),
+            ]:
+                db.query(model).filter(column.in_(journey_ids)).delete(synchronize_session=False)
+            db.query(Milestone).filter(Milestone.id.in_(milestone_ids)).delete(synchronize_session=False)
+            db.query(Journey).filter(Journey.id.in_(journey_ids)).delete(synchronize_session=False)
         db.flush()
 
     template = load_template("antenatal", "v1")
