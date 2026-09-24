@@ -19,7 +19,7 @@ function MilestoneView() {
   const [listenMsg, setListenMsg] = useState("");
   const [askOpen, setAskOpen] = useState(false);
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<{ answer: string; urgent: boolean; note?: string } | null>(null);
+  const [answer, setAnswer] = useState<{ answer: string; urgent: boolean; note?: string; citation?: { source: string; topic: string } | null } | null>(null);
   const [asking, setAsking] = useState(false);
 
   async function load() {
@@ -164,6 +164,7 @@ function MilestoneView() {
             <p className={`mt-3 rounded-xl p-3 text-sm ${answer.urgent ? "bg-red-50 text-red-800 ring-1 ring-red-200" : "bg-ink/5 text-ink/80"}`}>
               {answer.answer}
               {answer.note ? <span className="block mt-1 text-xs text-ink/50">{answer.note}</span> : null}
+              {answer.citation ? <span className="block mt-1 text-xs text-ink/50">Source: {answer.citation.source}</span> : null}
             </p>
           ) : null}
         </section>

@@ -5,7 +5,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from .models import Observation
+from .models import Observation, SignOff
 
 
 def compute_flags(db: Session, journey_id: str, template: dict) -> list[dict]:
@@ -19,6 +19,12 @@ def compute_flags(db: Session, journey_id: str, template: dict) -> list[dict]:
     latest: dict[str, Observation] = {}
     for obs in observations:  # first row per code is the newest
         latest.setdefault(obs.code, obs)
+
+    signoffs = db.query(SignOff).filter(SignOff.journey_id == journey_id, SignOff.observation_id.isnot(None)).all()
+    signed: dict[str, SignOff] = {}
+    for so in signoffs:
+        signed.setdefault(so.observation_id, so)  # first = oldest; keep latest below
+        signed[so.observation_id] = so
 
     flags = []
     for code, obs in latest.items():
@@ -39,6 +45,15 @@ def compute_flags(db: Session, journey_id: str, template: dict) -> list[dict]:
                 "threshold": {k: rule[k] for k in ("min", "max") if k in rule},
                 "message": rule.get("message", "Value outside the expected range."),
                 "severity": "review",
+                "signed_off": (
+                    {
+                        "doctor_name": signed[obs.id].doctor_name,
+                        "note": signed[obs.id].note,
+                        "signed_at": signed[obs.id].signed_at.isoformat(),
+                    }
+                    if obs.id in signed
+                    else None
+                ),
             }
         )
     return flags

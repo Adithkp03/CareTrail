@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken, setToken } from "@/lib/api";
 import { t, LANGS, type Lang } from "@/lib/i18n";
-import type { Journey, Milestone, MilestoneStatus } from "@/lib/types";
+import type { Journey, Milestone, MilestoneStatus, NextUp } from "@/lib/types";
 
 const TYPE_ICON: Record<Milestone["type"], string> = {
   visit: "🩺", scan: "🖥️", test: "🧪", vaccination: "💉", review: "📋",
@@ -34,6 +34,7 @@ function MilestoneCard({ m, lang }: { m: Milestone; lang: Lang }) {
 export default function HomePage() {
   const router = useRouter();
   const [journey, setJourney] = useState<Journey | null>(null);
+  const [nextUp, setNextUp] = useState<NextUp | null>(null);
   const [lang, setLang] = useState<Lang>("en");
   const [error, setError] = useState("");
 
@@ -45,6 +46,7 @@ export default function HomePage() {
         if (list.journeys.length === 0) { router.replace("/new-journey"); return; }
         const j = await api<Journey>(`/journey/${list.journeys[0].journey_id}`);
         setJourney(j);
+        api<NextUp>(`/journey/${j.journey_id}/next-up`).then(setNextUp).catch(() => {});
         setLang((["en", "ml", "hi"].includes(j.patient.language) ? j.patient.language : "en") as Lang);
       } catch (err) { setError(err instanceof Error ? err.message : "Failed to load"); }
     })();
@@ -81,6 +83,23 @@ export default function HomePage() {
           <p className="text-xs uppercase tracking-wide opacity-80">{t("nextAppointment", lang)}</p>
           <p className="mt-1 font-semibold">{journey.next_appointment.title}</p>
           <p className="text-sm opacity-90">📅 {journey.next_appointment.scheduled_date}</p>
+        </div>
+      ) : null}
+
+      {nextUp?.milestone ? (
+        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">Get ready: {nextUp.milestone.title}</p>
+          {nextUp.purpose ? <p className="mt-2 text-sm text-ink/80">{nextUp.purpose}</p> : null}
+          {nextUp.what_to_bring ? <p className="mt-2 text-sm">🎒 <span className="text-ink/80">{nextUp.what_to_bring}</span></p> : null}
+          {nextUp.fasting ? <p className="mt-2 text-sm">🍽️ <span className="font-medium text-amber-800">{nextUp.fasting}</span></p> : null}
+          {nextUp.questions && nextUp.questions.length > 0 ? (
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer text-brand">Questions worth asking</summary>
+              <ul className="mt-1 list-disc pl-5 text-ink/70">
+                {nextUp.questions.map((q) => <li key={q}>{q}</li>)}
+              </ul>
+            </details>
+          ) : null}
         </div>
       ) : null}
 
