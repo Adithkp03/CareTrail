@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CareTrail</string>
+    <string name="title_activity_main">CareTrail</string>
+    <string name="package_name">com.caretrail.app</string>
+    <string name="custom_url_scheme">com.caretrail.app</string>
+</resources>

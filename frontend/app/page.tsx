@@ -13,7 +13,7 @@ const ZONE_ORDER: MilestoneStatus[] = ["now", "upcoming", "next", "done"];
 function MilestoneCard({ m, lang }: { m: Milestone; lang: Lang }) {
   const router = useRouter();
   return (
-    <button onClick={() => router.push(`/milestones/${m.id}`)}
+    <button onClick={() => router.push(`/milestone?id=${m.id}`)}
       className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm">
       <span className="text-xl">{TYPE_ICON[m.type]}</span>
       <span className="flex-1">

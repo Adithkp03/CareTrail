@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import { t, type Lang } from "@/lib/i18n";
 import type { Milestone } from "@/lib/types";
 
 const STATUS_COLOR = { done: "bg-green-100 text-green-800", now: "bg-brand text-white", upcoming: "bg-blue-100 text-blue-800", next: "bg-ink/10 text-ink/60" } as const;
 
-export default function MilestonePage() {
-  const { id } = useParams<{ id: string }>();
+function MilestoneView() {
+  const id = useSearchParams().get("id") ?? "";
   const router = useRouter();
   const [m, setM] = useState<Milestone | null>(null);
   const [lang] = useState<Lang>("en");
@@ -111,5 +112,13 @@ export default function MilestonePage() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+export default function MilestonePage() {
+  return (
+    <Suspense fallback={<main className="pt-16 text-ink/50">Loading…</main>}>
+      <MilestoneView />
+    </Suspense>
   );
 }
