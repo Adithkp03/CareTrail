@@ -152,3 +152,15 @@ export function useTr(lang: Lang): (text: string | null | undefined) => string {
 export function t(key: keyof typeof dict, lang: Lang): string {
   return dict[key]?.[lang] ?? dict[key]?.en ?? key;
 }
+
+export const TEST_LABELS: Record<string, string> = {
+  hb: "Haemoglobin",
+  bp_sys: "Systolic BP",
+  bp_dia: "Diastolic BP",
+  glucose_fasting: "Fasting glucose",
+  glucose_ogtt_1h: "OGTT 1-hour glucose",
+  glucose_ogtt_2h: "OGTT 2-hour glucose",
+};
+export function testLabel(code: string): string {
+  return TEST_LABELS[code] ?? code.replace(/_/g, " ");
+}

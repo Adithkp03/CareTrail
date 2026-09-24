@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
-import { t, useLang, useTr } from "@/lib/i18n";
+import { t, useLang, useTr, testLabel } from "@/lib/i18n";
 import type { Brief, Flag, Journey } from "@/lib/types";
 
 // Hackathon shell of the doctor view: the flags queue plus the sign-off that
@@ -74,7 +74,7 @@ export default function DoctorPage() {
             <div className="mt-2 flex flex-wrap gap-2">
               {brief.latest_values.map((v) => (
                 <span key={v.code} className="rounded-full bg-ink/5 px-3 py-1 text-xs text-ink/70">
-                  {tr(v.code.replace(/_/g, " "))}: {v.value} {v.unit}
+                  {tr(testLabel(v.code))}: {v.value} {v.unit}
                 </span>
               ))}
             </div>

@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiForm, getToken } from "@/lib/api";
-import { t, useLang, useTr } from "@/lib/i18n";
+import { t, useLang, useTr, testLabel } from "@/lib/i18n";
 import type { Milestone } from "@/lib/types";
 
 const STATUS_COLOR = { done: "bg-green-100 text-green-800", now: "bg-brand text-white", upcoming: "bg-blue-100 text-blue-800", next: "bg-ink/10 text-ink/60" } as const;
@@ -23,7 +23,9 @@ function MilestoneView() {
   const [answer, setAnswer] = useState<{ answer: string; urgent: boolean; note?: string; citation?: { source: string; topic: string } | null } | null>(null);
   const [asking, setAsking] = useState(false);
 
+  const loadSeq = useRef(0);
   async function load() {
+    const seq = ++loadSeq.current;
     // Offline fallback: serve last-loaded content from localStorage on failure.
     try {
       const fresh = await api<Milestone>(`/milestones/${id}`);
@@ -35,6 +37,7 @@ function MilestoneView() {
     }
     try {
       const ex = await api<{ text: string; provider: string }>(`/milestones/${id}/explanation?lang=${lang}`);
+      if (seq !== loadSeq.current) return;
       setExplanation(ex);
       localStorage.setItem(`ct:expl:${id}:${lang}`, JSON.stringify(ex));
     } catch {
@@ -190,7 +193,7 @@ function MilestoneView() {
           <ul className="mt-2 space-y-1 text-sm">
             {m.observations.map((o) => (
               <li key={o.id} className="flex justify-between">
-                <span className="uppercase text-ink/60">{tr(o.code.replace(/_/g, " "))}</span>
+                <span className="text-ink/60">{tr(testLabel(o.code))}</span>
                 <span className="font-medium">{o.value} {o.unit}</span>
               </li>
             ))}
