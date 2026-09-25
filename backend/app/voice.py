@@ -65,7 +65,7 @@ def translate(text: str, target_language: str, source_language: str = "en", db=N
             json={
                 "input": text,
                 "source_language_code": LANG_NAMES.get(source_language, "en-IN"),
-                "target_language_code": LANG_NAMES.get(target_language, "en-IN"),
+                "target_language_code": LANG_NAMES[target_language],
                 "model": TRANSLATE_MODEL,
             },
         )
@@ -82,7 +82,7 @@ def tts(text: str, language: str) -> bytes | None:
             "/text-to-speech",
             json={
                 "inputs": [text],
-                "target_language_code": LANG_NAMES.get(language, "en-IN"),
+                "target_language_code": LANG_NAMES[language],
                 "model": TTS_MODEL,
                 "speaker": TTS_SPEAKER,
             },

@@ -124,3 +124,49 @@ def test_ask_picks_best_milestone_not_first(client):
     make_journey(client, token)
     body = client.post("/ask", json={"question": "what is the anomaly scan?"}, headers=auth(token)).json()
     assert body["source"] == "milestone:anomaly_scan"
+
+
+def test_sarvam_language_codes_cover_new_tts_and_speech_input():
+    from app.voice import LANG_NAMES
+    assert {code: LANG_NAMES[code] for code in ("ta", "te", "kn", "bn", "mr")} == {
+        "ta": "ta-IN", "te": "te-IN", "kn": "kn-IN", "bn": "bn-IN", "mr": "mr-IN",
+    }
+
+
+def test_sarvam_tts_request_selects_language(monkeypatch):
+    from app import voice
+    monkeypatch.setenv("SARVAM_API_KEY", "test-only")
+    sent = []
+    class Response:
+        def raise_for_status(self): pass
+        def json(self): return {"audios": ["SUQz"]}
+    class Client:
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def post(self, path, json):
+            sent.append((path, json))
+            return Response()
+    monkeypatch.setattr(voice, "_client", lambda: Client())
+    for code in ("ta", "te", "kn", "bn", "mr"):
+        assert voice.tts("Hello", code) == b"ID3"
+    assert [x[1]["target_language_code"] for x in sent] == ["ta-IN", "te-IN", "kn-IN", "bn-IN", "mr-IN"]
+
+
+def test_sarvam_stt_request_selects_language(monkeypatch):
+    from app import voice
+    monkeypatch.setenv("SARVAM_API_KEY", "test-only")
+    sent = []
+    class Response:
+        def raise_for_status(self): pass
+        def json(self): return {"transcript": "hello"}
+    class Client:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def post(self, path, files, data):
+            sent.append(data["language_code"])
+            return Response()
+    monkeypatch.setattr("httpx.Client", Client)
+    for code in ("ta", "te", "kn", "bn", "mr"):
+        assert voice.stt(b"RIFF", "sample.wav", code) == "hello"
+    assert sent == ["ta-IN", "te-IN", "kn-IN", "bn-IN", "mr-IN"]

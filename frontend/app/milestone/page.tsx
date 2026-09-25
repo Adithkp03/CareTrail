@@ -52,7 +52,7 @@ function MilestoneView() {
     setListenMsg("");
     try {
       const token = getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/milestones/${id}/explanation/audio?lang=${lang}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/milestones/${id}/explanation/audio?lang=${encodeURIComponent(lang)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error("no-audio");
