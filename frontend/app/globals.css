@@ -3,3 +3,12 @@
 @tailwind utilities;
 
 body { @apply bg-brand-soft text-ink; }
+
+/* Script-specific fallback for the new language picker and clinical cards.
+   The user's device may not have Indic fonts installed (especially in the APK). */
+@font-face { font-family: "CareTrail Tamil"; src: url("/fonts/NotoSansTamil-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "CareTrail Telugu"; src: url("/fonts/NotoSansTelugu-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "CareTrail Kannada"; src: url("/fonts/NotoSansKannada-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "CareTrail Bengali"; src: url("/fonts/NotoSansBengali-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "CareTrail Devanagari"; src: url("/fonts/NotoSansDevanagari-Regular.ttf") format("truetype"); font-display: swap; }
+body { font-family: system-ui, "CareTrail Tamil", "CareTrail Telugu", "CareTrail Kannada", "CareTrail Bengali", "CareTrail Devanagari", sans-serif; }
