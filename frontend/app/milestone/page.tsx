@@ -139,9 +139,21 @@ function MilestoneView() {
       {m.signoff ? (
         <div className="mt-4 rounded-2xl border border-green-300 bg-green-50 p-3 text-sm">
           ✅ {t("signedOffBy", lang)} <b>{m.signoff.doctor_name}</b>
+          <p className="mt-1 text-xs text-ink/60">{t("prototypeReview", lang)}</p>
           {m.signoff.note ? <p className="mt-1 text-ink/70">{tr(m.signoff.note)}</p> : null}
         </div>
       ) : null}
+
+      <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold">{t("whyNow", lang)}</h2>
+        <p className="mt-1 text-sm text-ink/70">
+          {tr("This check-up is placed in the journey based on your pregnancy dates and the pathway window.")}
+          {` ${m.window_weeks[0]}-${m.window_weeks[1]} ${t("weeks", lang)}.`}
+        </p>
+        <a href={`/upload?milestone=${encodeURIComponent(m.id)}`} className="mt-3 inline-block rounded-xl border border-brand px-3 py-2 text-sm font-semibold text-brand">
+          {t("uploadReport", lang)}
+        </a>
+      </section>
 
       {m.prep_notes ? (
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">

@@ -4,7 +4,11 @@ Every mother sees her whole pregnancy journey - what is done, what is now, what 
 
 Hackathon track: Maternal & Child Health (FOGSI), patient-focused, Patient Health Journey Progress, entry path B (needs a doctor).
 
-This repo currently contains **Phase 1: data model and journey engine** (backend).
+This repository now includes a working patient web/Android prototype, API, report extraction, multilingual explanations, a rules-based flag queue, and a **prototype** clinician review flow. The original phase notes below document how the app was built; they are not a current feature checklist.
+
+Current home shows a journey-first overview: gestational age, a count of completed milestones, trimester position, an ordered journey spine, the next step, and evidence-backed items needing attention. Uploaded reports can be linked to a milestone, then the patient checks extracted values before saving. This is not a medical assessment. The clinician review screen uses the patient session and an entered doctor name, not independent clinician authentication; do **not** present its sign-off as verified by a separate clinician account. Only synthetic data should be used in demonstrations. The live API is deployed on Vercel; `render.yaml` is configuration, not evidence of a live Render backend.
+
+For the synthetic Anjali demo at 22 weeks: **3/14** milestones are done. Second-trimester review is now, anomaly scan is scheduled/upcoming, and OGTT is next at weeks 24–28. Uploading and confirming the sample low-haemoglobin CBC attaches values and raises a review flag; it does not auto-complete a milestone. The sample can illustrate multilingual report handling, not a regional target audience.
 
 ## What phase 1 delivers
 
