@@ -64,7 +64,7 @@ def translate(text: str, target_language: str, source_language: str = "en", db=N
             "/translate",
             json={
                 "input": text,
-                "source_language_code": LANG_NAMES.get(source_language, "en-IN"),
+                "source_language_code": LANG_NAMES[source_language],
                 "target_language_code": LANG_NAMES[target_language],
                 "model": TRANSLATE_MODEL,
             },
