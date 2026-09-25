@@ -16,7 +16,7 @@ TTS_SPEAKER = os.getenv("SARVAM_TTS_SPEAKER", "priya")
 STT_MODEL = os.getenv("SARVAM_STT_MODEL", "saarika:v2.5")
 TRANSLATE_MODEL = os.getenv("SARVAM_TRANSLATE_MODEL", "mayura:v1")
 
-LANG_NAMES = {"en": "en-IN", "ml": "ml-IN", "hi": "hi-IN"}
+LANG_NAMES = {"en": "en-IN", "ml": "ml-IN", "hi": "hi-IN", "ta": "ta-IN", "te": "te-IN", "kn": "kn-IN", "bn": "bn-IN", "mr": "mr-IN"}
 
 
 def available() -> bool:

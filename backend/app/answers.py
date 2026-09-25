@@ -76,7 +76,7 @@ def _milestone_from_question(db: Session, journey: Journey, question: str) -> di
 def answer_question(db: Session, journey: Journey, question: str, language: str, template: dict) -> dict:
     """Grounded answer with code-matched safety rails. Returns text in `language`."""
     if _matches_danger_sign(question):
-        return {"answer": CONTACT_DOCTOR[language], "source": "danger-sign-rule", "urgent": True}
+        return {"answer": CONTACT_DOCTOR.get(language, CONTACT_DOCTOR["en"]), "source": "danger-sign-rule", "urgent": True}
 
     # Match and retrieve on an English rendering too, so Malayalam/Hindi questions
     # find the same milestones and guidance as English ones.
@@ -88,6 +88,12 @@ def answer_question(db: Session, journey: Journey, question: str, language: str,
             q_en = None
         if q_en:
             search_q = f"{question} {q_en}"
+    # A translated question must pass through the same deterministic warning gate.
+    # Without translation, unfamiliar-language questions get the safe fallback.
+    if search_q != question and _matches_danger_sign(search_q):
+        return {"answer": CONTACT_DOCTOR.get(language, CONTACT_DOCTOR["en"]), "source": "danger-sign-rule", "urgent": True}
+    if language not in ("en", "ml", "hi") and search_q == question:
+        return {"answer": ASK_DOCTOR["en"], "source": "none", "urgent": False, "citation": None}
     hit = _milestone_from_question(db, journey, search_q)
     flags = compute_flags(db, journey.id, template)
     flag_mentioned = next((f for f in flags if f["label"].lower() in search_q.lower() or f["code"] in search_q.lower()), None)
@@ -109,7 +115,7 @@ def answer_question(db: Session, journey: Journey, question: str, language: str,
         base_en = guidance[0]["text"]
         source = f"guidance:{guidance[0]['id']}"
     else:
-        return {"answer": ASK_DOCTOR[language], "source": "none", "urgent": False, "citation": None}
+        return {"answer": ASK_DOCTOR.get(language, ASK_DOCTOR["en"]), "source": "none", "urgent": False, "citation": None}
 
     if language == "en":
         return {"answer": base_en, "source": source, "urgent": False, "citation": citation}

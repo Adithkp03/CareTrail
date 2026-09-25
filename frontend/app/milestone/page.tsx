@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, apiForm, getToken } from "@/lib/api";
 import { t, useLang, useTr, testLabel } from "@/lib/i18n";
+import CareIcon from "@/components/CareIcon";
+import { firstTrimesterSteps, firstVisitTests, milestoneIcons, careText } from "@/lib/first-trimester";
 import type { Milestone } from "@/lib/types";
 
 const STATUS_COLOR = { done: "bg-green-100 text-green-800", now: "bg-brand text-white", upcoming: "bg-blue-100 text-blue-800", next: "bg-ink/10 text-ink/60" } as const;
@@ -125,7 +127,7 @@ function MilestoneView() {
     <main className="pt-6">
       <button onClick={() => router.back()} className="text-sm text-brand">← {t("appName", lang)}</button>
       <div className="mt-2 flex items-start justify-between gap-2">
-        <h1 className="text-xl font-bold">{tr(m.title)}</h1>
+        <h1 className="flex items-center gap-2 text-xl font-bold"><span aria-hidden="true"><CareIcon name={milestoneIcons[m.key] ?? "review"} size={26} /> </span>{tr(m.title)}</h1>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLOR[m.status]}`}>
           {t(m.status, lang)}{m.overdue ? ` · ${t("overdue", lang)}` : ""}
         </span>
@@ -154,6 +156,12 @@ function MilestoneView() {
           {t("uploadReport", lang)}
         </a>
       </section>
+
+      {(m.key === "first_consultation" || m.key === "baseline_bloods" || m.key === "nt_scan") && <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="font-semibold"><span className="inline-block align-middle"><CareIcon name="pregnancy" size={20}/></span> {t("earlyCare", lang)}</h2>
+        <ul className="mt-2 space-y-2">{firstTrimesterSteps.map((step) => <li key={step.title.en} className={`rounded-xl p-2 text-sm ${step.urgent ? "bg-red-50 text-red-800" : "bg-brand-soft"}`}><span aria-hidden="true" className="inline-block align-middle"><CareIcon name={step.icon} size={20} /></span> <strong>{careText(step.title, lang)}</strong><p>{careText(step.body, lang)}</p></li>)}</ul>
+        {(m.key === "first_consultation" || m.key === "baseline_bloods") && <><h3 className="mt-4 font-semibold">{t("firstVisitChecks", lang)}</h3><ul className="mt-2 grid gap-2 sm:grid-cols-2">{firstVisitTests.map((item) => <li key={item.text.en} className="rounded-lg bg-ink/5 p-2 text-sm"><span aria-hidden="true" className="inline-block align-middle"><CareIcon name={item.icon} size={18} /></span> {careText(item.text, lang)}</li>)}</ul></>}
+      </section>}
 
       {m.prep_notes ? (
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">

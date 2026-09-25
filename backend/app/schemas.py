@@ -7,7 +7,7 @@ class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     phone: str = Field(min_length=6, max_length=32)
     password: str = Field(min_length=6, max_length=128)
-    language: str = Field(default="en", pattern="^[a-z]{2}$")
+    language: str = Field(default="en", pattern="^(en|ml|hi|ta|te|kn|bn|mr)$")
     consent: bool = False
 
 
@@ -67,4 +67,4 @@ class DocumentConfirmRequest(BaseModel):
 
 class AskTextRequest(BaseModel):
     question: str = Field(min_length=2, max_length=1000)
-    lang: str | None = Field(default=None, pattern="^(en|ml|hi)$")
+    lang: str | None = Field(default=None, pattern="^(en|ml|hi|ta|te|kn|bn|mr)$")

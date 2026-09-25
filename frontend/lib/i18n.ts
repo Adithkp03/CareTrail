@@ -1,17 +1,32 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type Lang = "en" | "ml" | "hi";
+export type Lang = "en" | "ml" | "hi" | "ta" | "te" | "kn" | "bn" | "mr";
 
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "English" },
   { code: "ml", label: "മലയാളം" },
   { code: "hi", label: "हिन्दी" },
+  { code: "ta", label: "தமிழ்" },
+  { code: "te", label: "తెలుగు" },
+  { code: "kn", label: "ಕನ್ನಡ" },
+  { code: "bn", label: "বাংলা" },
+  { code: "mr", label: "मराठी" },
 ];
 
 // Static UI labels for the demo. Sarvam Translate takes over full content
 // translation (milestone titles, explanations, audio) in phase 4.
-const dict: Record<string, Record<Lang, string>> = {
+const dict: Record<string, Record<"en" | "ml" | "hi", string> & Partial<Record<Lang, string>>> = {
+  earlyCare: { en: "Early pregnancy care", ml: "ഗർഭകാലത്തിന്റെ ആദ്യ പരിചരണം", hi: "शुरुआती गर्भावस्था की देखभाल" },
+  earlyCareHint: { en: "What to do in the first trimester", ml: "ആദ്യ ത്രൈമാസത്തിൽ ചെയ്യേണ്ടത്", hi: "पहली तिमाही में क्या करें" },
+  firstVisitChecks: { en: "First-visit investigations", ml: "ആദ്യ സന്ദർശനത്തിലെ പരിശോധനകൾ", hi: "पहली मुलाकात की जाँचें" },
+  movementTracker: { en: "Baby movements", ml: "കുഞ്ഞിന്റെ അനക്കം", hi: "बच्चे की हलचल" },
+  movementInstruction: { en: "Noticed a movement? Tap + to record it today. This is a personal note, not a medical test or a target count.", ml: "കുഞ്ഞിന്റെ അനക്കം ശ്രദ്ധിച്ചോ? ഇന്നത്തേക്ക് രേഖപ്പെടുത്താൻ + അമർത്തുക. ഇത് വ്യക്തിഗത കുറിപ്പാണ്; വൈദ്യപരിശോധനയോ ലക്ഷ്യസംഖ്യയോ അല്ല.", hi: "बच्चे की हलचल महसूस हुई? आज दर्ज करने के लिए + दबाएँ। यह निजी नोट है, चिकित्सीय जाँच या तय संख्या नहीं।" },
+  movementCount: { en: "Movements noted today", ml: "ഇന്ന് രേഖപ്പെടുത്തിയ അനക്കങ്ങൾ", hi: "आज दर्ज हलचलें" },
+  movementWarning: { en: "If movements seem reduced or stop, contact your doctor promptly. Do not wait for a number on this tracker.", ml: "അനക്കം കുറഞ്ഞതായി തോന്നുകയോ നിലയ്ക്കുകയോ ചെയ്താൽ ഉടൻ ഡോക്ടറെ ബന്ധപ്പെടുക. ഈ ട്രാക്കറിലെ സംഖ്യയ്ക്കായി കാത്തിരിക്കരുത്.", hi: "हलचल कम लगे या बंद हो जाए तो तुरंत डॉक्टर से संपर्क करें। इस ट्रैकर की संख्या का इंतज़ार न करें।" },
+  movementStorage: { en: "Saved only on this device. Not shared with a clinician.", ml: "ഈ ഉപകരണത്തിൽ മാത്രം സൂക്ഷിക്കുന്നു. ഡോക്ടറുമായി പങ്കിടുന്നില്ല.", hi: "सिर्फ़ इस डिवाइस पर सहेजा जाता है। डॉक्टर से साझा नहीं होता।" },
+  translationNote: { en: "Some medical text is still shown in English. Please confirm it with your clinician.", ml: "ചില വൈദ്യവിവരങ്ങൾ ഇപ്പോഴും ഇംഗ്ലീഷിലാണ്. ഡോക്ടറോട് സ്ഥിരീകരിക്കുക.", hi: "कुछ चिकित्सा जानकारी अभी अंग्रेज़ी में है। अपने डॉक्टर से पुष्टि करें।" },
+  movementUndo: { en: "Undo one", ml: "ഒന്ന് പിൻവലിക്കൂ", hi: "एक घटाएँ" },
   showAllMilestones: { en: "Show all milestones", ml: "എല്ലാ ഘട്ടങ്ങളും കാണൂ", hi: "सभी चरण देखें" },
   journeyTitle: { en: "Your pregnancy journey", ml: "നിങ്ങളുടെ ഗർഭകാല യാത്ര", hi: "आपकी गर्भावस्था की यात्रा" },
   youAreHere: { en: "You are here", ml: "നിങ്ങൾ ഇവിടെ", hi: "आप यहाँ हैं" },
@@ -101,7 +116,7 @@ export function useLang(initial?: string): [Lang, (l: Lang) => void] {
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem(LANG_KEY) : null;
     const pick = stored ?? initial;
-    if (pick === "en" || pick === "ml" || pick === "hi") setLangState(pick);
+    if (LANGS.some((l) => l.code === pick)) setLangState(pick as Lang);
   }, [initial]);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
@@ -167,8 +182,18 @@ export function useTr(lang: Lang): (text: string | null | undefined) => string {
   );
 }
 
+// New-language UI labels are a starter set; untranslated labels remain English.
+// Clinical copy goes through the translation service and needs native review.
+const extraLabels: Partial<Record<Lang, Record<string, string>>> = {
+  ta: { translationNote: "சில மருத்துவத் தகவல்கள் இன்னும் ஆங்கிலத்தில் உள்ளன. மருத்துவரிடம் உறுதிப்படுத்துங்கள்.", language: "மொழி", login: "உள்நுழைக", signup: "பதிவு செய்க", phone: "தொலைபேசி எண்", password: "கடவுச்சொல்", tryDemo: "மாதிரியைக் காண்க (அஞ்சலி)", firstTrimester: "முதல் மூன்று மாதங்கள்", secondTrimester: "இரண்டாம் மூன்று மாதங்கள்", thirdTrimester: "மூன்றாம் மூன்று மாதங்கள்", journeyTitle: "உங்கள் கர்ப்பகாலப் பயணம்", earlyCare: "கர்ப்பத்தின் ஆரம்பப் பராமரிப்பு", firstVisitChecks: "முதல் வருகைக்கான பரிசோதனைகள்", movementTracker: "குழந்தையின் அசைவுகள்", dangerSigns: "இந்த அறிகுறிகள் இருந்தால் உடனே மருத்துவரை அழையுங்கள்", movementCount: "இன்று பதிவு செய்த அசைவுகள்", movementUndo: "ஒன்றை நீக்கு" },
+  te: { translationNote: "కొంత వైద్య సమాచారం ఇంకా ఆంగ్లంలో ఉంది. వైద్యుడితో నిర్ధారించుకోండి.", language: "భాష", login: "లాగిన్", signup: "నమోదు", phone: "ఫోన్ నంబర్", password: "పాస్‌వర్డ్", tryDemo: "డెమో చూడండి (అంజలి)", firstTrimester: "మొదటి త్రైమాసికం", secondTrimester: "రెండో త్రైమాసికం", thirdTrimester: "మూడో త్రైమాసికం", journeyTitle: "మీ గర్భధారణ ప్రయాణం", earlyCare: "ప్రారంభ గర్భధారణ సంరక్షణ", firstVisitChecks: "మొదటి సందర్శన పరీక్షలు", movementTracker: "శిశువు కదలికలు", dangerSigns: "ఈ లక్షణాలుంటే వెంటనే వైద్యుణ్ని సంప్రదించండి", movementCount: "ఈ రోజు నమోదు చేసిన కదలికలు", movementUndo: "ఒకటి తీసివేయి" },
+  kn: { translationNote: "ಕೆಲವು ವೈದ್ಯಕೀಯ ಮಾಹಿತಿ ಇನ್ನೂ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿದೆ. ವೈದ್ಯರೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.", language: "ಭಾಷೆ", login: "ಲಾಗಿನ್", signup: "ನೋಂದಾಯಿಸಿ", phone: "ಫೋನ್ ಸಂಖ್ಯೆ", password: "ಪಾಸ್‌ವರ್ಡ್", tryDemo: "ಡೆಮೊ ನೋಡಿ (ಅಂಜಲಿ)", firstTrimester: "ಮೊದಲ ತ್ರೈಮಾಸಿಕ", secondTrimester: "ಎರಡನೇ ತ್ರೈಮಾಸಿಕ", thirdTrimester: "ಮೂರನೇ ತ್ರೈಮಾಸಿಕ", journeyTitle: "ನಿಮ್ಮ ಗರ್ಭಧಾರಣೆಯ ಪಯಣ", earlyCare: "ಆರಂಭಿಕ ಗರ್ಭಧಾರಣೆಯ ಆರೈಕೆ", firstVisitChecks: "ಮೊದಲ ಭೇಟಿಯ ಪರೀಕ್ಷೆಗಳು", movementTracker: "ಮಗುವಿನ ಚಲನೆಗಳು", dangerSigns: "ಈ ಲಕ್ಷಣಗಳಿದ್ದರೆ ತಕ್ಷಣ ವೈದ್ಯರನ್ನು ಸಂಪರ್ಕಿಸಿ", movementCount: "ಇಂದು ದಾಖಲಿಸಿದ ಚಲನೆಗಳು", movementUndo: "ಒಂದನ್ನು ತೆಗೆದುಹಾಕಿ" },
+  bn: { translationNote: "কিছু চিকিৎসা সংক্রান্ত তথ্য এখনও ইংরেজিতে আছে। ডাক্তারের সঙ্গে নিশ্চিত করুন।", language: "ভাষা", login: "লগ ইন", signup: "সাইন আপ", phone: "ফোন নম্বর", password: "পাসওয়ার্ড", tryDemo: "ডেমো দেখুন (অঞ্জলি)", firstTrimester: "প্রথম ত্রৈমাসিক", secondTrimester: "দ্বিতীয় ত্রৈমাসিক", thirdTrimester: "তৃতীয় ত্রৈমাসিক", journeyTitle: "আপনার গর্ভাবস্থার যাত্রা", earlyCare: "গর্ভাবস্থার শুরুর যত্ন", firstVisitChecks: "প্রথম দেখায় পরীক্ষাগুলি", movementTracker: "শিশুর নড়াচড়া", dangerSigns: "এই লক্ষণগুলি থাকলে এখনই ডাক্তারকে জানান", movementCount: "আজ লেখা নড়াচড়া", movementUndo: "একটি বাদ দিন" },
+  mr: { translationNote: "काही वैद्यकीय माहिती अजून इंग्रजीत आहे. डॉक्टरांकडून खात्री करा.", language: "भाषा", login: "लॉग इन", signup: "नोंदणी करा", phone: "फोन नंबर", password: "पासवर्ड", tryDemo: "डेमो पहा (अंजली)", firstTrimester: "पहिली तिमाही", secondTrimester: "दुसरी तिमाही", thirdTrimester: "तिसरी तिमाही", journeyTitle: "तुमचा गरोदरपणाचा प्रवास", earlyCare: "सुरुवातीच्या गरोदरपणाची काळजी", firstVisitChecks: "पहिल्या भेटीतल्या तपासण्या", movementTracker: "बाळाच्या हालचाली", dangerSigns: "ही लक्षणे असल्यास लगेच डॉक्टरांना भेटा", movementCount: "आज नोंदवलेल्या हालचाली", movementUndo: "एक कमी करा" },
+};
+
 export function t(key: keyof typeof dict, lang: Lang): string {
-  return dict[key]?.[lang] ?? dict[key]?.en ?? key;
+  return extraLabels[lang]?.[key] ?? dict[key]?.[lang] ?? dict[key]?.en ?? key;
 }
 
 export const TEST_LABELS: Record<string, string> = {

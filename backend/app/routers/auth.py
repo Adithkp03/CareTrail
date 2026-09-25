@@ -90,7 +90,7 @@ def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_d
             phone=phone,
             email=ident["email"] or None,
             supabase_id=ident["sub"],
-            language=body.language if body.language in ("en", "ml", "hi") else "en",
+            language=body.language if body.language in ("en", "ml", "hi", "ta", "te", "kn", "bn", "mr") else "en",
             # Unguessable password: legacy login stays closed for this account.
             password_hash=hash_password(secrets.token_hex(16)),
             consent_at=datetime.now(timezone.utc),
