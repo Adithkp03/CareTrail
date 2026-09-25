@@ -1,13 +1,14 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..extraction import KNOWN_TEST_CODES, detect_language, extract_image, extract_values, normalize_value
 from ..flags import compute_flags
-from ..models import Document, Milestone, Observation, Patient
+from ..models import Document, DocumentBlob, Milestone, Observation, Patient
 from ..schemas import DocumentConfirmRequest
 from ..storage import read_upload, save_upload
 from ..template_loader import load_template
@@ -15,6 +16,27 @@ from ..template_loader import load_template
 router = APIRouter(tags=["documents"])
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+def _report_bytes(doc: Document, db: Session) -> bytes:
+    row = db.get(DocumentBlob, doc.id)
+    if row is not None:
+        return row.content
+    # Pre-migration local uploads may be gone on a different serverless instance.
+    try:
+        return read_upload(doc.storage_path)
+    except OSError:
+        raise HTTPException(status_code=410, detail="Original report no longer available; please upload it again")
+
+
+@router.get("/documents/{document_id}/original")
+def original_document(document_id: str, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    doc = _get_owned_document(document_id, patient, db)
+    if doc.content_type not in ("application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain"):
+        raise HTTPException(status_code=415, detail="Preview not available for this file type")
+    return Response(content=_report_bytes(doc, db), media_type=doc.content_type,
+                    headers={"Content-Disposition": "inline", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"})
+
 
 
 def _get_owned_document(document_id: str, patient: Patient, db: Session) -> Document:
@@ -38,7 +60,7 @@ def upload_document(
         m = db.get(Milestone, milestone_id)
         if m is None or m.journey_id != journey_id:
             raise HTTPException(status_code=400, detail="Milestone does not belong to this journey")
-    data = file.file.read()
+    data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if not data:
         raise HTTPException(status_code=400, detail="Empty file")
     if len(data) > MAX_UPLOAD_BYTES:
@@ -52,7 +74,8 @@ def upload_document(
     )
     db.add(doc)
     db.flush()
-    doc.storage_path = save_upload(journey_id, doc.id, doc.filename, data)
+    db.add(DocumentBlob(document_id=doc.id, content=data))
+    doc.storage_path = "db:" + doc.id
     audit(db, f"patient:{patient.id}", "upload_document", "document", doc.id, {"filename": doc.filename})
     db.commit()
     return {"document_id": doc.id, "status": doc.status, "filename": doc.filename}
@@ -70,18 +93,23 @@ def extract_document(
     journey = get_owned_journey(doc.journey_id, patient, db)
     template = load_template(journey.template_id, journey.template_version)
 
-    raw = read_upload(doc.storage_path)
+    raw = _report_bytes(doc, db)
     if doc.filename.lower().endswith((".txt", ".md")) or doc.content_type.startswith("text/"):
         text = raw.decode("utf-8", errors="replace")
     elif doc.filename.lower().endswith(".pdf") or doc.content_type == "application/pdf":
         try:
             import io
-
             from pypdf import PdfReader
-
-            text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(raw)).pages)
+            reader = PdfReader(io.BytesIO(raw))
+            if len(reader.pages) > 10:
+                raise HTTPException(status_code=422, detail="More than 10 pages; split the report and review each part")
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
         except ImportError:
-            raise HTTPException(status_code=415, detail="PDF text reading needs the pypdf package (or an API key for vision extraction)")
+            raise HTTPException(status_code=415, detail="PDF text reading needs the pypdf package")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=422, detail="PDF could not be read; review the original and upload a clearer report")
         if not text.strip():
             raise HTTPException(status_code=422, detail="No readable text in this PDF (scanned reports need a vision API key)")
     elif doc.content_type.startswith("image/") or doc.filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".heic")):
@@ -130,14 +158,28 @@ def confirm_document(
         if m is None or m.journey_id != journey.id:
             raise HTTPException(status_code=400, detail="Milestone does not belong to this journey")
 
+    if doc.status not in ("extracted", "confirmed"):
+        raise HTTPException(status_code=409, detail="Extract the report and review the original before confirming")
+
+    codes = [v.code for v in body.values]
+    if len(codes) != len(set(codes)):
+        raise HTTPException(status_code=422, detail="Duplicate test values; review the original report")
+    _report_bytes(doc, db)  # never confirm a legacy report whose evidence is gone
+    # Validate every value before deleting an earlier confirmation.
+    normalized = []
+    for v in body.values:
+        if v.code not in KNOWN_TEST_CODES:
+            raise HTTPException(status_code=400, detail=f"Unknown test code: {v.code}")
+        try:
+            normalized.append(normalize_value(v.code, v.value, v.unit))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
     # Replace any values confirmed earlier from this document (re-confirm is safe).
     db.query(Observation).filter(Observation.document_id == doc.id).delete()
 
     saved = []
-    for v in body.values:
-        if v.code not in KNOWN_TEST_CODES:
-            raise HTTPException(status_code=400, detail=f"Unknown test code: {v.code}")
-        value, unit = normalize_value(v.code, v.value, v.unit or ("mmHg" if v.code.startswith("bp") else ""))
+    for v, (value, unit) in zip(body.values, normalized):
         obs = Observation(
             journey_id=journey.id,
             milestone_id=milestone_id,

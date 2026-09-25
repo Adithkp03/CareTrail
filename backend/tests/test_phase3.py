@@ -149,6 +149,7 @@ def test_confirm_rejects_unknown_code(client):
     token = signup(client)["token"]
     j = make_journey(client, token)
     doc_id = upload(client, token, j["journey_id"], "cbc_english_normal.txt")
+    client.post(f"/documents/{doc_id}/extract", headers=auth(token))
     r = client.post(
         f"/documents/{doc_id}/confirm",
         json={"values": [{"code": "plot Armour", "value": 1.0, "unit": "x"}]},
@@ -251,3 +252,99 @@ def test_photo_without_key_gives_clear_error(client, monkeypatch):
     )
     r = client.post(f"/documents/{r.json()['document_id']}/extract", headers=auth(token))
     assert r.status_code == 503
+
+
+def test_original_report_is_owner_only_and_persistent_in_database(client, monkeypatch):
+    from app.database import get_db
+    from app.models import DocumentBlob
+    a = signup(client, phone="9000000111")["token"]
+    b = signup(client, phone="9000000222")["token"]
+    j = make_journey(client, a)
+    doc = upload(client, a, j["journey_id"], "cbc_english_normal.txt")
+    assert client.get(f"/documents/{doc}/original", headers=auth(b)).status_code == 404
+    db = next(client.app.dependency_overrides[get_db]())
+    assert db.get(DocumentBlob, doc).content == (SAMPLES / "cbc_english_normal.txt").read_bytes()
+    # No local filesystem availability is required for new uploads.
+    monkeypatch.setattr(app.storage, "STORAGE_DIR", Path("/does-not-exist"))
+    r = client.get(f"/documents/{doc}/original", headers=auth(a))
+    assert r.status_code == 200 and r.content == (SAMPLES / "cbc_english_normal.txt").read_bytes()
+    assert r.headers["cache-control"] == "no-store"
+
+
+def test_missing_or_unknown_units_never_become_flags(client):
+    a = signup(client)["token"]
+    j = make_journey(client, a)
+    r = client.post(f"/journeys/{j['journey_id']}/documents/upload", files={"file": ("uncertain.txt", b"Haemoglobin: 8.0\nDate: 2026-09-20", "text/plain")}, headers=auth(a))
+    doc = r.json()["document_id"]
+    ext = client.post(f"/documents/{doc}/extract", headers=auth(a)).json()
+    assert not any(v["code"] == "hb" for v in ext["proposed"])
+    r = client.post(f"/documents/{doc}/confirm", json={"values": [{"code": "hb", "value": 8.0, "unit": ""}]}, headers=auth(a))
+    assert r.status_code == 422
+    r = client.post(f"/documents/{doc}/confirm", json={"values": [{"code": "hb", "value": 8.0, "unit": "mmol/L"}]}, headers=auth(a))
+    assert r.status_code == 422
+    assert client.get("/flags", params={"journey_id": j["journey_id"]}, headers=auth(a)).json()["flags"] == []
+
+
+def test_duplicate_and_failed_confirmation_preserve_prior_values(client):
+    a = signup(client)["token"]
+    j = make_journey(client, a)
+    doc = upload(client, a, j["journey_id"], "cbc_malayalam_low_hb.txt")
+    assert client.post(f"/documents/{doc}/confirm", json={"values": [{"code": "hb", "value": 10.2, "unit": "g/dL"}]}, headers=auth(a)).status_code == 409
+    client.post(f"/documents/{doc}/extract", headers=auth(a))
+    payload = {"values": [{"code": "hb", "value": 10.2, "unit": "g/dL"}]}
+    assert client.post(f"/documents/{doc}/confirm", json=payload, headers=auth(a)).status_code == 200
+    bad = {"values": [{"code": "hb", "value": 12.0, "unit": "g/dL"}, {"code": "hb", "value": 9.0, "unit": "g/dL"}]}
+    assert client.post(f"/documents/{doc}/confirm", json=bad, headers=auth(a)).status_code == 422
+    bad = {"values": [{"code": "hb", "value": 12.0, "unit": "g/dL"}, {"code": "bp_sys", "value": 150, "unit": "g/dL"}]}
+    assert client.post(f"/documents/{doc}/confirm", json=bad, headers=auth(a)).status_code == 422
+    flags = client.get("/flags", params={"journey_id": j["journey_id"]}, headers=auth(a)).json()["flags"]
+    assert any(f["code"] == "hb" and f["value"] == 10.2 for f in flags)
+
+
+def test_multi_page_pdf_extracts_combined_text(client):
+    # pypdf cannot create text; test reader's multi-page wiring with a small
+    # monkeypatched page reader to avoid an external report fixture.
+    import pypdf
+    a = signup(client)["token"]
+    j = make_journey(client, a)
+    doc = client.post(f"/journeys/{j['journey_id']}/documents/upload", files={"file": ("two.pdf", b"%PDF-synthetic", "application/pdf")}, headers=auth(a)).json()["document_id"]
+    class Page:
+        def __init__(self, text): self.text = text
+        def extract_text(self): return self.text
+    class Reader:
+        def __init__(self, stream): self.pages = [Page("Haemoglobin: 10.2 g/dL"), Page("Date: 2026-09-20")]
+    from pytest import MonkeyPatch
+    with MonkeyPatch.context() as mp:
+        mp.setattr(pypdf, "PdfReader", Reader)
+        ext = client.post(f"/documents/{doc}/extract", headers=auth(a)).json()
+    assert ext["proposed"][0]["code"] == "hb"
+
+
+def test_corrupt_and_too_many_page_pdfs_fail_without_observations(client):
+    import pypdf
+    a = signup(client)["token"]
+    j = make_journey(client, a)
+    doc = client.post(f"/journeys/{j['journey_id']}/documents/upload", files={"file": ("bad.pdf", b"not-a-pdf", "application/pdf")}, headers=auth(a)).json()["document_id"]
+    r = client.post(f"/documents/{doc}/extract", headers=auth(a))
+    assert r.status_code == 422
+    class Page:
+        def extract_text(self): return "Haemoglobin: 10.2 g/dL"
+    class Reader:
+        def __init__(self, stream): self.pages = [Page() for _ in range(11)]
+    from pytest import MonkeyPatch
+    with MonkeyPatch.context() as mp:
+        mp.setattr(pypdf, "PdfReader", Reader)
+        assert client.post(f"/documents/{doc}/extract", headers=auth(a)).status_code == 422
+    assert client.post(f"/documents/{doc}/confirm", json={"values": [{"code": "hb", "value": 10.2, "unit": "g/dL"}]}, headers=auth(a)).status_code == 409
+
+
+def test_image_provider_failure_does_not_confirm_blurry_report(client, monkeypatch):
+    import app.extraction as ex
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setattr(ex, "_gemini_json", lambda parts: {"language": "en", "values": []})
+    a = signup(client)["token"]
+    j = make_journey(client, a)
+    doc = client.post(f"/journeys/{j['journey_id']}/documents/upload", files={"file": ("blurred.jpg", b"\xff\xd8fake", "image/jpeg")}, headers=auth(a)).json()["document_id"]
+    ext = client.post(f"/documents/{doc}/extract", headers=auth(a))
+    assert ext.status_code == 200 and ext.json()["proposed"] == []
+    assert client.get("/flags", params={"journey_id": j["journey_id"]}, headers=auth(a)).json()["flags"] == []

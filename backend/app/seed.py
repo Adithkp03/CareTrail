@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from . import engine as journey_engine
-from .models import Document, Journey, Milestone, Observation, Patient, SignOff
+from .models import Document, DocumentBlob, Journey, Milestone, Observation, Patient, SignOff
 from .security import hash_password
 from .template_loader import load_template
 
@@ -45,6 +45,9 @@ def seed_anjali(db: Session, today: date | None = None) -> dict:
             milestone_ids = [
                 m.id for m in db.query(Milestone).filter(Milestone.journey_id.in_(journey_ids)).all()
             ]
+            document_ids = [d.id for d in db.query(Document).filter(Document.journey_id.in_(journey_ids)).all()]
+            if document_ids:
+                db.query(DocumentBlob).filter(DocumentBlob.document_id.in_(document_ids)).delete(synchronize_session=False)
             for model, column in [
                 (SignOff, SignOff.journey_id),
                 (Observation, Observation.journey_id),

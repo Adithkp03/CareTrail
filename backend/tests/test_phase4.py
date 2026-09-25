@@ -97,6 +97,7 @@ def test_ask_answers_flag_question_from_timeline(client):
         files={"file": ("cbc.txt", b"Haemoglobin: 10.2 g/dL\nDate: 2026-09-20", "text/plain")},
         headers=auth(token),
     ).json()["document_id"]
+    client.post(f"/documents/{doc}/extract", headers=auth(token))
     client.post(f"/documents/{doc}/confirm", json={"values": [{"code": "hb", "value": 10.2, "unit": "g/dL", "observed_on": "2026-09-20"}]}, headers=auth(token))
     body = client.post("/ask", json={"question": "is my haemoglobin ok?"}, headers=auth(token)).json()
     assert body["source"] == "timeline-flag"

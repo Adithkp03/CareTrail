@@ -1,5 +1,4 @@
-"""Where uploaded report bytes live. Local disk for the hackathon build; Supabase
-Storage in production (set STORAGE_DIR, or swap this module)."""
+"""Legacy local storage. New reports persist in document_blobs with their metadata."""
 
 import os
 from pathlib import Path

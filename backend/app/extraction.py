@@ -46,19 +46,24 @@ def detect_language(text: str) -> str:
 
 
 def normalize_value(code: str, value: float, unit: str) -> tuple[float, str]:
-    """Bring units to the ones the doctor's thresholds use."""
-    u = unit.strip().lower()
+    """Only normalize explicit, supported units. Never infer missing units."""
+    import math
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("Value must be a finite, non-negative number")
+    u = unit.strip().lower().replace(" ", "")
     if code == "hb":
-        if u in ("g/l", "g l-1"):
+        if u in ("g/l", "gl-1"):
             return round(value / 10.0, 1), "g/dL"
-        return value, "g/dL"
+        if u == "g/dl":
+            return value, "g/dL"
     if code.startswith("glucose"):
-        if u in ("mmol/l", "mmol l-1"):
+        if u in ("mmol/l", "mmoll-1"):
             return round(value * 18.0, 1), "mg/dL"
-        return value, "mg/dL"
-    if code.startswith("bp"):
+        if u == "mg/dl":
+            return value, "mg/dL"
+    if code.startswith("bp") and u == "mmhg":
         return value, "mmHg"
-    return value, unit
+    raise ValueError(f"Missing or unsupported unit for {code}; check the original report")
 
 
 def _find_number_near(text: str, aliases: list[str]) -> tuple[float, str] | None:
@@ -106,12 +111,12 @@ def offline_extract(text: str, template: dict) -> list[dict]:
             continue
         value, unit = hit
         if not unit:
-            # Unit missing: accept the number but mark it for review.
-            value, unit = normalize_value(code, value, "g/dL" if code == "hb" else "mg/dL")
-            confidence = 0.55
-        else:
+            continue  # no clinically safe unit inference
+        try:
             value, unit = normalize_value(code, value, unit)
-            confidence = 0.9
+        except ValueError:
+            continue
+        confidence = 0.9
         found.append({"code": code, "value": value, "unit": unit, "confidence": confidence})
 
     out = []
@@ -263,7 +268,10 @@ def _normalize(values: list[dict], template: dict) -> list[dict]:
             code = v.get("code")
             if code not in KNOWN_TEST_CODES or v.get("value") is None:
                 continue
-            value, unit = normalize_value(code, float(v["value"]), v.get("unit") or "")
+            try:
+                value, unit = normalize_value(code, float(v["value"]), v.get("unit") or "")
+            except (ValueError, TypeError):
+                continue
             rule = thresholds.get(code, {})
             ref = " / ".join(
                 f"{k} {x} {rule.get('unit', unit)}" for k, x in (("min", rule.get("min")), ("max", rule.get("max"))) if x is not None

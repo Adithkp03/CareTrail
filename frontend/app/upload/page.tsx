@@ -36,10 +36,15 @@ function UploadView() {
   const [extractMessage, setExtractMessage] = useState("");
   const [savedCount, setSavedCount] = useState(0);
   const [flags, setFlags] = useState<Flag[]>([]);
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [confirmChecked, setConfirmChecked] = useState(false);
   const [error, setError] = useState("");
   const [lang] = useLang();
   const tr = useTr(lang);
 
+  useEffect(() => {
+    return () => { if (evidenceUrl) URL.revokeObjectURL(evidenceUrl); };
+  }, [evidenceUrl]);
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
     (async () => {
@@ -62,6 +67,9 @@ function UploadView() {
       if (milestoneId) form.append("milestone_id", milestoneId);
       const up = await apiForm<{ document_id: string }>(`/journeys/${journey.journey_id}/documents/upload`, form);
       setDocumentId(up.document_id);
+      setConfirmChecked(false);
+      // The local File is the exact uploaded evidence; it stays beside the proposed values.
+      setEvidenceUrl(URL.createObjectURL(file));
       const ext = await api<{ language: string; provider: string; proposed: Omit<ProposedValue, "include">[]; message: string | null }>(
         `/documents/${up.document_id}/extract`, { method: "POST" }
       );
@@ -80,6 +88,7 @@ function UploadView() {
     setError("");
     const chosen = values.filter((v) => v.include);
     if (chosen.length === 0) { setError(tr("Nothing selected to save.")); return; }
+    if (!confirmChecked) { setError("Check the original report and confirm these values first."); return; }
     try {
       const res = await api<{ observations: unknown[]; flags: Flag[] }>(`/documents/${documentId}/confirm`, {
         method: "POST",
@@ -97,7 +106,7 @@ function UploadView() {
   }
 
   function reset() {
-    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage("");
+    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage(""); setEvidenceUrl(""); setConfirmChecked(false);
   }
 
   const input = "w-full rounded-xl border border-ink/15 bg-white p-3 text-sm";
@@ -123,6 +132,13 @@ function UploadView() {
 
       {step === "confirm" && (
         <div className="mt-4 space-y-4">
+          <section className="rounded-xl border border-amber-300 bg-white p-3">
+            <h2 className="font-semibold">Original report: {file?.name}</h2>
+            <p className="mt-1 text-xs">Compare every value, unit and date with the original before saving. Blurry, conflicting or missing-unit results should not be confirmed.</p>
+            {file?.type.startsWith("image/") && evidenceUrl ? <img className="mt-2 max-h-80 w-full object-contain" alt="Original uploaded report" src={evidenceUrl} /> : null}
+            {file?.type === "application/pdf" && evidenceUrl ? <iframe className="mt-2 h-80 w-full" title="Original uploaded PDF" src={evidenceUrl} /> : null}
+            {file?.type.startsWith("text/") && evidenceUrl ? <a className="mt-2 inline-block text-brand underline" href={evidenceUrl} target="_blank" rel="noreferrer">Open original text report</a> : null}
+          </section>
           <p className="rounded-xl bg-white p-3 text-sm shadow-sm">
             {tr("Is this right? Check the values before they go on your timeline.")}
             {provider === "offline-parser"
@@ -144,7 +160,12 @@ function UploadView() {
                 <input type="number" step="any" value={v.value}
                   onChange={(e) => setValues(values.map((x, j) => (j === i ? { ...x, value: Number(e.target.value) } : x)))}
                   className="w-28 rounded-lg border border-ink/15 p-2 text-sm" />
-                <span className="text-sm text-ink/60">{v.unit}</span>
+                <select value={v.unit} aria-label={`Unit for ${v.label}`}
+                  onChange={(e) => setValues(values.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))}
+                  className="rounded-lg border border-ink/15 p-2 text-sm">
+                  <option value="">Select unit</option>
+                  {(v.code === "hb" ? ["g/dL", "g/L"] : v.code.startsWith("bp") ? ["mmHg"] : ["mg/dL", "mmol/L"]).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                </select>
                 {v.reference_range && <span className="ml-auto text-xs text-ink/50">{tr("normal range")}: {v.reference_range}</span>}
               </div>
               <input type="date" value={v.observed_on}
@@ -152,9 +173,13 @@ function UploadView() {
                 className="mt-2 rounded-lg border border-ink/15 p-2 text-sm" />
             </div>
           ))}
+          <label className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm">
+            <input type="checkbox" checked={confirmChecked} onChange={e => setConfirmChecked(e.target.checked)} />
+            I compared the selected values, units and dates with the original report.
+          </label>
           <div className="flex gap-3">
             <button onClick={reset} className="flex-1 rounded-xl border border-ink/15 bg-white p-3 text-sm font-semibold">{tr("Cancel")}</button>
-            <button onClick={onConfirm} disabled={values.length === 0}
+            <button onClick={onConfirm} disabled={values.length === 0 || !confirmChecked}
               className="flex-1 rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-40">{tr("Save to timeline")}</button>
           </div>
         </div>
