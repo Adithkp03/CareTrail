@@ -1,6 +1,9 @@
 from datetime import date, timedelta
 
 from app.seed import DEMO_PASSWORD, DEMO_PHONE
+from app.database import get_db
+from app.models import Clinician, JourneyClinicianGrant
+from app.security import hash_password
 
 from .conftest import auth, signup
 
@@ -168,6 +171,25 @@ def test_demo_seed_is_idempotent_and_resets_state(client):
     assert status["second_trimester_review"] == "now"  # reset, not still done
     assert status["anomaly_scan"] == "upcoming"
     assert (fresh["gestational_age"]["weeks"], fresh["gestational_age"]["plus_days"]) == (22, 0)
+
+
+def test_demo_reset_removes_old_journey_clinician_grant(client):
+    first = client.post("/demo/seed")
+    assert first.status_code == 200
+    old_jid = first.json()["journey_id"]
+    db = next(client.app.dependency_overrides[get_db]())
+    clinician = Clinician(name="Dr Demo", email="demo-doctor@example.test", password_hash=hash_password("test-password-123"))
+    db.add(clinician)
+    db.flush()
+    db.add(JourneyClinicianGrant(journey_id=old_jid, clinician_id=clinician.id))
+    db.commit()
+
+    second = client.post("/demo/seed")
+    assert second.status_code == 200, second.text
+    assert second.json()["journey_id"] != old_jid
+    assert db.query(JourneyClinicianGrant).filter_by(journey_id=old_jid).count() == 0
+    # Never silently carry a patient's grant to a new journey.
+    assert db.query(JourneyClinicianGrant).filter_by(journey_id=second.json()["journey_id"]).count() == 0
 
 
 def test_first_visit_doctor_notes_are_present_in_new_journey(client):
