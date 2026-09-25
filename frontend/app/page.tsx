@@ -9,6 +9,9 @@ const TYPE_ICON: Record<Milestone["type"], string> = {
   visit: "🩺", scan: "🖥️", test: "🧪", vaccination: "💉", review: "📋",
 };
 const ZONE_ORDER: MilestoneStatus[] = ["now", "upcoming", "next", "done"];
+const STAGES = ["firstTrimester", "secondTrimester", "thirdTrimester"] as const;
+function trimester(week: number): number { return week < 14 ? 0 : week < 28 ? 1 : 2; }
+function milestoneStage(m: Milestone): number { return trimester(m.window_weeks[0]); }
 
 function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: string) => string }) {
   const router = useRouter();
@@ -25,7 +28,7 @@ function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: stri
           {m.status === "next" ? `${m.window_weeks[0]}-${m.window_weeks[1]} ${t("weeks", lang)}` : null}
         </span>
       </span>
-      {m.signoff ? <span title={`${t("signedOffBy", lang)} ${m.signoff.doctor_name}`}>✅</span> : null}
+      {m.signoff ? <span title={t("prototypeReview", lang)}>✅ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
       {m.overdue ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">{t("overdue", lang)}</span> : null}
     </button>
   );
@@ -79,6 +82,17 @@ export default function HomePage() {
 
   const zones: Record<MilestoneStatus, Milestone[]> = { now: [], upcoming: [], next: [], done: [] };
   for (const m of journey.milestones) zones[m.status].push(m);
+  const week = journey.gestational_age.weeks;
+  const currentStage = trimester(week);
+  const total = journey.milestones.length;
+  const completed = journey.summary.done;
+  const unresolved = journey.flags.filter((f) => !f.signed_off);
+  const overdue = journey.milestones.filter((m) => m.overdue && m.status !== "done");
+  const action = overdue[0] ?? zones.now[0] ?? zones.upcoming[0] ?? zones.next[0];
+  const attention = [
+    ...overdue.map((m) => `${t("overdueMilestone", lang)}: ${tr(m.title)}`),
+    ...unresolved.map((f) => `${t("reviewPending", lang)}: ${tr(f.label)} (${f.value} ${f.unit})`),
+  ];
 
   return (
     <main className="pt-6">
@@ -90,12 +104,12 @@ export default function HomePage() {
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm text-ink/60">{journey.patient.name}</p>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-xl font-bold sm:text-2xl">
             {journey.gestational_age.weeks} {t("weeks", lang)}
-            {journey.gestational_age.plus_days > 0 ? ` + ${journey.gestational_age.plus_days} ${t("days", lang)}` : ""}
+            {` + ${journey.gestational_age.plus_days} ${t("days", lang)}`}
           </h1>
         </div>
-        <div className="flex gap-1">
+        <div className="flex shrink-0 gap-1">
           {LANGS.map((l) => (
             <button key={l.code} onClick={() => setLang(l.code)}
               className={`rounded-full px-2 py-1 text-xs ${lang === l.code ? "bg-brand text-white" : "bg-white text-ink/70"}`}>
@@ -105,11 +119,56 @@ export default function HomePage() {
         </div>
       </header>
 
+      <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm" aria-label={t("journeyTitle", lang)}>
+        <h2 className="text-lg font-bold text-brand">{t("journeyTitle", lang)}</h2>
+        <p className="mt-1 text-sm text-ink/60">{t("youAreHere", lang)} · {t(STAGES[currentStage], lang)}</p>
+        <p className="mt-3 text-2xl font-bold">{completed}/{total} <span className="text-sm font-normal text-ink/60">{t("completedOf", lang)}</span></p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} aria-label={t("completedOf", lang)}>
+          <div className="h-full rounded-full bg-brand" style={{ width: `${total ? 100 * completed / total : 0}%` }} />
+        </div>
+      </section>
+
+      <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm" aria-label={t("journeyTitle", lang)}>
+        {STAGES.map((stage, i) => {
+          const items = journey.milestones.filter((m) => milestoneStage(m) === i);
+          const highlighted = i === currentStage
+            ? [...items.filter((m) => m.status === "now" || m.status === "upcoming"), ...items.filter((m) => m.status === "next")].slice(0, 3)
+            : i < currentStage ? items : items.slice(0, 1);
+          const rest = items.filter((m) => !highlighted.includes(m));
+          const row = (m: Milestone) => <a key={m.id} href={`/milestone?id=${m.id}`} className="flex min-h-8 items-start gap-2 rounded-lg px-1 py-1 text-sm text-ink/80 hover:bg-brand-soft">
+            <span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" ? "○" : "●"}</span>
+            <span className="min-w-0 flex-1">{tr(m.title)}</span>
+            {m.overdue ? <span className="text-xs text-red-700">{t("overdue", lang)}</span> : null}
+            {m.signoff ? <span className="text-xs" title={t("prototypeReview", lang)}>✓ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
+          </a>;
+          return <div key={stage} className="relative border-l-2 border-brand/25 pb-3 pl-5 last:border-transparent last:pb-0">
+            <span className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full ${i === currentStage ? "bg-brand ring-4 ring-brand/20" : "bg-ink/25"}`} />
+            <h3 className="text-sm font-semibold text-ink">{t(stage, lang)} {i === currentStage ? `· ${t("youAreHere", lang)}` : ""}</h3>
+            <div className="mt-1">{highlighted.map(row)}</div>
+            {rest.length > 0 ? <details className="mt-1 text-xs text-brand"><summary className="cursor-pointer">{t("showAllMilestones", lang)} · {items.length}</summary><div className="mt-1">{rest.map(row)}</div></details> : null}
+          </div>;
+        })}
+        {journey.milestones.some((m) => m.signoff) ? <p className="mt-2 text-xs text-ink/50">{t("prototypeReview", lang)}</p> : null}
+      </section>
+
+      {action ? <section className="mt-3 rounded-2xl bg-brand p-4 text-white">
+        <h2 className="text-sm font-semibold">{t("nextStep", lang)}</h2>
+        <a href={`/milestone?id=${action.id}`} className="mt-1 block font-medium underline">{tr(action.title)}</a>
+        <p className="mt-1 text-xs opacity-90">{action.overdue ? t("overdue", lang) : action.status === "now" ? t("currentWindow", lang) : action.status === "upcoming" ? t("scheduledNext", lang) : t("next", lang)}</p>
+        <a href={`/upload?milestone=${encodeURIComponent(action.id)}`} className="mt-3 inline-block rounded-lg bg-white px-3 py-2 text-sm font-semibold text-brand">{t("uploadReport", lang)}</a>
+      </section> : null}
+
+      <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <h2 className="font-semibold">{t("attentionNeeded", lang)}{attention.length ? ` · ${attention.length}` : ""}</h2>
+        {attention.length ? <ul className="mt-2 space-y-1 text-sm text-amber-900">{attention.map((item, i) => <li key={i}>⚠ {item}</li>)}</ul> :
+          <p className="mt-2 text-sm text-ink/60">{t("noOpenItems", lang)}</p>}
+      </section>
+
       {journey.next_appointment ? (
-        <div className="mt-4 rounded-2xl bg-brand p-4 text-white shadow">
-          <p className="text-xs uppercase tracking-wide opacity-80">{t("nextAppointment", lang)}</p>
+        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-ink/60">{t("nextAppointment", lang)}</p>
           <p className="mt-1 font-semibold">{tr(journey.next_appointment.title)}</p>
-          <p className="text-sm opacity-90">📅 {journey.next_appointment.scheduled_date}</p>
+          <p className="text-sm text-ink/60">📅 {journey.next_appointment.scheduled_date}</p>
         </div>
       ) : null}
 
@@ -130,13 +189,13 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      {journey.flags.length > 0 ? (
+      {unresolved.length > 0 ? (
         <a href="/doctor" className="mt-3 block rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          ⚠️ {journey.flags.length} {t("flagsQueue", lang)}
+          ⚠️ {unresolved.length} {t("flagsQueue", lang)}
         </a>
       ) : null}
 
-      <div className="mt-6 space-y-6">
+      <details className="mt-6"><summary className="cursor-pointer font-semibold text-brand">{t("journeyTitle", lang)} · {t("done", lang)} / {t("now", lang)} / {t("next", lang)}</summary><div className="mt-3 space-y-6">
         {ZONE_ORDER.map((zone) =>
           zones[zone].length === 0 ? null : (
             <section key={zone}>
@@ -149,7 +208,7 @@ export default function HomePage() {
             </section>
           )
         )}
-      </div>
+      </div></details>
 
       <section className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4">
         <h2 className="text-sm font-semibold text-red-800">{t("dangerSigns", lang)}:</h2>

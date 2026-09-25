@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { api, apiForm, getToken } from "@/lib/api";
 import { t, useLang, useTr } from "@/lib/i18n";
 import type { Flag, Journey } from "@/lib/types";
@@ -21,7 +22,8 @@ type Step = "pick" | "extracting" | "confirm" | "done";
 // Phase 3: upload a report, the backend proposes values (Sarvam Vision / Gemini when
 // keys exist, offline parser otherwise), the mother reviews the "Is this right?" card,
 // and only then do values land on her timeline. Flags come from the rules engine.
-export default function UploadPage() {
+function UploadView() {
+  const selectedMilestone = useSearchParams().get("milestone") ?? "";
   const router = useRouter();
   const [journey, setJourney] = useState<Journey | null>(null);
   const [milestoneId, setMilestoneId] = useState("");
@@ -43,9 +45,11 @@ export default function UploadPage() {
     (async () => {
       const list = await api<{ journeys: { journey_id: string }[] }>("/journeys");
       if (list.journeys.length === 0) return;
-      setJourney(await api<Journey>(`/journey/${list.journeys[0].journey_id}`));
+      const j = await api<Journey>(`/journey/${list.journeys[0].journey_id}`);
+      setJourney(j);
+      if (j.milestones.some((m) => m.id === selectedMilestone)) setMilestoneId(selectedMilestone);
     })();
-  }, [router]);
+  }, [router, selectedMilestone]);
 
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -179,4 +183,8 @@ export default function UploadPage() {
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{tr(error)}</p>}
     </main>
   );
+}
+
+export default function UploadPage() {
+  return <Suspense fallback={<main className="pt-16">Loading…</main>}><UploadView /></Suspense>;
 }

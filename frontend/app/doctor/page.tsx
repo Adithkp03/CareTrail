@@ -60,6 +60,7 @@ export default function DoctorPage() {
           {tr("Reset demo")}
         </button>
       </div>
+      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{t("prototypeReview", lang)}</p>
       <p className="text-sm text-ink/60">{journey.patient.name} · {journey.gestational_age.weeks} {t("weeks", lang)}</p>
 
       <input className="mt-4 w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("doctorName", lang)}

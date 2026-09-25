@@ -1,13 +1,13 @@
 # CareTrail - Demo playbook (Phase 7)
 
-## 3-minute demo script
+## 3-minute synthetic patient story
 
-1. **Hook (20s)** - "An ASHA worker hands a phone to Anjali, 22 weeks pregnant in Kerala. She can't read English reports. Watch."
-2. **Timeline (30s)** - Login with the demo account. Home screen shows done / now / next in Malayalam. Tap the current milestone -> plain-language "why this matters".
-3. **Upload + trust (40s)** - Upload `backend/sample_reports/cbc_01.txt` (hemoglobin 10.4). The flag appears instantly: deterministic rules, not an LLM. Tap it -> explanation with "based on doctor-set thresholds (WHO/FOGSI)".
-4. **Doctor loop (30s)** - Open /doctor: pre-consult brief + the same flag. Sign off as the doctor -> patient timeline shows "Dr. reviewed".
-5. **Voice (30s)** - Tap Ask, speak a question in Malayalam -> answer in Malayalam with audio reply (needs Sarvam key; falls back to text without it).
-6. **Trust close (20s)** - Consent screen, audit trail, "rules not LLM" for safety flags. End: "CareTrail is rails for trust, not another chatbot."
+1. Start with Anjali, a synthetic patient at 22 weeks. The journey-first home shows 3/14 milestones done, "You are here" in the second trimester, and the next step. CareTrail is a multilingual pregnancy companion, not a product for one region.
+2. Follow the ordered journey from completed first consultation, baseline blood tests and NT scan to the current review, scheduled anomaly scan and later OGTT. Open "Why now?" on a milestone to see its time window and preparation.
+3. Upload the **synthetic** low-haemoglobin CBC from `backend/app/sample_reports/cbc_malayalam_low_hb.txt`. Link it to the second-trimester review. Review the proposed 10.2 g/dL value before confirming; the rules engine flags it for follow-up. The upload does not mark the milestone complete.
+4. Open the prototype clinician review flow. Show the pre-consult brief and the flag. A named sign-off in this build is entered within the patient session, **not** separately authenticated clinician verification. Use a clearly labelled synthetic doctor name in the demo, not a real clinician endorsement.
+5. Return to the patient journey; show the recorded review and the evidence-backed attention card. Explain that AI extracts/translates/explains while code computes milestones and threshold flags.
+6. Close with "Know where you are. Know what's next. Know what has been reviewed." Do not imply medical clearance from an empty queue.
 
 ## Reset between runs
 - Doctor view -> "Reset demo" button, or `curl -X POST $API/demo/seed`. Idempotent; restores Anjali (9000000001 / demo1234, 22w0d, Malayalam).
