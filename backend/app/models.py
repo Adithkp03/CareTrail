@@ -129,6 +129,7 @@ class SignOff(Base):
     milestone_id: Mapped[str | None] = mapped_column(ForeignKey("milestones.id"), nullable=True)
     observation_id: Mapped[str | None] = mapped_column(ForeignKey("observations.id"), nullable=True)
     doctor_name: Mapped[str] = mapped_column(String(120))
+    clinician_id: Mapped[str | None] = mapped_column(ForeignKey("clinicians.id"), nullable=True)
     note: Mapped[str] = mapped_column(Text, default="")
     signed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -176,3 +177,28 @@ class AiCallTrace(Base):
     status: Mapped[str] = mapped_column(String(10), default="ok")
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Clinician(Base):
+    """Provisioned offline by the operator after verifying a real clinician."""
+    __tablename__ = "clinicians"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ClinicianToken(Base):
+    __tablename__ = "clinician_tokens"
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class JourneyClinicianGrant(Base):
+    __tablename__ = "journey_clinician_grants"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
+    clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import { t, useLang, useTr, testLabel } from "@/lib/i18n";
-import type { Brief, Flag, Journey } from "@/lib/types";
+import type { Brief, Journey } from "@/lib/types";
 
 // Hackathon shell of the doctor view: the flags queue plus the sign-off that
 // lands on the mother's timeline. A real doctor login lands in the hardening phase.
@@ -11,7 +11,7 @@ export default function DoctorPage() {
   const router = useRouter();
   const [journey, setJourney] = useState<Journey | null>(null);
   const [brief, setBrief] = useState<Brief | null>(null);
-  const [doctorName, setDoctorName] = useState("");
+  const [clinicianEmail, setClinicianEmail] = useState("");
   const [message, setMessage] = useState("");
   const [lang] = useLang();
   const tr = useTr(lang);
@@ -28,18 +28,12 @@ export default function DoctorPage() {
     load().catch(() => setMessage(tr("Could not load. Please try again.")));
   }, [router]);
 
-  async function signOff(flag: Flag) {
-    if (!journey || !doctorName.trim()) { setMessage(t("doctorName", lang) + "?"); return; }
-    await api("/signoffs", {
-      method: "POST",
-      headers: { "X-Doctor-Name": doctorName.trim() },
-      body: JSON.stringify({ journey_id: journey.journey_id, observation_id: flag.observation_id, note: "Reviewed." }),
-    });
-    setMessage(`✅ ${tr(flag.label)}`);
-    // show the sign-off right away; a re-fetch can come back stale
-    const who = doctorName.trim();
-    setJourney((j) => j && { ...j, flags: j.flags.map((f) => f.observation_id === flag.observation_id ? { ...f, signed_off: { doctor_name: who, note: "Reviewed.", signed_at: new Date().toISOString() } } : f) });
-    load().catch(() => {});
+  async function grantClinician() {
+    if (!journey || !clinicianEmail.trim()) return;
+    try {
+      await api(`/journeys/${journey.journey_id}/clinicians`, { method: "POST", body: JSON.stringify({ clinician_email: clinicianEmail.trim() }) });
+      setMessage("Clinician granted access to this journey. They must sign in separately.");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Grant failed"); }
   }
 
   async function resetDemo() {
@@ -60,11 +54,17 @@ export default function DoctorPage() {
           {tr("Reset demo")}
         </button>
       </div>
-      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{t("prototypeReview", lang)}</p>
+      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Patient view. Historical sign-offs may be unverified; new sign-offs need a separate verified clinician account.</p>
       <p className="text-sm text-ink/60">{journey.patient.name} · {journey.gestational_age.weeks} {t("weeks", lang)}</p>
 
-      <input className="mt-4 w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("doctorName", lang)}
-        value={doctorName} onChange={(e) => setDoctorName(e.target.value)} />
+      <div className="mt-4 rounded-xl border border-amber-200 bg-white p-3 text-sm">
+        <p>Patient view only. A typed name cannot sign off. Grant a provisioned clinician by email, then they sign in with their own account.</p>
+        <input className="mt-2 w-full rounded-lg border p-2" type="email" aria-label="Clinician account email" placeholder="Clinician account email"
+          value={clinicianEmail} onChange={(e) => setClinicianEmail(e.target.value)} />
+        <button onClick={grantClinician} className="mt-2 rounded-lg bg-brand px-3 py-2 font-semibold text-white">Grant clinician access</button>
+        <p className="mt-2">Journey ID for clinician: <code className="break-all">{journey.journey_id}</code></p>
+        <a className="mt-2 inline-block text-brand underline" href={`/clinician?journey=${encodeURIComponent(journey.journey_id)}`}>Clinician sign-in</a>
+      </div>
       {message && <p className="mt-2 text-sm text-brand">{message}</p>}
 
       {brief ? (
@@ -100,11 +100,9 @@ export default function DoctorPage() {
               <p className="mt-1 text-sm text-amber-900">{tr(f.message)}</p>
               <p className="mt-1 text-xs text-ink/50">{f.observed_on}</p>
               {f.signed_off ? (
-                <p className="mt-3 text-sm text-green-700">✅ {t("signedOffBy", lang)} {f.signed_off.doctor_name}{f.signed_off.note ? ` - ${tr(f.signed_off.note)}` : ""}</p>
+                <p className="mt-3 text-sm text-green-700">{f.signed_off.verified_clinician ? "✅ Verified clinician: " : "Prototype historical review (not independently verified): "}{f.signed_off.doctor_name}{f.signed_off.note ? ` - ${tr(f.signed_off.note)}` : ""}</p>
               ) : (
-                <button onClick={() => signOff(f)} className="mt-3 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white">
-                  {t("signOff", lang)}
-                </button>
+                <p className="mt-3 text-sm text-amber-900">Pending review by a verified clinician.</p>
               )}
             </div>
           ))}

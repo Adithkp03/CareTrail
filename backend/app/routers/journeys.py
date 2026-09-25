@@ -33,6 +33,7 @@ def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[Si
         "signoff": (
             {
                 "doctor_name": signoffs[-1].doctor_name,
+                "verified_clinician": bool(signoffs[-1].clinician_id),
                 "note": signoffs[-1].note,
                 "signed_at": signoffs[-1].signed_at.isoformat(),
             }

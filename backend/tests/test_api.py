@@ -143,27 +143,11 @@ def test_flags_come_from_template_thresholds_not_an_llm(client):
     assert "anaemia" in flag["message"]
 
 
-def test_signoff_lands_on_the_timeline_and_audit_trail_records_actions(client):
+def test_patient_cannot_sign_off_by_typing_doctor_name(client):
     seed = client.post("/demo/seed").json()
     token = client.post("/auth/login", json={"phone": DEMO_PHONE, "password": DEMO_PASSWORD}).json()["token"]
-    journey = client.get(f"/journey/{seed['journey_id']}", headers=auth(token)).json()
-    review = next(m for m in journey["milestones"] if m["key"] == "second_trimester_review")
-
-    r = client.post(
-        "/signoffs",
-        json={"journey_id": journey["journey_id"], "milestone_id": review["id"], "note": "Reviewed, on track."},
-        headers={**auth(token), "X-Doctor-Name": "Dr. Meera Nair"},
-    )
-    assert r.status_code == 201, r.text
-    signed = {m["key"]: m for m in r.json()["journey"]["milestones"]}["second_trimester_review"]
-    assert signed["signoff"]["doctor_name"] == "Dr. Meera Nair"
-
-    from app.database import get_db
-    from app.models import AuditLog
-
-    db = next(iter(client.app.dependency_overrides[get_db]()))
-    actions = [row.action for row in db.query(AuditLog).all()]
-    assert "signoff" in actions
+    r = client.post("/signoffs", json={"journey_id": seed["journey_id"]}, headers={**auth(token), "X-Doctor-Name": "Dr Any Name"})
+    assert r.status_code == 403
 
 
 def test_demo_seed_is_idempotent_and_resets_state(client):
