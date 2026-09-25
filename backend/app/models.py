@@ -196,6 +196,15 @@ class ClinicianToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class ClinicianSetupToken(Base):
+    """Operator-minted, single-use setup capability; only a digest is persisted."""
+    __tablename__ = "clinician_setup_tokens"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class JourneyClinicianGrant(Base):
     __tablename__ = "journey_clinician_grants"
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)

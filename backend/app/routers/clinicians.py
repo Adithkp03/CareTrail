@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..clinicians import authorized_journey, current_clinician
+from ..clinician_setup import redeem
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
@@ -22,6 +23,20 @@ class ClinicianLogin(BaseModel):
 
 class GrantRequest(BaseModel):
     clinician_email: str
+
+
+class SetupPassword(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/clinician/setup-password")
+def setup_password(body: SetupPassword, db: Session = Depends(get_db)):
+    if not 12 <= len(body.password) <= 128:
+        raise HTTPException(status_code=400, detail="Password must be 12-128 characters")
+    if not redeem(db, body.token, body.password):
+        raise HTTPException(status_code=400, detail="Setup link is invalid, used or expired")
+    return {"status": "password_set"}
 
 
 @router.post("/clinician/login")
