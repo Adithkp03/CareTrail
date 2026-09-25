@@ -91,3 +91,21 @@ Future ideas, **not available now**: (1) organize scanned reports and
 prescriptions by date in separate folders for clinic visits; (2) a referral
 network of government health professionals for continuity of care after a move.
 Neither should imply that records are shared with professionals today.
+
+## Clinician password setup (pending PR)
+
+Only the operator creates a clinician account after verifying the doctor's
+identity. There is no public invite endpoint. After this PR is merged and
+deployed, the operator runs `python -m scripts.provision_clinician_setup
+--name 'Dr Example' --email doctor@example.org
+--web-origin https://caretrail-web.vercel.app` from `backend/` with the
+production `DATABASE_URL` loaded securely (never copy it into chat or logs).
+The script prints a one-time HTTPS link; only its SHA-256 digest is kept in
+the database. The link expires in 24 hours. The operator passes it to the
+account owner over a trusted channel; the owner forwards it to the verified
+doctor. The doctor sets her own 12+ character password on `/clinician/setup`.
+A used link cannot be replayed, and a new link invalidates the old one. Never
+email or message the clinician without the owner's approval. The owner then
+grants the doctor access to a specific journey; the separate clinician login
+can review and sign off that journey's flags. No clinician is provisioned by
+merging this PR alone.
