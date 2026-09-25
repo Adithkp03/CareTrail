@@ -14,16 +14,15 @@ def list_ai_traces(
     patient: Patient = Depends(get_current_patient),
     db: Session = Depends(get_db),
 ):
-    """The judges' trace view: every AI provider call with prompt, output, latency."""
-    rows = db.query(AiCallTrace).order_by(AiCallTrace.created_at.desc()).limit(min(limit, 100)).all()
+    """Only the current patient's provider metadata; no clinical text."""
+    rows = (db.query(AiCallTrace).filter(AiCallTrace.patient_id == patient.id)
+            .order_by(AiCallTrace.created_at.desc()).limit(max(0, min(limit, 100))).all())
     return {
         "traces": [
             {
                 "id": r.id,
                 "provider": r.provider,
                 "kind": r.kind,
-                "prompt": r.prompt,
-                "output": r.output,
                 "status": r.status,
                 "latency_ms": r.latency_ms,
                 "at": r.created_at.isoformat(),

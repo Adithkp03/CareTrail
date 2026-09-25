@@ -33,7 +33,7 @@ def _client():
     )
 
 
-def chat(prompt: str, db=None) -> str | None:
+def chat(prompt: str, db=None, patient_id: str | None = None) -> str | None:
     """Sarvam-105B / sarvam-m text generation. None when unavailable."""
     if not available():
         return None
@@ -49,7 +49,7 @@ def chat(prompt: str, db=None) -> str | None:
         if not out:
             return None
     if db is not None:
-        with _trace(db, "sarvam", "chat", safe_prompt) as t:
+        with _trace(db, "sarvam", "chat", safe_prompt, patient_id=patient_id) as t:
             t.finish(out)
     return out
 
