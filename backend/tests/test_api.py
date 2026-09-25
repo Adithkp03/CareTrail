@@ -179,3 +179,16 @@ def test_first_visit_doctor_notes_are_present_in_new_journey(client):
     tests = by_key["baseline_bloods"]["prep_notes"]
     for term in ("hemoglobin", "platelets", "blood group", "HIV/VDRL/HBsAg", "TFT (fasting)", "fasting/post-prandial sugars", "urine routine microscopy and culture"):
         assert term in tests
+
+
+def test_existing_journey_receives_revised_nt_window_and_notes(client):
+    token = signup(client)["token"]
+    lmp = (date.today() - timedelta(days=97)).isoformat()
+    created = client.post("/journeys", json={"lmp": lmp}, headers=auth(token)).json()
+    nt = next(m for m in created["milestones"] if m["key"] == "nt_scan")
+    # Detail and timeline use the same revised pathway wording.
+    assert nt["status"] == "now" and not nt["overdue"]
+    assert "PAPP-A" in nt["prep_notes"]
+    detail = client.get(f"/milestones/{nt['id']}", headers=auth(token)).json()
+    assert detail["window_weeks"] == nt["window_weeks"]
+    assert "13+6" in detail["prep_notes"]

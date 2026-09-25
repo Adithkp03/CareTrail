@@ -7,6 +7,7 @@ from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..models import Document, Milestone, Observation, Patient, SignOff
 from ..schemas import MilestoneCompleteRequest, MilestoneScheduleRequest
+from ..template_loader import load_template
 from .journeys import journey_payload, milestone_payload
 from .. import engine as journey_engine
 
@@ -29,7 +30,8 @@ def get_milestone(milestone_id: str, patient: Patient = Depends(get_current_pati
     signoffs = db.query(SignOff).filter(SignOff.milestone_id == m.id).order_by(SignOff.signed_at).all()
     documents = db.query(Document).filter(Document.milestone_id == m.id).all()
     observations = db.query(Observation).filter(Observation.milestone_id == m.id).all()
-    payload = milestone_payload(m, ga_days, today, signoffs)
+    template = load_template(m.journey.template_id, m.journey.template_version)
+    payload = milestone_payload(m, ga_days, today, signoffs, {item["key"]: item for item in template["milestones"]})
     payload["documents"] = [
         {"id": d.id, "filename": d.filename, "status": d.status, "language": d.language} for d in documents
     ]
