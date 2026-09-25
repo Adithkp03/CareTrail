@@ -33,26 +33,33 @@ def next_up(journey_id: str, patient: Patient = Depends(get_current_patient), db
     today = date.today()
     ga_days = journey_engine.gestational_age_days(journey.lmp, journey.edd, today)
 
+    template = load_template(journey.template_id, journey.template_version)
+    current_milestones = {item["key"]: item for item in template["milestones"]}
     candidates = []
     for m in journey.milestones:
-        status, overdue = journey_engine.milestone_status(ga_days, m.window_start_weeks, m.window_end_weeks, m.completed_at, m.scheduled_date, today)
+        current = current_milestones.get(m.key, {})
+        start, end = current.get("window", [m.window_start_weeks, m.window_end_weeks])
+        status, overdue = journey_engine.milestone_status(ga_days, start, end, m.completed_at, m.scheduled_date, today)
         if status in ("now", "upcoming"):
-            candidates.append((0 if status == "now" else 1, m.scheduled_date or date(2099, 1, 1), m.window_end_weeks, m))
+            candidates.append((0 if status == "now" else 1, m.scheduled_date or date(2099, 1, 1), end, m))
     if not candidates:
         return {"milestone": None, "message": "No upcoming check-ups on the timeline."}
     m = sorted(candidates, key=lambda c: (c[0], c[1], c[2]))[0][3]
 
+    current = current_milestones.get(m.key, {})
+    start, end = current.get("window", [m.window_start_weeks, m.window_end_weeks])
+    prep_notes = current.get("prep_notes", m.prep_notes)
     return {
         "milestone": {
             "id": m.id,
             "key": m.key,
             "title": m.title,
             "type": m.type,
-            "window_weeks": [m.window_start_weeks, m.window_end_weeks],
+            "window_weeks": [start, end],
             "scheduled_date": m.scheduled_date.isoformat() if m.scheduled_date else None,
         },
-        "purpose": MILESTONE_EXPLANATIONS_EN.get(m.key) or m.prep_notes or m.title,
-        "what_to_bring": m.prep_notes or "Your previous reports and this app.",
+        "purpose": MILESTONE_EXPLANATIONS_EN.get(m.key) or prep_notes or m.title,
+        "what_to_bring": prep_notes or "Your previous reports and this app.",
         "fasting": FASTING_MILESTONES.get(m.key),
         "questions": QUESTIONS_BY_TYPE.get(m.type, QUESTIONS_BY_TYPE["visit"]),
     }

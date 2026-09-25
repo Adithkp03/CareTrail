@@ -14,18 +14,22 @@ from ..template_loader import load_template
 router = APIRouter(tags=["journey"])
 
 
-def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[SignOff]) -> dict:
+def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[SignOff], template_milestones: dict) -> dict:
+    # Existing journeys store milestone rows. Read the current v1 wording/window too,
+    # so an existing patient does not keep the old NT end of week 14.
+    current = template_milestones.get(m.key, {})
+    start, end = current.get("window", [m.window_start_weeks, m.window_end_weeks])
     status, overdue = journey_engine.milestone_status(
-        ga_days, m.window_start_weeks, m.window_end_weeks, m.completed_at, m.scheduled_date, today
+        ga_days, start, end, m.completed_at, m.scheduled_date, today
     )
     return {
         "id": m.id,
         "key": m.key,
         "title": m.title,
         "type": m.type,
-        "window_weeks": [m.window_start_weeks, m.window_end_weeks],
+        "window_weeks": [start, end],
         "required_tests": m.required_tests,
-        "prep_notes": m.prep_notes,
+        "prep_notes": current.get("prep_notes", m.prep_notes),
         "status": status,
         "overdue": overdue,
         "completed_at": m.completed_at.isoformat() if m.completed_at else None,
@@ -54,7 +58,8 @@ def journey_payload(db: Session, journey: Journey, today: date | None = None) ->
         for s in db.query(SignOff).filter(SignOff.milestone_id.in_(milestone_ids)).order_by(SignOff.signed_at):
             all_signoffs.setdefault(s.milestone_id, []).append(s)
 
-    milestones = [milestone_payload(m, ga_days, today, all_signoffs.get(m.id, [])) for m in journey.milestones]
+    template_milestones = {item["key"]: item for item in template["milestones"]}
+    milestones = [milestone_payload(m, ga_days, today, all_signoffs.get(m.id, []), template_milestones) for m in journey.milestones]
     next_appointments = [
         {"key": m["key"], "title": m["title"], "scheduled_date": m["scheduled_date"]}
         for m in milestones

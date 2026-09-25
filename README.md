@@ -196,3 +196,35 @@ brief, sign-off state transitions, ownership).
   corpus (`guidance_corpus.local.json`, gitignored - source documents are never
   redistributed through the repo). Demo corpus remains the fallback. Team doctor
   picks the documents and checks usage terms.
+
+## Data safety and scope (prototype)
+
+CareTrail is not an electronic medical record or emergency service. Patient
+accounts hold pregnancy dates, uploaded reports, extracted results, and account
+details. The frontend caches the last timeline in browser local storage for
+offline viewing. Cloud AI services may process report text, images, and questions.
+Text masking covers phone numbers, emails, and some name lines; it does not
+reliably remove every identifier, especially from images or unusual report
+formats. AI prompts and outputs are logged, and the current `/ai-traces` route
+is not scoped to one patient. A lab's identity or patient information could
+appear in traces. **Do not use real patient reports in this demo.** Draft PR #18
+proposes a fix but is unmerged; no privacy guarantee should be inferred from
+it. Uploaded bytes are on local disk (`/tmp` on Vercel), which is ephemeral on
+serverless instances. Retention/deletion controls and a durable private store
+are not implemented. Do not treat this as a backup or production care system.
+
+## Clinical review queue and future ideas
+
+The doctor's wording suggestions in this PR are a draft, including NT at 11
+weeks to 13+6, first-trimester beta-hCG/PAPP-A screening, optional costly PlGF,
+warning signs, pregnancy registration, and a birth-kit reminder. All clinical
+wording and translations need clinician and native-speaker review before release.
+Exact pregnancy-specific TFT thresholds, units, gestational context, and
+interpretation are pending from the doctor; no TFT threshold or flag has been
+added. The NT window change applies to existing journeys through current pathway
+lookup, and explanation caches are keyed to the changed notes, so older cached wording is not reused.
+
+Future ideas, **not available now**: (1) organize scanned reports and
+prescriptions by date in separate folders for clinic visits; (2) a referral
+network of government health professionals for continuity of care after a move.
+Neither should imply that records are shared with professionals today.

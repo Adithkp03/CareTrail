@@ -27,8 +27,8 @@ function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: stri
         <span className="block text-xs text-ink/50">
           {m.status === "done" && m.completed_at ? `✓ ${m.completed_at}` : null}
           {m.status === "upcoming" && m.scheduled_date ? `📅 ${m.scheduled_date}` : null}
-          {m.status === "now" ? `${t("window", lang)}: ${m.window_weeks[0]}-${m.window_weeks[1]} ${t("weeks", lang)}` : null}
-          {m.status === "next" ? `${m.window_weeks[0]}-${m.window_weeks[1]} ${t("weeks", lang)}` : null}
+          {m.status === "now" ? `${t("window", lang)}: ${m.window_weeks[0]}-${m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} ${t("weeks", lang)}` : null}
+          {m.status === "next" ? `${m.window_weeks[0]}-${m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} ${t("weeks", lang)}` : null}
         </span>
       </span>
       {m.signoff ? <span title={t("prototypeReview", lang)}>✅ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
@@ -223,6 +223,9 @@ export default function HomePage() {
           )
         )}
       </div></details>
+
+      <p className="mt-5 text-xs text-ink/60">{t("medicalReviewNote", lang)}</p>
+      <a href="/data-safety" className="mt-2 inline-block text-sm font-medium text-brand underline">{t("dataSafety", lang)}</a>
 
       <section className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4">
         <h2 className="text-sm font-semibold text-red-800">{t("dangerSigns", lang)}:</h2>

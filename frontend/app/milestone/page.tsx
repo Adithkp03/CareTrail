@@ -133,7 +133,7 @@ function MilestoneView() {
         </span>
       </div>
       <p className="mt-1 text-sm text-ink/60">
-        {t("window", lang)}: {m.window_weeks[0]}-{m.window_weeks[1]} {t("weeks", lang)}
+        {t("window", lang)}: {m.window_weeks[0]}-{m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} {t("weeks", lang)}
         {m.scheduled_date ? ` · 📅 ${m.scheduled_date}` : ""}
         {m.completed_at ? ` · ✓ ${m.completed_at}` : ""}
       </p>
@@ -150,7 +150,7 @@ function MilestoneView() {
         <h2 className="text-sm font-semibold">{t("whyNow", lang)}</h2>
         <p className="mt-1 text-sm text-ink/70">
           {tr("This check-up is placed in the journey based on your pregnancy dates and the pathway window.")}
-          {` ${m.window_weeks[0]}-${m.window_weeks[1]} ${t("weeks", lang)}.`}
+          {` ${m.window_weeks[0]}-${m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} ${t("weeks", lang)}.`}
         </p>
         <a href={`/upload?milestone=${encodeURIComponent(m.id)}`} className="mt-3 inline-block rounded-xl border border-brand px-3 py-2 text-sm font-semibold text-brand">
           {t("uploadReport", lang)}

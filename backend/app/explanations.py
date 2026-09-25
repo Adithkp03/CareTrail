@@ -8,6 +8,8 @@ for everything, plus Malayalam and Hindi for the demo milestones - pending the
 native-speaker review the build plan calls for).
 """
 
+import hashlib
+
 from sqlalchemy.orm import Session
 
 from . import voice
@@ -18,8 +20,8 @@ from .models import ExplanationCache
 MILESTONE_EXPLANATIONS_EN = {
     "first_consultation": "Your first check-up of the pregnancy. The doctor confirms the pregnancy, notes your health history, and plans your care. Bring any old prescriptions and reports, and note the first day of your last period.",
     "baseline_bloods": "Basic blood tests done once at the start: haemoglobin, blood group, sugar, and infection screening. They catch problems early, when they are easiest to treat. No fasting needed unless your doctor says so.",
-    "nt_scan": "An ultrasound between weeks 11 and 14 that measures fluid at the back of the baby's neck. It is an early check on the baby's development. A moderately full bladder helps.",
-    "second_trimester_review": "A routine check of your weight, blood pressure, and the baby's growth. Mention any new symptoms, even small ones.",
+    "nt_scan": "An NT ultrasound strictly between 11 and 13+6 weeks measures fluid at the back of the baby's neck. Ask your clinician about first-trimester screening with beta-hCG and PAPP-A for common chromosomal conditions; screening cannot rule them out. PlGF may be discussed for pre-eclampsia screening and can be costly.",
+    "second_trimester_review": "A routine check of your weight, blood pressure, and the baby's growth. Mention new symptoms. Seek prompt medical attention for severe headache, blurry vision, severe nausea or vomiting, right-sided upper abdominal pain, reduced urine, or sudden whole-body swelling.",
     "anomaly_scan": "A detailed ultrasound, usually between weeks 18 and 22, that checks the baby's organs - heart, brain, spine, kidneys. It finds most physical differences early so the doctor can plan care. No fasting needed. It takes about 30 to 45 minutes.",
     "consultation_24w": "A routine visit to check your blood pressure and how the baby is growing. Bring your anomaly scan report.",
     "ogtt": "A sugar test for gestational diabetes. You come fasting, drink a glucose solution, and give blood samples over 2 hours. If sugar is high, diet changes and sometimes medicine protect you and the baby.",
@@ -29,7 +31,7 @@ MILESTONE_EXPLANATIONS_EN = {
     "review_34w": "A routine late-pregnancy check. Start counting baby movements every day.",
     "review_36w": "A check-up to discuss your birth plan and warning signs.",
     "review_38w": "A late check-up. Know when to go to the hospital: regular pains, leaking water, or bleeding.",
-    "birth_plan": "Finalise where you will deliver, how you will get there, and who comes with you.",
+    "birth_plan": "Finalise where you will deliver, how you will get there, and who comes with you. Consider a birth kit with medical records, comfortable clothes, a towel, wipes, sanitary napkins, tissues, baby clothes, snacks, juice, water and toiletries.",
 }
 
 # Demo milestone in Malayalam and Hindi (native-speaker review pending, per plan).
@@ -68,7 +70,9 @@ def _english_milestone_text(milestone_key: str, title: str, prep_notes: str) -> 
 
 
 def milestone_explanation(db: Session, milestone_key: str, title: str, prep_notes: str, template_version: str, language: str) -> dict:
-    cache_key = f"{milestone_key}|{language}|{template_version}"
+    # Wording changes must not serve stale clinical copy from an earlier cache entry.
+    revision = hashlib.sha1(prep_notes.encode("utf-8")).hexdigest()[:12]
+    cache_key = f"{milestone_key}|{language}|{template_version}|{revision}"
     row = db.query(ExplanationCache).filter(ExplanationCache.cache_key == cache_key).first()
     if row:
         return {"text": row.text, "language": language, "audio_available": bool(row.audio_path), "provider": row.provider, "cache": True}
