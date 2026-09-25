@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -202,3 +202,9 @@ class JourneyClinicianGrant(Base):
     journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
     clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
     granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class DocumentBlob(Base):
+    """Durable original report bytes in the same database as the document row."""
+    __tablename__ = "document_blobs"
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), primary_key=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
