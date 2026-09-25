@@ -1,10 +1,21 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
 import type { Flag } from "@/lib/types";
 
 const STORAGE_KEY = "caretrail_clinician_token";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+async function clinicianApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {"Content-Type": "application/json", ...(options.headers as Record<string, string> || {})},
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Request failed (${res.status})`);
+  }
+  return res.json() as Promise<T>;
+}
 function ClinicianView() {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
@@ -19,21 +30,21 @@ function ClinicianView() {
   async function login(e: React.FormEvent) {
     e.preventDefault(); setMessage("");
     try {
-      const result = await api<{token: string; name: string}>("/clinician/login", {method: "POST", body: JSON.stringify({email, password})}, false);
+      const result = await clinicianApi<{token: string; name: string}>("/clinician/login", {method: "POST", body: JSON.stringify({email, password})});
       sessionStorage.setItem(STORAGE_KEY, result.token); setToken(result.token); setPassword("");
       setMessage(`Signed in as ${result.name}. Enter the patient-authorized journey ID to review.`);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Login failed"); }
   }
   async function load() {
     try {
-      const result = await api<{patient: string; flags: Flag[]}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/review`, {headers: h});
+      const result = await clinicianApi<{patient: string; flags: Flag[]}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/review`, {headers: h});
       setPatient(result.patient); setFlags(result.flags); setMessage("");
     } catch (err) { setPatient(""); setFlags([]); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
   }
   async function signOff(flag: Flag) {
     if (!confirm(`Sign off ${flag.label}: ${flag.value} ${flag.unit} for ${patient}?`)) return;
     try {
-      await api("/clinician/signoffs", {method: "POST", headers: h, body: JSON.stringify({journey_id: journeyId, observation_id: flag.observation_id, note: "Reviewed."})});
+      await clinicianApi("/clinician/signoffs", {method: "POST", headers: h, body: JSON.stringify({journey_id: journeyId, observation_id: flag.observation_id, note: "Reviewed."})});
       await load();
     } catch (err) { setMessage(err instanceof Error ? err.message : "Sign-off failed"); }
   }
