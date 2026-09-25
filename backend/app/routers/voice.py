@@ -32,7 +32,7 @@ def get_milestone_explanation(
     if m is None:
         raise HTTPException(status_code=404, detail="Milestone not found")
     journey = get_owned_journey(m.journey_id, patient, db)
-    return milestone_explanation(db, m.key, m.title, m.prep_notes, journey.template_version, lang)
+    return milestone_explanation(db, m.key, m.title, m.prep_notes, journey.template_version, lang, patient.id)
 
 
 @router.get("/milestones/{milestone_id}/explanation/audio")
@@ -46,7 +46,7 @@ def get_milestone_explanation_audio(
     if m is None:
         raise HTTPException(status_code=404, detail="Milestone not found")
     get_owned_journey(m.journey_id, patient, db)
-    milestone_explanation(db, m.key, m.title, m.prep_notes, m.journey.template_version, lang)  # ensure cached
+    milestone_explanation(db, m.key, m.title, m.prep_notes, m.journey.template_version, lang, patient.id)  # ensure cached
     audio = explanation_audio(db, m.key, lang)
     if audio is None:
         raise HTTPException(status_code=503, detail="Audio needs SARVAM_API_KEY (Bulbul text-to-speech)")
@@ -62,7 +62,7 @@ def get_result_explanation(
     db: Session = Depends(get_db),
 ):
     _latest_journey(patient, db)  # 404 if the patient has no journey at all
-    return result_explanation(db, code, label or code, "v1", lang)
+    return result_explanation(db, code, label or code, "v1", lang, patient.id)
 
 
 @router.post("/ask")

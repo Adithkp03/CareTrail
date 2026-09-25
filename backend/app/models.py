@@ -163,15 +163,16 @@ class ExplanationCache(Base):
 
 
 class AiCallTrace(Base):
-    """One row per AI provider call: prompt, output, latency. The eval/trust story."""
+    """Metadata only. No prompt, output or clinical text may be retained."""
 
     __tablename__ = "ai_call_traces"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     provider: Mapped[str] = mapped_column(String(30))
     kind: Mapped[str] = mapped_column(String(30))  # chat | translate | tts | stt | vision | embed
-    prompt: Mapped[str] = mapped_column(Text, default="")
-    output: Mapped[str] = mapped_column(Text, default="")
+    prompt: Mapped[str] = mapped_column(Text, default="")  # legacy NOT NULL column: always blank
+    output: Mapped[str] = mapped_column(Text, default="")  # legacy NOT NULL column: always blank
+    patient_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(10), default="ok")
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

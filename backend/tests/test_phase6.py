@@ -31,16 +31,39 @@ def test_ai_traces_endpoint(client):
     assert r.status_code == 200 and "traces" in r.json()
 
 
-def test_trace_written_on_provider_call(client):
+def test_trace_is_metadata_only_and_patient_isolated(client):
     from app.database import get_db
     from app.models import AiCallTrace
     from app.tracing import trace
 
+    token_a = signup(client)["token"]
+    token_b = client.post("/auth/signup", json={"name": "Another", "phone": "9000000088", "password": "secret123", "language": "en", "consent": True}).json()["token"]
+    patient_a = client.get("/auth/me", headers=auth(token_a)).json()["patient_id"]
     db = next(client.app.dependency_overrides[get_db]())
-    with trace(db, "sarvam", "chat", "test prompt") as t:
-        t.finish("test output")
-    rows = db.query(AiCallTrace).filter(AiCallTrace.prompt == "test prompt").all()
-    assert len(rows) == 1 and rows[0].output == "test output" and rows[0].status == "ok"
+    with trace(db, "sarvam", "chat", "Sensitive Hb 8.7", patient_id=patient_a) as t:
+        t.finish("Private medical output")
+    row = db.query(AiCallTrace).filter(AiCallTrace.patient_id == patient_a).first()
+    assert row is not None and row.prompt == "" and row.output == "" and row.status == "ok"
+    own = client.get("/ai-traces", headers=auth(token_a)).json()["traces"]
+    other = client.get("/ai-traces", headers=auth(token_b)).json()["traces"]
+    assert len(own) == 1 and other == []
+    assert "prompt" not in own[0] and "output" not in own[0]
+
+
+def test_legacy_traces_are_scrubbed_on_migration(client):
+    from app.database import get_db
+    from app.models import AiCallTrace
+    from sqlalchemy import text
+
+    db = next(client.app.dependency_overrides[get_db]())
+    row = AiCallTrace(provider="legacy", kind="chat", prompt="Hb 8.7", output="Private result")
+    db.add(row)
+    db.commit()
+    # Run the same idempotent scrub against the isolated test DB.
+    db.execute(text("UPDATE ai_call_traces SET prompt = :blank, output = :blank WHERE prompt <> :blank OR output <> :blank"), {"blank": ""})
+    db.commit()
+    db.refresh(row)
+    assert row.prompt == "" and row.output == ""
 
 
 def test_eval_accuracy_at_least_95_percent():

@@ -57,8 +57,8 @@ PROMPT_TEMPLATE = (
 )
 
 
-def _english_milestone_text(milestone_key: str, title: str, prep_notes: str) -> tuple[str, str]:
-    generated = voice.chat(PROMPT_TEMPLATE.format(title=title, prep_notes=prep_notes or "None."))
+def _english_milestone_text(milestone_key: str, title: str, prep_notes: str, patient_id: str | None = None) -> tuple[str, str]:
+    generated = voice.chat(PROMPT_TEMPLATE.format(title=title, prep_notes=prep_notes or "None."), patient_id=patient_id)
     if generated:
         return generated, "sarvam"
     curated = MILESTONE_EXPLANATIONS_EN.get(milestone_key)
@@ -67,13 +67,13 @@ def _english_milestone_text(milestone_key: str, title: str, prep_notes: str) -> 
     return f"{title}. {prep_notes}".strip(), "template"
 
 
-def milestone_explanation(db: Session, milestone_key: str, title: str, prep_notes: str, template_version: str, language: str) -> dict:
+def milestone_explanation(db: Session, milestone_key: str, title: str, prep_notes: str, template_version: str, language: str, patient_id: str | None = None) -> dict:
     cache_key = f"{milestone_key}|{language}|{template_version}"
     row = db.query(ExplanationCache).filter(ExplanationCache.cache_key == cache_key).first()
     if row:
         return {"text": row.text, "language": language, "audio_available": bool(row.audio_path), "provider": row.provider, "cache": True}
 
-    english, provider = _english_milestone_text(milestone_key, title, prep_notes)
+    english, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     if language == "en":
         text = english
     else:
@@ -86,8 +86,8 @@ def milestone_explanation(db: Session, milestone_key: str, title: str, prep_note
     return {"text": text, "language": language, "audio_available": False, "provider": provider, "cache": False}
 
 
-def result_explanation(db: Session, code: str, label: str, template_version: str, language: str) -> dict:
-    return milestone_explanation(db, f"result:{code}", label, RESULT_EXPLANATIONS_EN.get(code, ""), template_version, language)
+def result_explanation(db: Session, code: str, label: str, template_version: str, language: str, patient_id: str | None = None) -> dict:
+    return milestone_explanation(db, f"result:{code}", label, RESULT_EXPLANATIONS_EN.get(code, ""), template_version, language, patient_id)
 
 
 def explanation_audio(db: Session, cache_prefix: str, language: str) -> bytes | None:

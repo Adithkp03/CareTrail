@@ -1,5 +1,4 @@
-"""Add columns that create_all won't add to existing tables (dev SQLite only;
-Supabase/Postgres gets real migrations in the hardening phase)."""
+"""Idempotent schema and privacy migrations for SQLite and deployed Postgres."""
 
 from sqlalchemy import inspect, text
 
@@ -11,6 +10,7 @@ _PATCHES = {
         "supabase_id": "ALTER TABLE patients ADD COLUMN supabase_id VARCHAR(64)",
         "email": "ALTER TABLE patients ADD COLUMN email VARCHAR(200)",
     },
+    "ai_call_traces": {"patient_id": "ALTER TABLE ai_call_traces ADD COLUMN patient_id VARCHAR(32)"},
 }
 
 
@@ -24,3 +24,8 @@ def apply():
             for column, ddl in patches.items():
                 if column not in existing:
                     conn.execute(text(ddl))
+        # Older traces have no reliable owner and may contain sensitive health text.
+        # Blank both legacy columns on every startup; this is idempotent and also
+        # removes pre-fix traces arriving from another stale instance.
+        if "ai_call_traces" in insp.get_table_names():
+            conn.execute(text("UPDATE ai_call_traces SET prompt = :blank, output = :blank WHERE prompt <> :blank OR output <> :blank"), {"blank": ""})
