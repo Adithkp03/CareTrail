@@ -12,7 +12,7 @@ export type Milestone = {
   overdue: boolean;
   completed_at: string | null;
   scheduled_date: string | null;
-  signoff: { doctor_name: string; note: string; signed_at: string } | null;
+  signoff: { doctor_name: string; note: string; signed_at: string; verified_clinician?: boolean } | null;
   documents?: { id: string; filename: string; status: string; language: string | null }[];
   observations?: { id: string; code: string; value: number; unit: string; observed_on: string }[];
 };
@@ -42,7 +42,7 @@ export type Flag = {
   threshold: { min?: number; max?: number };
   message: string;
   severity: string;
-  signed_off: { doctor_name: string; note: string; signed_at: string } | null;
+  signed_off: { doctor_name: string; note: string; signed_at: string; verified_clinician?: boolean } | null;
 };
 
 export type NextUp = {

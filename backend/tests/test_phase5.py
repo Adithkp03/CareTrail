@@ -85,21 +85,14 @@ def test_brief_lists_open_flags(client):
     assert any(v["code"] == "hb" for v in body["latest_values"])
 
 
-def test_signoff_moves_flag_to_signed_and_badges_timeline(client):
+def test_patient_session_cannot_signoff_flag(client):
     token = signup(client)["token"]
     j = make_journey(client, token)
     confirm_low_hb(client, token, j["journey_id"])
     brief = client.get(f"/journey/{j['journey_id']}/brief", headers=auth(token)).json()
     obs_id = brief["open_flags"][0]["observation_id"]
-    r = client.post(
-        "/signoffs",
-        json={"journey_id": j["journey_id"], "observation_id": obs_id, "note": "Will recheck in 2 weeks."},
-        headers={**auth(token), "X-Doctor-Name": "Dr Meera"},
-    )
-    assert r.status_code == 201, r.text
-    brief = client.get(f"/journey/{j['journey_id']}/brief", headers=auth(token)).json()
-    assert brief["open_flags"] == []
-    assert brief["signed_flags"][0]["signed_off"]["doctor_name"] == "Dr Meera"
+    r = client.post("/signoffs", json={"journey_id": j["journey_id"], "observation_id": obs_id}, headers={**auth(token), "X-Doctor-Name": "Dr Meera"})
+    assert r.status_code == 403
 
 
 def test_brief_requires_ownership(client):

@@ -11,6 +11,7 @@ _PATCHES = {
         "supabase_id": "ALTER TABLE patients ADD COLUMN supabase_id VARCHAR(64)",
         "email": "ALTER TABLE patients ADD COLUMN email VARCHAR(200)",
     },
+    "signoffs": {"clinician_id": "ALTER TABLE signoffs ADD COLUMN clinician_id VARCHAR(32)"},
 }
 
 

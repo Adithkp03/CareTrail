@@ -48,6 +48,7 @@ def compute_flags(db: Session, journey_id: str, template: dict) -> list[dict]:
                 "signed_off": (
                     {
                         "doctor_name": signed[obs.id].doctor_name,
+                        "verified_clinician": bool(signed[obs.id].clinician_id),
                         "note": signed[obs.id].note,
                         "signed_at": signed[obs.id].signed_at.isoformat(),
                     }
