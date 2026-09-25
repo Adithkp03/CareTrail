@@ -59,14 +59,11 @@ export default function LoginPage() {
         <a className="text-brand underline" href="/signup">{t("signup", lang)}</a>
       </p>
       <SupabaseSignIn lang={lang} />
-      <div className="mt-8 flex justify-center gap-2">
-        {LANGS.map((l) => (
-          <button key={l.code} onClick={() => setLang(l.code)}
-            className={`rounded-full px-3 py-1 text-sm ${lang === l.code ? "bg-brand text-white" : "bg-white text-ink/70"}`}>
-            {l.label}
-          </button>
-        ))}
-      </div>
+      <label htmlFor="login-language" className="mt-8 block text-sm font-medium text-ink/70">{t("language", lang)}</label>
+      <select id="login-language" value={lang} onChange={(e) => setLang(e.target.value as typeof lang)} className="mt-2 w-full rounded-xl border border-ink/15 bg-white p-3">
+        {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+      </select>
+      {!["en", "ml", "hi"].includes(lang) && <p className="mt-2 text-xs text-amber-900">{t("translationNote", lang)}</p>}
     </main>
   );
 }

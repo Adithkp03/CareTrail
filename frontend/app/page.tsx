@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken, setToken } from "@/lib/api";
 import { t, LANGS, useLang, useTr, type Lang } from "@/lib/i18n";
+import CareIcon from "@/components/CareIcon";
+import MovementTracker from "@/components/MovementTracker";
+import { firstTrimesterSteps, firstVisitTests, milestoneIcons, careText } from "@/lib/first-trimester";
 import type { Journey, Milestone, MilestoneStatus, NextUp } from "@/lib/types";
 
 const TYPE_ICON: Record<Milestone["type"], string> = {
-  visit: "🩺", scan: "🖥️", test: "🧪", vaccination: "💉", review: "📋",
+  visit: "visit", scan: "scan", test: "test", vaccination: "vaccination", review: "review",
 };
 const ZONE_ORDER: MilestoneStatus[] = ["now", "upcoming", "next", "done"];
 const STAGES = ["firstTrimester", "secondTrimester", "thirdTrimester"] as const;
@@ -18,7 +21,7 @@ function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: stri
   return (
     <button onClick={() => router.push(`/milestone?id=${m.id}`)}
       className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm">
-      <span className="text-xl">{TYPE_ICON[m.type]}</span>
+      <span className="text-xl"><CareIcon name={milestoneIcons[m.key] ?? TYPE_ICON[m.type]} size={20} /></span>
       <span className="flex-1">
         <span className="block font-medium">{tr(m.title)}</span>
         <span className="block text-xs text-ink/50">
@@ -110,15 +113,13 @@ export default function HomePage() {
           </h1>
         </div>
         <div className="flex shrink-0 gap-1">
-          {LANGS.map((l) => (
-            <button key={l.code} onClick={() => setLang(l.code)}
-              className={`rounded-full px-2 py-1 text-xs ${lang === l.code ? "bg-brand text-white" : "bg-white text-ink/70"}`}>
-              {l.code.toUpperCase()}
-            </button>
-          ))}
+          <select value={lang} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t("language", lang)} className="max-w-28 rounded-xl bg-white p-2 text-xs text-brand">
+            {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
         </div>
       </header>
 
+      {!["en", "ml", "hi"].includes(lang) && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-900">{t("translationNote", lang)}</p>}
       <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm" aria-label={t("journeyTitle", lang)}>
         <h2 className="text-lg font-bold text-brand">{t("journeyTitle", lang)}</h2>
         <p className="mt-1 text-sm text-ink/60">{t("youAreHere", lang)} · {t(STAGES[currentStage], lang)}</p>
@@ -136,7 +137,7 @@ export default function HomePage() {
             : i < currentStage ? items : items.slice(0, 1);
           const rest = items.filter((m) => !highlighted.includes(m));
           const row = (m: Milestone) => <a key={m.id} href={`/milestone?id=${m.id}`} className="flex min-h-8 items-start gap-2 rounded-lg px-1 py-1 text-sm text-ink/80 hover:bg-brand-soft">
-            <span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" ? "○" : "●"}</span>
+            <span aria-hidden="true" className="shrink-0 text-lg"><CareIcon name={milestoneIcons[m.key] ?? TYPE_ICON[m.type]} size={20} /></span><span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" ? "○" : "●"}</span>
             <span className="min-w-0 flex-1">{tr(m.title)}</span>
             {m.overdue ? <span className="text-xs text-red-700">{t("overdue", lang)}</span> : null}
             {m.signoff ? <span className="text-xs" title={t("prototypeReview", lang)}>✓ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
@@ -150,6 +151,19 @@ export default function HomePage() {
         })}
         {journey.milestones.some((m) => m.signoff) ? <p className="mt-2 text-xs text-ink/50">{t("prototypeReview", lang)}</p> : null}
       </section>
+
+      <details className="mt-3 rounded-2xl bg-white p-4 shadow-sm" open={currentStage === 0}>
+        <summary className="cursor-pointer font-semibold text-brand"><span className="inline-block align-middle"><CareIcon name="pregnancy" size={20} /></span> {t("earlyCare", lang)} <span className="text-xs font-normal text-ink/60">· {t("earlyCareHint", lang)}</span></summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {firstTrimesterSteps.map((step) => <article key={step.title.en} className={`rounded-xl p-3 ${step.urgent ? "bg-red-50 ring-1 ring-red-200" : "bg-brand-soft"}`}>
+            <div className="flex items-start gap-2"><span className="shrink-0" aria-hidden="true"><CareIcon name={step.icon} /></span><div><h3 className="font-semibold">{careText(step.title, lang)}</h3><p className="mt-1 text-sm text-ink/75">{careText(step.body, lang)}</p></div></div>
+          </article>)}
+        </div>
+        <h3 className="mt-4 font-semibold"><span className="inline-block align-middle"><CareIcon name="test" size={20}/></span> {t("firstVisitChecks", lang)}</h3>
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2">{firstVisitTests.map((item) => <li key={item.text.en} className="flex gap-2 rounded-lg bg-ink/5 p-2 text-sm"><span aria-hidden="true"><CareIcon name={item.icon} size={18} /></span><span>{careText(item.text, lang)}</span></li>)}</ul>
+      </details>
+
+      {week >= 14 && <MovementTracker journeyId={journey.journey_id} lang={lang} />}
 
       {action ? <section className="mt-3 rounded-2xl bg-brand p-4 text-white">
         <h2 className="text-sm font-semibold">{t("nextStep", lang)}</h2>

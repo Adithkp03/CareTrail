@@ -184,3 +184,14 @@ def test_demo_seed_is_idempotent_and_resets_state(client):
     assert status["second_trimester_review"] == "now"  # reset, not still done
     assert status["anomaly_scan"] == "upcoming"
     assert (fresh["gestational_age"]["weeks"], fresh["gestational_age"]["plus_days"]) == (22, 0)
+
+
+def test_first_visit_doctor_notes_are_present_in_new_journey(client):
+    token = signup(client, phone="9000000030")["token"]
+    journey = client.post("/journeys", json={"lmp": (date.today() - timedelta(days=50)).isoformat()}, headers=auth(token)).json()
+    by_key = {m["key"]: m for m in journey["milestones"]}
+    assert "positive urine pregnancy test" in by_key["first_consultation"]["prep_notes"]
+    assert "site of pregnancy" in by_key["first_consultation"]["prep_notes"]
+    tests = by_key["baseline_bloods"]["prep_notes"]
+    for term in ("hemoglobin", "platelets", "blood group", "HIV/VDRL/HBsAg", "TFT (fasting)", "fasting/post-prandial sugars", "urine routine microscopy and culture"):
+        assert term in tests

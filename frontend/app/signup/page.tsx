@@ -38,14 +38,9 @@ export default function SignupPage() {
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("password", lang)}
           type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
         <label className="block text-sm text-ink/60">{t("language", lang)}</label>
-        <div className="flex gap-2">
-          {LANGS.map((l) => (
-            <button type="button" key={l.code} onClick={() => setLang(l.code)}
-              className={`rounded-full px-3 py-1 text-sm ${lang === l.code ? "bg-brand text-white" : "bg-white text-ink/70"}`}>
-              {l.label}
-            </button>
-          ))}
-        </div>
+        <select value={lang} onChange={(e) => setLang(e.target.value as typeof lang)} className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("language", lang)}>
+          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
         <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-sm text-ink/70 shadow-sm">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
           <span>{t("consent", lang)}</span>

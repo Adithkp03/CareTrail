@@ -16,7 +16,7 @@ TTS_SPEAKER = os.getenv("SARVAM_TTS_SPEAKER", "priya")
 STT_MODEL = os.getenv("SARVAM_STT_MODEL", "saarika:v2.5")
 TRANSLATE_MODEL = os.getenv("SARVAM_TRANSLATE_MODEL", "mayura:v1")
 
-LANG_NAMES = {"en": "en-IN", "ml": "ml-IN", "hi": "hi-IN"}
+LANG_NAMES = {"en": "en-IN", "ml": "ml-IN", "hi": "hi-IN", "ta": "ta-IN", "te": "te-IN", "kn": "kn-IN", "bn": "bn-IN", "mr": "mr-IN"}
 
 
 def available() -> bool:
@@ -64,8 +64,8 @@ def translate(text: str, target_language: str, source_language: str = "en", db=N
             "/translate",
             json={
                 "input": text,
-                "source_language_code": LANG_NAMES.get(source_language, "en-IN"),
-                "target_language_code": LANG_NAMES.get(target_language, "en-IN"),
+                "source_language_code": LANG_NAMES[source_language],
+                "target_language_code": LANG_NAMES[target_language],
                 "model": TRANSLATE_MODEL,
             },
         )
@@ -82,7 +82,7 @@ def tts(text: str, language: str) -> bytes | None:
             "/text-to-speech",
             json={
                 "inputs": [text],
-                "target_language_code": LANG_NAMES.get(language, "en-IN"),
+                "target_language_code": LANG_NAMES[language],
                 "model": TTS_MODEL,
                 "speaker": TTS_SPEAKER,
             },
