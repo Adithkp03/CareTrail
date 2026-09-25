@@ -37,6 +37,7 @@ function UploadView() {
   const [savedCount, setSavedCount] = useState(0);
   const [flags, setFlags] = useState<Flag[]>([]);
   const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceText, setEvidenceText] = useState("");
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [error, setError] = useState("");
   const [lang] = useLang();
@@ -70,6 +71,7 @@ function UploadView() {
       setConfirmChecked(false);
       // The local File is the exact uploaded evidence; it stays beside the proposed values.
       setEvidenceUrl(URL.createObjectURL(file));
+      setEvidenceText(file.type.startsWith("text/") ? (await file.text()).slice(0, 5000) : "");
       const ext = await api<{ language: string; provider: string; proposed: Omit<ProposedValue, "include">[]; message: string | null }>(
         `/documents/${up.document_id}/extract`, { method: "POST" }
       );
@@ -106,7 +108,7 @@ function UploadView() {
   }
 
   function reset() {
-    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage(""); setEvidenceUrl(""); setConfirmChecked(false);
+    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage(""); setEvidenceUrl(""); setEvidenceText(""); setConfirmChecked(false);
   }
 
   const input = "w-full rounded-xl border border-ink/15 bg-white p-3 text-sm";
@@ -137,7 +139,8 @@ function UploadView() {
             <p className="mt-1 text-xs">Compare every value, unit and date with the original before saving. Blurry, conflicting or missing-unit results should not be confirmed.</p>
             {file?.type.startsWith("image/") && evidenceUrl ? <img className="mt-2 max-h-80 w-full object-contain" alt="Original uploaded report" src={evidenceUrl} /> : null}
             {file?.type === "application/pdf" && evidenceUrl ? <iframe className="mt-2 h-80 w-full" title="Original uploaded PDF" src={evidenceUrl} /> : null}
-            {file?.type.startsWith("text/") && evidenceUrl ? <a className="mt-2 inline-block text-brand underline" href={evidenceUrl} target="_blank" rel="noreferrer">Open original text report</a> : null}
+            {file?.type.startsWith("text/") && evidenceText ? <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-ink/5 p-2 text-xs">{evidenceText}</pre> : null}
+            {file?.type.startsWith("text/") && evidenceUrl ? <a className="mt-2 inline-block text-brand underline" href={evidenceUrl} target="_blank" rel="noreferrer">Open full original text report</a> : null}
           </section>
           <p className="rounded-xl bg-white p-3 text-sm shadow-sm">
             {tr("Is this right? Check the values before they go on your timeline.")}
