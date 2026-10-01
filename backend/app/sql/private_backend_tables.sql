@@ -18,6 +18,9 @@ BEGIN
         SELECT DISTINCT tableowner AS name FROM pg_tables WHERE schemaname = 'public'
         UNION SELECT current_user AS name
     LOOP
+        -- A schema-level revoke cannot override a global default grant.
+        EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON TABLES FROM anon, authenticated', owner_row.name);
+        EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE ALL ON SEQUENCES FROM anon, authenticated', owner_row.name);
         EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated', owner_row.name);
         EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated', owner_row.name);
     END LOOP;

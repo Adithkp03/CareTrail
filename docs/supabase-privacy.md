@@ -17,7 +17,10 @@ and sequence privileges from Supabase's `anon` and `authenticated` client roles.
 It creates no client policies. Existing server/postgres credentials and grants
 are unchanged; RLS is not forced against table owners. Default table/sequence
 privileges are revoked for all existing public-table owners and the migration
-role, preventing newly created backend tables inheriting client access.
+role, preventing newly created backend tables inheriting client access. Both
+global and public-schema default grants are revoked because a schema-level
+revoke cannot cancel a global grant. This also stops auto-grants on future objects
+created by these same roles in other schemas; no server privileges are changed.
 
 This project must contain only CareTrail-owned tables in its public schema.
 A dedicated non-owner server role must have its intended BYPASSRLS/owner access
