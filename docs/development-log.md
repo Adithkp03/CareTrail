@@ -200,3 +200,9 @@ brief, sign-off state transitions, ownership).
   corpus (`guidance_corpus.local.json`, gitignored - source documents are never
   redistributed through the repo). Demo corpus remains the fallback. Team doctor
   picks the documents and checks usage terms.
+
+## 2026-10-01 - care reminder inbox
+
+Owner-scoped backend reminders derive from live journey state: scheduled visits today/within 3 days, missed bookings, unbooked overdue care windows, and abnormal observations awaiting clinician sign-off. Read/dismiss preferences persist in SQL; rescheduling changes the alert key and completing/reviewing removes active alerts. No clinical text is duplicated in notification-state storage.
+
+Browser notifications require an explicit permission tap, show generic text only, and refresh while the app is visible (once per minute). This is not closed-app push, native APK notification delivery, SMS/email, emergency detection, or clinical monitoring. Unsupported devices keep the in-app inbox. Failed fetches show a freshness warning rather than claiming no active problems. Authenticated API responses are no longer service-worker cached; legacy API cache is removed on activation.

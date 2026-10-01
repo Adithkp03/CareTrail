@@ -2,7 +2,7 @@
 // read-only API GETs network-first with cache backup, so a slow venue network
 // cannot kill the demo.
 const STATIC_CACHE = "caretrail-static-v1";
-const RUNTIME_CACHE = "caretrail-runtime-v1";
+const RUNTIME_CACHE = "caretrail-runtime-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(STATIC_CACHE).then((c) => c.addAll(["/", "/icon.svg", "/manifest.webmanifest"])));
@@ -10,12 +10,14 @@ self.addEventListener("install", (e) => {
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(caches.delete("caretrail-runtime-v1").then(() => self.clients.claim()));
 });
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
+  // Never cache authenticated clinical responses or the fresh reminder inbox.
+  if (e.request.headers.has("Authorization") || url.pathname.endsWith("/reminders")) return;
 
   if (url.pathname.startsWith("/_next/static") || url.pathname === "/icon.svg") {
     e.respondWith(
@@ -41,4 +43,9 @@ self.addEventListener("fetch", (e) => {
       }).catch(() => caches.match(e.request).then((hit) => hit || new Response(JSON.stringify({ detail: "offline" }), { status: 503, headers: { "Content-Type": "application/json" } })))
     );
   }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.openWindow("/"));
 });
