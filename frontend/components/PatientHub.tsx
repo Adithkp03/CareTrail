@@ -196,7 +196,8 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
       </section>
 
       }
-      {feature === "reminders" && !offline && <ReminderInbox journeyId={journey.journey_id} tr={tr} />}
+      {!offline && <ReminderInbox journeyId={journey.journey_id} tr={tr} hidden={feature !== "reminders"} />}
+      {feature === "reminders" && offline && <p role="status" className="mt-4 text-sm text-amber-900">{tr("Reminders are unavailable offline. Connect to refresh them; cached information is not a current safety check.")}</p>}
 
       {feature === "prep" && journey.next_appointment ? (
         <div className="ct-card mt-5 rounded-3xl bg-white p-5">
@@ -222,6 +223,8 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
           ) : null}
         </div>
       ) : null}
+
+      {feature === "prep" && !nextUp?.milestone && <p role="status" className="ct-card mt-5 rounded-3xl bg-white p-5 text-sm text-ink/70">{tr(nextUp ? "No next visit preparation is listed. Check your timeline and confirm your next visit with your doctor." : "Visit preparation is loading or unavailable. Check your timeline and confirm instructions with your doctor.")}</p>}
 
       {feature === "home" && unresolved.length > 0 ? (
         <a href="/doctor" className="mt-3 block rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

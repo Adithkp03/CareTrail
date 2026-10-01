@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 type Reminder = { id: string; kind: string; title: string; message: string; scheduled_date: string | null; link: string; read: boolean; dismissed: boolean };
 type Inbox = { items: Reminder[]; unread: number };
 
-export default function ReminderInbox({ journeyId, tr }: { journeyId: string; tr: (text: string) => string }) {
+export default function ReminderInbox({ journeyId, tr, hidden = false }: { journeyId: string; hidden?: boolean; tr: (text: string) => string }) {
   const [inbox, setInbox] = useState<Inbox>({ items: [], unread: 0 });
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -20,6 +20,7 @@ export default function ReminderInbox({ journeyId, tr }: { journeyId: string; tr
     setSupported("Notification" in window);
     if ("Notification" in window) setPermission(Notification.permission);
     setEnabled(sessionStorage.getItem("ct:notify") === "on");
+    try { notified.current = new Set(JSON.parse(sessionStorage.getItem(`ct:notified:${journeyId}`) || "[]")); } catch { /* invalid local cache */ }
     return () => { active.current = false; };
   }, []);
 
@@ -40,6 +41,7 @@ export default function ReminderInbox({ journeyId, tr }: { journeyId: string; tr
             if (registration) await registration.showNotification("CareTrail reminder", options);
             else new Notification("CareTrail reminder", options);
             unseen.forEach(i => notified.current.add(i.id));
+            sessionStorage.setItem(`ct:notified:${journeyId}`, JSON.stringify(Array.from(notified.current)));
           } catch { setError("System notifications are unavailable here. Your in-app reminders still work."); }
         }
       } catch { if (!cancelled) setError("Unable to refresh reminders. Connect to the internet and try again; this is not a current safety check."); }
@@ -65,6 +67,7 @@ export default function ReminderInbox({ journeyId, tr }: { journeyId: string; tr
       if (active.current) { setInbox(result); setLoaded(true); setError(""); }
     } catch { setError("Could not save your change. Refresh and try again."); }
   }
+  if (hidden) return null;
   return <section id="care-reminders" className="ct-card mt-5 scroll-mt-6 rounded-3xl bg-white p-5" aria-label={tr("Care reminders")}>
     <h2 className="font-semibold">{tr("Care reminders")} {inbox.unread > 0 ? `· ${inbox.unread}` : ""}</h2>
     <p className="mt-1 text-xs text-ink/60">{tr("Updated while the app is open. Not emergency monitoring. For warning signs, contact your doctor immediately.")}</p>
