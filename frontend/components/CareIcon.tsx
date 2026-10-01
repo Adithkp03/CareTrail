@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
 const paths: Record<string, ReactNode> = {
+  home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></>,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></>,
+  upload: <><path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6"/></>,
+  arrow: <><path d="M4 12h16m-6-6 6 6-6 6"/></>,
+
   visit: <><circle cx="12" cy="6" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2M12 11v7m-3.5-3.5h7"/></>,
   test: <><path d="M8 3h8m-7 0v7l-4 8a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-4-8V3M8 16h8"/></>,
   scan: <><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-5-9 3-3 3 3 4-4"/></>,

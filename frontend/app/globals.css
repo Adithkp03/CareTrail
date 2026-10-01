@@ -2,7 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-body { @apply bg-brand-soft text-ink; }
+body { @apply text-ink; background: #f4f6f8; -webkit-font-smoothing: antialiased; }
+:root { color-scheme: light; }
+button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+button, input, select { min-height: 44px; }
+button, a, summary { touch-action: manipulation; }
+:focus-visible { outline: 3px solid #5274cf; outline-offset: 3px; }
+h1, h2, h3 { letter-spacing: -0.025em; }
+.ct-card { border: 1px solid #e8edf2; box-shadow: 0 5px 18px #172b4610; }
+.ct-hero { background: linear-gradient(135deg, #10283f 0%, #183a51 100%); box-shadow: 0 12px 26px #10283f25; }
+.ct-hero svg { color: #b9cfff; }
+.ct-bottom-nav { padding-bottom: max(10px, env(safe-area-inset-bottom)); backdrop-filter: blur(18px); }
+.ct-bottom-nav a { min-width: 0; min-height: 48px; }
+.ct-bottom-nav svg { color: currentColor; }
+input, select { border-color: #dfe6ec !important; }
+input:focus, select:focus { border-color: #15365a !important; }
+
 
 /* Script-specific fallback for the new language picker and clinical cards.
    The user's device may not have Indic fonts installed (especially in the APK). */
@@ -11,4 +26,18 @@ body { @apply bg-brand-soft text-ink; }
 @font-face { font-family: "CareTrail Kannada"; src: url("/fonts/NotoSansKannada-Regular.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "CareTrail Bengali"; src: url("/fonts/NotoSansBengali-Regular.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "CareTrail Devanagari"; src: url("/fonts/NotoSansDevanagari-Regular.ttf") format("truetype"); font-display: swap; }
-body { font-family: system-ui, "CareTrail Tamil", "CareTrail Telugu", "CareTrail Kannada", "CareTrail Bengali", "CareTrail Devanagari", sans-serif; }
+body { font-family: "Poppins", system-ui, "CareTrail Tamil", "CareTrail Telugu", "CareTrail Kannada", "CareTrail Bengali", "CareTrail Devanagari", sans-serif; }
+
+@font-face { font-family: "Poppins"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Poppins-400.ttf") format("truetype"); }
+@font-face { font-family: "Poppins"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/Poppins-500.ttf") format("truetype"); }
+@font-face { font-family: "Poppins"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Poppins-600.ttf") format("truetype"); }
+@font-face { font-family: "Poppins"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/Poppins-700.ttf") format("truetype"); }
+
+body { font-size: 14px; line-height: 1.65; }
+input, select, textarea { font-family: inherit; }
+button { font-family: inherit; }
+h1, h2, h3 { line-height: 1.35; }
+
+.ct-login-art { background: linear-gradient(145deg, #152a54 0%, #3b5aab 48%, #95adf0 100%); }
+.ct-login-art::before { content: ""; position: absolute; width: 190px; height: 280px; border-radius: 48% 52% 68% 32%; background: #8ea6e766; right: -70px; top: -40px; transform: rotate(-28deg); }
+.ct-orb { background: radial-gradient(circle at 28% 22%, #e8efff, #839ee8 48%, #24487f); box-shadow: 0 12px 30px #132b5530; }

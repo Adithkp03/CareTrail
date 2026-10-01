@@ -68,7 +68,7 @@ export default function DoctorPage() {
       {message && <p className="mt-2 text-sm text-brand">{message}</p>}
 
       {brief ? (
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-4 ct-card rounded-3xl bg-white p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/50">{tr("Pre-consult brief")}</h2>
           <p className="mt-1 text-sm text-ink/70">
             {brief.gestational_age.weeks}w{brief.gestational_age.plus_days}d · {tr("Due date")} {brief.edd}

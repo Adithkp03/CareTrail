@@ -146,7 +146,7 @@ function MilestoneView() {
         </div>
       ) : null}
 
-      <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+      <section className="mt-4 ct-card rounded-3xl bg-white p-5">
         <h2 className="text-sm font-semibold">{t("whyNow", lang)}</h2>
         <p className="mt-1 text-sm text-ink/70">
           {tr("This check-up is placed in the journey based on your pregnancy dates and the pathway window.")}
@@ -157,37 +157,37 @@ function MilestoneView() {
         </a>
       </section>
 
-      {(m.key === "first_consultation" || m.key === "baseline_bloods" || m.key === "nt_scan") && <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+      {(m.key === "first_consultation" || m.key === "baseline_bloods" || m.key === "nt_scan") && <section className="mt-4 ct-card rounded-3xl bg-white p-5">
         <h2 className="font-semibold"><span className="inline-block align-middle"><CareIcon name="pregnancy" size={20}/></span> {t("earlyCare", lang)}</h2>
         <ul className="mt-2 space-y-2">{firstTrimesterSteps.map((step) => <li key={step.title.en} className={`rounded-xl p-2 text-sm ${step.urgent ? "bg-red-50 text-red-800" : "bg-brand-soft"}`}><span aria-hidden="true" className="inline-block align-middle"><CareIcon name={step.icon} size={20} /></span> <strong>{careText(step.title, lang)}</strong><p>{careText(step.body, lang)}</p></li>)}</ul>
         {(m.key === "first_consultation" || m.key === "baseline_bloods") && <><h3 className="mt-4 font-semibold">{t("firstVisitChecks", lang)}</h3><ul className="mt-2 grid gap-2 sm:grid-cols-2">{firstVisitTests.map((item) => <li key={item.text.en} className="rounded-lg bg-ink/5 p-2 text-sm"><span aria-hidden="true" className="inline-block align-middle"><CareIcon name={item.icon} size={18} /></span> {careText(item.text, lang)}</li>)}</ul></>}
       </section>}
 
       {m.prep_notes ? (
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-4 ct-card rounded-3xl bg-white p-5">
           <h2 className="text-sm font-semibold">{t("prepNotes", lang)}</h2>
           <p className="mt-1 text-sm text-ink/70">{tr(m.prep_notes)}</p>
         </section>
       ) : null}
 
       {explanation ? (
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-4 ct-card rounded-3xl bg-white p-5">
           <p className="text-sm text-ink/80">{explanation.text}</p>
         </section>
       ) : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button onClick={listen} className="rounded-xl bg-white p-3 text-sm font-medium shadow-sm">
+        <button onClick={listen} className="ct-card rounded-2xl bg-white p-4 text-sm font-medium shadow-sm">
           🔊 {t("listen", lang)}
         </button>
-        <button onClick={() => setAskOpen(!askOpen)} className="rounded-xl bg-white p-3 text-sm font-medium shadow-sm">
+        <button onClick={() => setAskOpen(!askOpen)} className="ct-card rounded-2xl bg-white p-4 text-sm font-medium shadow-sm">
           🎙️ {t("ask", lang)}
         </button>
       </div>
       {listenMsg ? <p className="mt-1 text-center text-xs text-ink/50">{listenMsg}</p> : null}
 
       {askOpen ? (
-        <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-3 ct-card rounded-3xl bg-white p-5">
           <div className="flex gap-2">
             <input value={question} onChange={(e) => setQuestion(e.target.value)}
               placeholder={tr("Ask about this check-up…")}
@@ -208,7 +208,7 @@ function MilestoneView() {
       ) : null}
 
       {m.observations && m.observations.length > 0 ? (
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-4 ct-card rounded-3xl bg-white p-5">
           <h2 className="text-sm font-semibold">{t("results", lang)}</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {m.observations.map((o) => (
@@ -222,7 +222,7 @@ function MilestoneView() {
       ) : null}
 
       {m.documents && m.documents.length > 0 ? (
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-4 ct-card rounded-3xl bg-white p-5">
           <h2 className="text-sm font-semibold">{t("reports", lang)}</h2>
           <ul className="mt-2 space-y-1 text-sm text-ink/70">
             {m.documents.map((d) => <li key={d.id}>📄 {d.filename} ({tr(d.status)})</li>)}

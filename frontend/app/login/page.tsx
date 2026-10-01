@@ -38,13 +38,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="pt-16">
-      <h1 className="text-3xl font-bold text-brand">{t("appName", lang)}</h1>
-      <p className="mt-1 text-sm text-ink/60">{t("tagline", lang)}</p>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("phone", lang)}
+    <main className="pt-6">
+      <div className="ct-login-art relative overflow-hidden rounded-[32px] px-7 pb-16 pt-8 text-white">
+        <span className="ct-orb absolute right-7 top-10 h-20 w-20 rounded-full" aria-hidden="true" />
+        <p className="relative text-xs font-medium uppercase tracking-[0.18em]">CareTrail</p>
+        <p className="relative mt-16 text-3xl font-semibold">Welcome back.</p>
+      <h1 className="sr-only">{t("appName", lang)}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-white/80">{t("tagline", lang)}</p>
+      </div>
+      <form onSubmit={onSubmit} className="ct-card relative -mt-8 space-y-4 rounded-3xl bg-white p-6">
+        <label className="block text-xs font-medium text-ink/75">{t("phone", lang)}</label>
+        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("phone", lang)} placeholder={t("phone", lang)}
           value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
-        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("password", lang)}
+        <label className="block text-xs font-medium text-ink/75">{t("password", lang)}</label>
+        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("password", lang)} placeholder={t("password", lang)}
           type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button disabled={busy} className="w-full rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-50">
