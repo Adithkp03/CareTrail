@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: { DEFAULT: "#126e67", soft: "#e8f3f0" },
+        brand: { DEFAULT: "#15365a", soft: "#eaf0fb" },
         navy: "#10283f",
         ink: "#203044",
       },

@@ -38,14 +38,19 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="pt-12">
-      <div className="ct-hero rounded-[32px] p-7 text-white">
-      <h1 className="text-4xl font-semibold">{t("appName", lang)}</h1>
+    <main className="pt-6">
+      <div className="ct-login-art relative overflow-hidden rounded-[32px] px-7 pb-16 pt-8 text-white">
+        <span className="ct-orb absolute right-7 top-10 h-20 w-20 rounded-full" aria-hidden="true" />
+        <p className="relative text-xs font-medium uppercase tracking-[0.18em]">CareTrail</p>
+        <p className="relative mt-16 text-3xl font-semibold">Welcome back.</p>
+      <h1 className="sr-only">{t("appName", lang)}</h1>
       <p className="mt-3 text-sm leading-relaxed text-white/80">{t("tagline", lang)}</p>
       </div>
-      <form onSubmit={onSubmit} className="ct-card mt-6 space-y-4 rounded-3xl bg-white p-5">
+      <form onSubmit={onSubmit} className="ct-card relative -mt-8 space-y-4 rounded-3xl bg-white p-6">
+        <label className="block text-xs font-medium text-ink/75">{t("phone", lang)}</label>
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("phone", lang)} placeholder={t("phone", lang)}
           value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
+        <label className="block text-xs font-medium text-ink/75">{t("password", lang)}</label>
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("password", lang)} placeholder={t("password", lang)}
           type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p className="text-sm text-red-600">{error}</p>}

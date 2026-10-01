@@ -7,16 +7,16 @@ body { @apply text-ink; background: #f4f6f8; -webkit-font-smoothing: antialiased
 button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 button, input, select { min-height: 44px; }
 button, a, summary { touch-action: manipulation; }
-:focus-visible { outline: 3px solid #359a91; outline-offset: 3px; }
+:focus-visible { outline: 3px solid #5274cf; outline-offset: 3px; }
 h1, h2, h3 { letter-spacing: -0.025em; }
 .ct-card { border: 1px solid #e8edf2; box-shadow: 0 5px 18px #172b4610; }
 .ct-hero { background: linear-gradient(135deg, #10283f 0%, #183a51 100%); box-shadow: 0 12px 26px #10283f25; }
-.ct-hero svg { color: #bde6da; }
+.ct-hero svg { color: #b9cfff; }
 .ct-bottom-nav { padding-bottom: max(10px, env(safe-area-inset-bottom)); backdrop-filter: blur(18px); }
 .ct-bottom-nav a { min-width: 0; min-height: 48px; }
 .ct-bottom-nav svg { color: currentColor; }
 input, select { border-color: #dfe6ec !important; }
-input:focus, select:focus { border-color: #126e67 !important; }
+input:focus, select:focus { border-color: #15365a !important; }
 
 
 /* Script-specific fallback for the new language picker and clinical cards.
@@ -37,3 +37,7 @@ body { font-size: 14px; line-height: 1.65; }
 input, select, textarea { font-family: inherit; }
 button { font-family: inherit; }
 h1, h2, h3 { line-height: 1.35; }
+
+.ct-login-art { background: linear-gradient(145deg, #152a54 0%, #3b5aab 48%, #95adf0 100%); }
+.ct-login-art::before { content: ""; position: absolute; width: 190px; height: 280px; border-radius: 48% 52% 68% 32%; background: #8ea6e766; right: -70px; top: -40px; transform: rotate(-28deg); }
+.ct-orb { background: radial-gradient(circle at 28% 22%, #e8efff, #839ee8 48%, #24487f); box-shadow: 0 12px 30px #132b5530; }

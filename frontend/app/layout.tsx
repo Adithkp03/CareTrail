@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
 import SwRegister from "./sw-register";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <SwRegister />
         <div className="mx-auto max-w-md px-5 pb-32">{children}</div>
+        <BottomNav />
       </body>
     </html>
   );
