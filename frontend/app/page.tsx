@@ -99,38 +99,49 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="pt-6">
+    <main className="pt-7">
       {offline && (
         <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Offline - showing your last loaded timeline.
         </p>
       )}
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-ink/60">{journey.patient.name}</p>
-          <h1 className="text-xl font-bold sm:text-2xl">
-            {journey.gestational_age.weeks} {t("weeks", lang)}
-            {` + ${journey.gestational_age.plus_days} ${t("days", lang)}`}
-          </h1>
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dbece7] text-lg font-semibold text-brand" aria-hidden="true">{journey.patient.name.slice(0, 1)}</span>
+          <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">CareTrail</p><h1 title={journey.patient.name} className="truncate text-lg font-semibold">{journey.patient.name}</h1></div>
         </div>
-        <div className="flex shrink-0 gap-1">
-          <select value={lang} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t("language", lang)} className="max-w-28 rounded-xl bg-white p-2 text-xs text-brand">
-            {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
-          </select>
-        </div>
+        <select value={lang} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t("language", lang)} className="max-w-28 shrink-0 rounded-full border bg-white px-3 text-xs text-ink">
+          {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
       </header>
 
       {!["en", "ml", "hi"].includes(lang) && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-900">{t("translationNote", lang)}</p>}
-      <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm" aria-label={t("journeyTitle", lang)}>
-        <h2 className="text-lg font-bold text-brand">{t("journeyTitle", lang)}</h2>
-        <p className="mt-1 text-sm text-ink/60">{t("youAreHere", lang)} · {t(STAGES[currentStage], lang)}</p>
-        <p className="mt-3 text-2xl font-bold">{completed}/{total} <span className="text-sm font-normal text-ink/60">{t("completedOf", lang)}</span></p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} aria-label={t("completedOf", lang)}>
-          <div className="h-full rounded-full bg-brand" style={{ width: `${total ? 100 * completed / total : 0}%` }} />
+      <section className="ct-hero relative mt-6 overflow-hidden rounded-[28px] p-5 text-white" aria-label={t("journeyTitle", lang)}>
+        <div className="flex items-start justify-between gap-3">
+          <div><p className="text-xs font-medium text-white/75">{t("journeyTitle", lang)}</p>
+            <h2 className="mt-3 text-[36px] font-semibold leading-none">{week} <span className="text-base font-normal text-white/80">{t("weeks", lang)}</span></h2>
+            <p className="mt-2 text-sm text-white/75">+ {journey.gestational_age.plus_days} {t("days", lang)} · {t(STAGES[currentStage], lang)}</p>
+          </div>
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10"><CareIcon name="pregnancy" size={35} /></div>
+        </div>
+        <div className="mt-6 flex items-center justify-between gap-2 text-xs"><span className="text-white/75">{t("youAreHere", lang)}</span><span>{completed} / {total} {t("completedOf", lang)}</span></div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} aria-label={t("completedOf", lang)}>
+          <div className="h-full rounded-full bg-[#bde6da]" style={{ width: `${total ? 100 * completed / total : 0}%` }} />
         </div>
       </section>
 
-      <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm" aria-label={t("journeyTitle", lang)}>
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
+        {([{label: t("done", lang), value: completed, color: "#e5eee8"}, {label: t("now", lang), value: journey.summary.now, color: "#e9e7f5"}, {label: t("next", lang), value: journey.summary.next + journey.summary.upcoming, color: "#f4e9de"}]).map(item => <div key={item.label} className="rounded-[20px] px-3 py-3" style={{backgroundColor: item.color}}><p className="text-xs text-ink/70">{item.label}</p><p className="mt-1 text-2xl font-semibold">{item.value}</p></div>)}
+      </div>
+
+      <section className="ct-card mt-5 rounded-3xl bg-white p-4" aria-label={tr("Quick access")}>
+        <h2 className="text-sm font-semibold">{tr("Quick access")}</h2>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          {([{href: "/upload", icon: "upload", label: t("uploadReport", lang)}, {href: "/doctor", icon: "visit", label: t("doctorView", lang)}, {href: "#care-reminders", icon: "bell", label: tr("Care reminders")}]).map(item => <a key={item.href} href={item.href} className="flex flex-col items-center gap-2 rounded-xl p-1 text-[11px] font-medium leading-snug"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef3f6]"><CareIcon name={item.icon} size={20}/></span>{item.label}</a>)}
+        </div>
+      </section>
+
+      <section className="ct-card mt-5 rounded-3xl bg-white p-5" aria-label={t("journeyTitle", lang)}>
         {STAGES.map((stage, i) => {
           const items = journey.milestones.filter((m) => milestoneStage(m) === i);
           const highlighted = i === currentStage
@@ -143,7 +154,7 @@ export default function HomePage() {
             {m.overdue ? <span className="text-xs text-red-700">{t("overdue", lang)}</span> : null}
             {m.signoff ? <span className="text-xs" title={t("prototypeReview", lang)}>✓ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
           </a>;
-          return <div key={stage} className="relative border-l-2 border-brand/25 pb-3 pl-5 last:border-transparent last:pb-0">
+          return <div key={stage} className="relative border-l-2 border-brand/20 pb-5 pl-5 last:border-transparent last:pb-0">
             <span className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full ${i === currentStage ? "bg-brand ring-4 ring-brand/20" : "bg-ink/25"}`} />
             <h3 className="text-sm font-semibold text-ink">{t(stage, lang)} {i === currentStage ? `· ${t("youAreHere", lang)}` : ""}</h3>
             <div className="mt-1">{highlighted.map(row)}</div>
@@ -153,7 +164,7 @@ export default function HomePage() {
         {journey.milestones.some((m) => m.signoff) ? <p className="mt-2 text-xs text-ink/50">{t("prototypeReview", lang)}</p> : null}
       </section>
 
-      <details className="mt-3 rounded-2xl bg-white p-4 shadow-sm" open={currentStage === 0}>
+      <details className="ct-card mt-5 rounded-3xl bg-white p-5" open={currentStage === 0}>
         <summary className="cursor-pointer font-semibold text-brand"><span className="inline-block align-middle"><CareIcon name="pregnancy" size={20} /></span> {t("earlyCare", lang)} <span className="text-xs font-normal text-ink/60">· {t("earlyCareHint", lang)}</span></summary>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {firstTrimesterSteps.map((step) => <article key={step.title.en} className={`rounded-xl p-3 ${step.urgent ? "bg-red-50 ring-1 ring-red-200" : "bg-brand-soft"}`}>
@@ -166,14 +177,14 @@ export default function HomePage() {
 
       {week >= 14 && <MovementTracker journeyId={journey.journey_id} lang={lang} />}
 
-      {action ? <section className="mt-3 rounded-2xl bg-brand p-4 text-white">
+      {action ? <section className="ct-hero mt-5 rounded-3xl p-5 text-white">
         <h2 className="text-sm font-semibold">{t("nextStep", lang)}</h2>
         <a href={`/milestone?id=${action.id}`} className="mt-1 block font-medium underline">{tr(action.title)}</a>
         <p className="mt-1 text-xs opacity-90">{action.overdue ? t("overdue", lang) : action.status === "now" ? t("currentWindow", lang) : action.status === "upcoming" ? t("scheduledNext", lang) : t("next", lang)}</p>
         <a href={`/upload?milestone=${encodeURIComponent(action.id)}`} className="mt-3 inline-block rounded-lg bg-white px-3 py-2 text-sm font-semibold text-brand">{t("uploadReport", lang)}</a>
       </section> : null}
 
-      <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+      <section className="ct-card mt-5 rounded-3xl bg-white p-5">
         <h2 className="font-semibold">{t("attentionNeeded", lang)}{attention.length ? ` · ${attention.length}` : ""}</h2>
         {attention.length ? <ul className="mt-2 space-y-1 text-sm text-amber-900">{attention.map((item, i) => <li key={i}>⚠ {item}</li>)}</ul> :
           <p className="mt-2 text-sm text-ink/60">{t("noOpenItems", lang)}</p>}
@@ -182,19 +193,19 @@ export default function HomePage() {
       {!offline && <ReminderInbox journeyId={journey.journey_id} tr={tr} />}
 
       {journey.next_appointment ? (
-        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="ct-card mt-5 rounded-3xl bg-white p-5">
           <p className="text-xs uppercase tracking-wide text-ink/60">{t("nextAppointment", lang)}</p>
           <p className="mt-1 font-semibold">{tr(journey.next_appointment.title)}</p>
-          <p className="text-sm text-ink/60">📅 {journey.next_appointment.scheduled_date}</p>
+          <p className="text-sm text-ink/60">{journey.next_appointment.scheduled_date}</p>
         </div>
       ) : null}
 
       {nextUp?.milestone ? (
-        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="ct-card mt-5 rounded-3xl bg-white p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">{tr("Get ready")}: {tr(nextUp.milestone.title)}</p>
           {nextUp.purpose ? <p className="mt-2 text-sm text-ink/80">{tr(nextUp.purpose)}</p> : null}
-          {nextUp.what_to_bring ? <p className="mt-2 text-sm">🎒 <span className="text-ink/80">{tr(nextUp.what_to_bring)}</span></p> : null}
-          {nextUp.fasting ? <p className="mt-2 text-sm">🍽️ <span className="font-medium text-amber-800">{tr(nextUp.fasting)}</span></p> : null}
+          {nextUp.what_to_bring ? <p className="mt-2 text-sm"><span className="inline-block align-middle" aria-hidden="true"><CareIcon name="review" size={16}/></span> <span className="text-ink/80">{tr(nextUp.what_to_bring)}</span></p> : null}
+          {nextUp.fasting ? <p className="mt-2 text-sm"><span className="inline-block align-middle" aria-hidden="true"><CareIcon name="food" size={16}/></span> <span className="font-medium text-amber-800">{tr(nextUp.fasting)}</span></p> : null}
           {nextUp.questions && nextUp.questions.length > 0 ? (
             <details className="mt-2 text-sm">
               <summary className="cursor-pointer text-brand">{tr("Questions worth asking")}</summary>
@@ -237,11 +248,9 @@ export default function HomePage() {
         </ul>
       </section>
 
-      <nav className="mt-8 grid grid-cols-3 gap-2 text-center text-sm">
-        <a href="/upload" className="rounded-xl bg-white p-3 font-medium text-brand shadow-sm">{t("uploadReport", lang)}</a>
-        <a href="/doctor" className="rounded-xl bg-white p-3 font-medium text-brand shadow-sm">{t("doctorView", lang)}</a>
-        <button onClick={() => { setToken(null); router.push("/login"); }}
-          className="rounded-xl bg-white p-3 font-medium text-ink/60 shadow-sm">{t("logout", lang)}</button>
+      <button onClick={() => { setToken(null); router.push("/login"); }} className="mt-6 w-full rounded-2xl border border-ink/10 bg-white p-3 text-sm text-ink/60">{t("logout", lang)}</button>
+      <nav className="ct-bottom-nav fixed bottom-0 left-1/2 z-40 grid w-full max-w-md -translate-x-1/2 grid-cols-4 gap-1 border-t border-ink/5 bg-white/95 px-4 pt-2 text-center" aria-label={tr("Main navigation")}>
+        {([{href: "/", icon: "home", label: tr("Home"), active: true}, {href: "/upload", icon: "upload", label: t("uploadReport", lang)}, {href: "#care-reminders", icon: "bell", label: tr("Care reminders")}, {href: "/doctor", icon: "visit", label: t("doctorView", lang)}]).map(item => <a key={item.href} href={item.href} aria-current={item.active ? "page" : undefined} className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium leading-tight ${item.active ? "bg-navy text-white" : "text-ink/75"}`}><CareIcon name={item.icon} size={19}/><span>{item.label}</span></a>)}
       </nav>
     </main>
   );

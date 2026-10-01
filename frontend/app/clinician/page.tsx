@@ -49,21 +49,23 @@ function ClinicianView() {
       await load();
     } catch (err) { setMessage(err instanceof Error ? err.message : "Sign-off failed"); }
   }
-  return <main className="pt-8">
-    <h1 className="text-xl font-bold">Clinician review</h1>
-    <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm">Prototype review. Only verified clinician accounts with patient-granted access can sign off. Not a diagnosis.</p>
-    {!token ? <form className="mt-4 space-y-2" onSubmit={login}>
+  return <main className="pt-7">
+    <a className="mb-6 inline-flex items-center gap-2 text-sm text-brand" href="/">← CareTrail</a>
+    <div className="ct-hero rounded-3xl p-5 text-white">
+    <h1 className="text-2xl font-semibold">Clinician review</h1>
+    <p className="mt-3 text-sm leading-relaxed text-white/80">Prototype review. Only verified clinician accounts with patient-granted access can sign off. Not a diagnosis.</p></div>
+    {!token ? <form className="ct-card mt-5 space-y-3 rounded-3xl bg-white p-5" onSubmit={login}>
       <input className="w-full rounded-xl border p-3" type="email" aria-label="Clinician email" placeholder="Clinician email" value={email} onChange={e=>setEmail(e.target.value)} required />
       <input className="w-full rounded-xl border p-3" type="password" aria-label="Password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
       <button className="rounded-xl bg-brand px-4 py-2 text-white">Sign in</button>
-    </form> : <div className="mt-4 space-y-2">
+    </form> : <div className="ct-card mt-5 space-y-3 rounded-3xl bg-white p-5">
       <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");}}>Sign out</button>
       <input className="w-full rounded-xl border p-3" aria-label="Patient-authorized journey ID" placeholder="Patient-authorized journey ID" value={journeyId} onChange={e=>setJourneyId(e.target.value)} />
       <button className="rounded-xl bg-brand px-4 py-2 text-white" onClick={load} disabled={!journeyId}>Load review</button>
       {patient && <h2 className="font-semibold">{patient}: configured-threshold items for review</h2>}
-      {patient && tftNote && <p className="rounded-xl bg-amber-50 p-3 text-sm">{tftNote}</p>}
+      {patient && tftNote && <p className="rounded-2xl bg-[#f4efe5] p-4 text-sm leading-relaxed">{tftNote}</p>}
       {patient && !flags.length && <p>No configured-threshold items requiring review.</p>}
-      {flags.map(f=><article className="rounded-xl border bg-white p-3" key={f.observation_id}>
+      {flags.map(f=><article className="rounded-2xl border border-ink/10 bg-[#f5f7f9] p-4" key={f.observation_id}>
         <p>{f.label}: {f.value} {f.unit} ({f.observed_on})</p><p className="text-sm">{f.message}</p>
         {f.signed_off ? <p>{f.signed_off.verified_clinician ? "Reviewed by verified clinician " : "Historical prototype review by "}{f.signed_off.doctor_name}</p> : <button className="mt-2 rounded-lg bg-brand px-3 py-2 text-white" onClick={()=>signOff(f)}>Sign off</button>}
       </article>)}

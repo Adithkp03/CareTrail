@@ -142,7 +142,7 @@ function UploadView() {
             {file?.type.startsWith("text/") && evidenceText ? <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-ink/5 p-2 text-xs">{evidenceText}</pre> : null}
             {file?.type.startsWith("text/") && evidenceUrl ? <a className="mt-2 inline-block text-brand underline" href={evidenceUrl} target="_blank" rel="noreferrer">Open full original text report</a> : null}
           </section>
-          <p className="rounded-xl bg-white p-3 text-sm shadow-sm">
+          <p className="ct-card rounded-2xl bg-white p-4 text-sm shadow-sm">
             {tr("Is this right? Check the values before they go on your timeline.")}
             {provider === "offline-parser"
               ? ` (${tr("Read on this device.")})`
@@ -190,7 +190,7 @@ function UploadView() {
 
       {step === "done" && (
         <div className="mt-4 space-y-4">
-          <p className="rounded-xl bg-white p-3 text-sm text-brand shadow-sm">✅ {savedCount} {tr(savedCount === 1 ? "value saved to your timeline." : "values saved to your timeline.")}</p>
+          <p className="ct-card rounded-2xl bg-white p-4 text-sm text-brand shadow-sm">✅ {savedCount} {tr(savedCount === 1 ? "value saved to your timeline." : "values saved to your timeline.")}</p>
           {flags.length > 0 && (
             <div className="space-y-2">
               {flags.map((f) => (

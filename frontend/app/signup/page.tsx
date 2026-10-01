@@ -41,7 +41,7 @@ export default function SignupPage() {
         <select value={lang} onChange={(e) => setLang(e.target.value as typeof lang)} className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("language", lang)}>
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
-        <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-sm text-ink/70 shadow-sm">
+        <label className="flex items-start gap-2 ct-card rounded-2xl bg-white p-4 text-sm text-ink/70 shadow-sm">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
           <span>{t("consent", lang)}</span>
         </label>

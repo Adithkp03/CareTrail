@@ -1,7 +1,7 @@
 // CareTrail offline fallback (Phase 7): static assets cache-first, pages and
 // read-only API GETs network-first with cache backup, so a slow venue network
 // cannot kill the demo.
-const STATIC_CACHE = "caretrail-static-v1";
+const STATIC_CACHE = "caretrail-static-v2";
 const RUNTIME_CACHE = "caretrail-runtime-v2";
 
 self.addEventListener("install", (e) => {
@@ -19,7 +19,7 @@ self.addEventListener("fetch", (e) => {
   // Never cache authenticated clinical responses or the fresh reminder inbox.
   if (e.request.headers.has("Authorization") || url.pathname.endsWith("/reminders")) return;
 
-  if (url.pathname.startsWith("/_next/static") || url.pathname === "/icon.svg") {
+  if (url.pathname.startsWith("/_next/static") || url.pathname.startsWith("/fonts/") || url.pathname === "/icon.svg") {
     e.respondWith(
       caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
         const copy = res.clone();
