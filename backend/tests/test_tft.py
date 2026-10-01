@@ -43,3 +43,22 @@ def test_tsh_offline_extract_requires_units():
     assert values[0]['code']=='tsh' and values[0]['unit']=='mU/L'
     assert values[0]['observed_on']=='2026-09-01'
     assert offline_extract('TSH: 4.7',template)==[]
+
+@pytest.mark.parametrize('days,unit,future', [(-1,'mU/L',False),(100,'mg/dL',False),(100,'mU/L',True)])
+def test_tsh_unknown_context_is_not_interpreted_as_pregnancy_result(days,unit,future):
+    engine=create_engine('sqlite://');Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        report_day=date.today()+timedelta(days=1) if future else date.today()
+        patient=Patient(name='Synthetic',phone='0000',password_hash='unused');db.add(patient);db.flush()
+        journey=Journey(patient_id=patient.id,lmp=report_day-timedelta(days=days));db.add(journey);db.flush()
+        db.add(Observation(journey_id=journey.id,code='tsh',value=8.0,unit=unit,observed_on=report_day));db.flush()
+        assert compute_flags(db,journey.id,load_template('antenatal','v1'))==[]
+
+def test_tsh_edd_only_context():
+    engine=create_engine('sqlite://');Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        patient=Patient(name='Synthetic',phone='0000',password_hash='unused');db.add(patient);db.flush()
+        journey=Journey(patient_id=patient.id,edd=date.today()+timedelta(days=80));db.add(journey);db.flush()
+        db.add(Observation(journey_id=journey.id,code='tsh',value=4.6,unit='mU/L',observed_on=date.today()));db.flush()
+        flag=compute_flags(db,journey.id,load_template('antenatal','v1'))[0]
+        assert flag['trimester']==3 and flag['threshold']=={'min':0.3,'max':4.5}
