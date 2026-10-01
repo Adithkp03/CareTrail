@@ -15,6 +15,7 @@ import re
 from datetime import date
 
 KNOWN_TEST_CODES = {
+    "tsh": "TSH",
     "hb": "Haemoglobin",
     "bp_sys": "Systolic BP",
     "bp_dia": "Diastolic BP",
@@ -26,6 +27,7 @@ KNOWN_TEST_CODES = {
 # Multilingual label aliases -> test code. The offline parser and the LLM prompt
 # share this vocabulary.
 LABEL_ALIASES = {
+    "tsh": ["thyroid stimulating hormone", "thyroid-stimulating hormone", "tsh"],
     "hb": ["haemoglobin", "hemoglobin", "hb", "ഹീമോഗ്ലോബിൻ", "हीमोग्लोबिन"],
     "bp": ["blood pressure", "bp", "രക്തസമ്മർദ്ദം", "रक्तचाप"],
     "glucose_fasting": ["fasting glucose", "fasting blood glucose", "fbs", "fasting blood sugar", "ഉപവാസ ഗ്ലൂക്കോസ്", "उपवास ग्लूकोज"],
@@ -51,6 +53,8 @@ def normalize_value(code: str, value: float, unit: str) -> tuple[float, str]:
     if not math.isfinite(value) or value < 0:
         raise ValueError("Value must be a finite, non-negative number")
     u = unit.strip().lower().replace(" ", "")
+    if code == "tsh" and u in ("mu/l", "miu/l", "µiu/ml", "μiu/ml", "uiu/ml"):
+        return value, "mU/L"
     if code == "hb":
         if u in ("g/l", "gl-1"):
             return round(value / 10.0, 1), "g/dL"
@@ -68,7 +72,7 @@ def normalize_value(code: str, value: float, unit: str) -> tuple[float, str]:
 
 def _find_number_near(text: str, aliases: list[str]) -> tuple[float, str] | None:
     for alias in aliases:
-        m = re.search(re.escape(alias) + r"[^\d]{0,25}(\d+(?:\.\d+)?)\s*(g/dL|g/L|mmol/L|mg/dL)?", text, re.IGNORECASE)
+        m = re.search(re.escape(alias) + r"[^\d]{0,25}(\d+(?:\.\d+)?)\s*(g/dL|g/L|mmol/L|mg/dL|mU/L|mIU/L|[µμu]IU/mL)?", text, re.IGNORECASE)
         if m:
             return float(m.group(1)), (m.group(2) or "")
     return None
@@ -104,7 +108,7 @@ def offline_extract(text: str, template: dict) -> list[dict]:
         for code, val in (("bp_sys", bp[0]), ("bp_dia", bp[1])):
             found.append({"code": code, "value": float(val), "unit": "mmHg", "confidence": 0.9})
 
-    single_codes = ("hb", "glucose_fasting", "glucose_ogtt_1h", "glucose_ogtt_2h")
+    single_codes = ("tsh", "hb", "glucose_fasting", "glucose_ogtt_1h", "glucose_ogtt_2h")
     for code in single_codes:
         hit = _find_number_near(text, LABEL_ALIASES[code])
         if hit is None:

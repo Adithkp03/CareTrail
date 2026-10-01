@@ -39,6 +39,26 @@
       "unit": "mg/dL",
       "label": "OGTT 2-hour",
       "message": "OGTT 2-hour glucose is 153 mg/dL or above (IADPSG)."
+    },
+    "tsh": {
+      "label": "TSH",
+      "unit": "mU/L",
+      "trimester_ranges": {
+        "1": {
+          "min": 0.1,
+          "max": 4.0
+        },
+        "2": {
+          "min": 0.1,
+          "max": 4.0
+        },
+        "3": {
+          "min": 0.3,
+          "max": 4.5
+        }
+      },
+      "upper_inclusive": true,
+      "message": "TSH is outside the configured pregnancy fallback range. Contact your clinician to review this result; do not change medicines yourself."
     }
   },
   "danger_signs": [
@@ -243,5 +263,5 @@
       "prep_notes": "Confirm hospital, transport, and who accompanies you. Consider keeping a birth kit ready: medical records, comfortable clothes, towel, wipes, sanitary napkins, tissues, baby clothes, snacks, juice, water and toiletries."
     }
   ],
-  "tft_threshold_pending": "TFT pregnancy-specific values are pending the doctor's exact cutoffs, units and gestational context. No TFT flag is computed."
+  "tft_clinician_note": "Population- and laboratory-specific pregnancy reference ranges are preferred (ATA guidance). The team-supplied fallback TSH ranges are first trimester 0.1-4.0, second 0.1-4.0, third 0.3-4.5 mU/L, inclusive. These are review prompts, not a diagnosis. Compare with the original laboratory range before clinical decisions. Trimester is calculated on the confirmed report date: first before 14 weeks, second 14 to before 28 weeks, third from 28 weeks. Free T4 rules are not configured."
 }
