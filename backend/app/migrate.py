@@ -1,5 +1,7 @@
 """Idempotent schema and privacy migrations for SQLite and deployed Postgres."""
 
+from pathlib import Path
+
 from sqlalchemy import inspect, text
 
 from .database import engine
@@ -15,9 +17,23 @@ _PATCHES = {
 }
 
 
+def secure_public_tables(conn):
+    """Keep server-owned clinical tables off Supabase client-facing Data API."""
+    if conn.dialect.name != "postgresql":
+        return
+    # Plain Postgres deployments may not define Supabase client roles.
+    roles = conn.execute(text("SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')")).scalars().all()
+    if not roles:
+        return
+    if set(roles) != {"anon", "authenticated"}:
+        raise RuntimeError("Incomplete Supabase client-role configuration; privacy migration stopped")
+    conn.execute(text((Path(__file__).parent / "sql" / "private_backend_tables.sql").read_text()))
+
+
 def apply():
     insp = inspect(engine)
     with engine.begin() as conn:
+        secure_public_tables(conn)
         for table, patches in _PATCHES.items():
             if table not in insp.get_table_names():
                 continue
