@@ -65,9 +65,10 @@ def test_nt_window_is_11_weeks_through_13_plus_6():
     assert e.milestone_status(98, start, end, None, None, TODAY) == ("now", True)
 
 
-def test_tft_threshold_still_pending_and_danger_signs_present():
+def test_tsh_fallback_configured_and_danger_signs_present():
     template = __import__("app.template_loader", fromlist=["load_template"]).load_template()
     assert "tft" not in template["thresholds"]
-    assert "pregnancy-specific" in template["tft_threshold_pending"]
+    assert template["thresholds"]["tsh"]["trimester_ranges"]["3"] == {"min": 0.3, "max": 4.5}
+    assert "laboratory-specific" in template["tft_clinician_note"]
     for sign in ("Severe nausea or vomiting", "Right-sided upper abdominal pain", "Reduced urine", "Sudden swelling of the whole body"):
         assert sign in template["danger_signs"]

@@ -77,7 +77,7 @@ def revoke_access(journey_id: str, clinician_id: str, patient: Patient = Depends
 def review(journey_id: str, clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
     journey = authorized_journey(db, journey_id, clinician)
     flags = compute_flags(db, journey.id, load_template(journey.template_id, journey.template_version))
-    return {"patient": journey.patient.name, "journey_id": journey.id, "flags": flags}
+    return {"patient": journey.patient.name, "journey_id": journey.id, "flags": flags, "tft_clinician_note": load_template(journey.template_id, journey.template_version).get("tft_clinician_note", "")}
 
 
 @router.post("/clinician/signoffs", status_code=201)

@@ -24,6 +24,7 @@ function ClinicianView() {
   const [journeyId, setJourneyId] = useState(params.get("journey") || "");
   const [patient, setPatient] = useState("");
   const [flags, setFlags] = useState<Flag[]>([]);
+  const [tftNote, setTftNote] = useState("");
   const [message, setMessage] = useState("");
   useEffect(() => { setToken(sessionStorage.getItem(STORAGE_KEY) || ""); }, []);
   const h = { Authorization: `Bearer ${token}` };
@@ -37,9 +38,9 @@ function ClinicianView() {
   }
   async function load() {
     try {
-      const result = await clinicianApi<{patient: string; flags: Flag[]}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/review`, {headers: h});
-      setPatient(result.patient); setFlags(result.flags); setMessage("");
-    } catch (err) { setPatient(""); setFlags([]); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
+      const result = await clinicianApi<{patient: string; flags: Flag[]; tft_clinician_note: string}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/review`, {headers: h});
+      setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage("");
+    } catch (err) { setPatient(""); setFlags([]); setTftNote(""); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
   }
   async function signOff(flag: Flag) {
     if (!confirm(`Sign off ${flag.label}: ${flag.value} ${flag.unit} for ${patient}?`)) return;
@@ -56,10 +57,11 @@ function ClinicianView() {
       <input className="w-full rounded-xl border p-3" type="password" aria-label="Password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
       <button className="rounded-xl bg-brand px-4 py-2 text-white">Sign in</button>
     </form> : <div className="mt-4 space-y-2">
-      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]);}}>Sign out</button>
+      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");}}>Sign out</button>
       <input className="w-full rounded-xl border p-3" aria-label="Patient-authorized journey ID" placeholder="Patient-authorized journey ID" value={journeyId} onChange={e=>setJourneyId(e.target.value)} />
       <button className="rounded-xl bg-brand px-4 py-2 text-white" onClick={load} disabled={!journeyId}>Load review</button>
       {patient && <h2 className="font-semibold">{patient}: configured-threshold items for review</h2>}
+      {patient && tftNote && <p className="rounded-xl bg-amber-50 p-3 text-sm">{tftNote}</p>}
       {patient && !flags.length && <p>No configured-threshold items requiring review.</p>}
       {flags.map(f=><article className="rounded-xl border bg-white p-3" key={f.observation_id}>
         <p>{f.label}: {f.value} {f.unit} ({f.observed_on})</p><p className="text-sm">{f.message}</p>
