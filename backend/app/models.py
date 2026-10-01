@@ -217,3 +217,13 @@ class DocumentBlob(Base):
     __tablename__ = "document_blobs"
     document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), primary_key=True)
     content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+class ReminderState(Base):
+    """Only user choices are stored. Clinical alert content is derived fresh."""
+    __tablename__ = "reminder_states"
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), primary_key=True)
+    reminder_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

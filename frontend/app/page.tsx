@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { api, getToken, setToken } from "@/lib/api";
 import { t, LANGS, useLang, useTr, type Lang } from "@/lib/i18n";
 import CareIcon from "@/components/CareIcon";
+import ReminderInbox from "@/components/ReminderInbox";
 import MovementTracker from "@/components/MovementTracker";
 import { firstTrimesterSteps, firstVisitTests, milestoneIcons, careText } from "@/lib/first-trimester";
 import type { Journey, Milestone, MilestoneStatus, NextUp } from "@/lib/types";
@@ -177,6 +178,8 @@ export default function HomePage() {
         {attention.length ? <ul className="mt-2 space-y-1 text-sm text-amber-900">{attention.map((item, i) => <li key={i}>⚠ {item}</li>)}</ul> :
           <p className="mt-2 text-sm text-ink/60">{t("noOpenItems", lang)}</p>}
       </section>
+
+      {!offline && <ReminderInbox journeyId={journey.journey_id} tr={tr} />}
 
       {journey.next_appointment ? (
         <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
