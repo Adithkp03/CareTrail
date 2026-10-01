@@ -17,7 +17,7 @@ export async function api<T>(path: string, options: RequestInit = {}, auth = tru
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
   const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (res.status === 401 && typeof window !== "undefined") {
+  if (res.status === 401 && auth && typeof window !== "undefined") {
     setToken(null);
     window.location.href = "/login";
     throw new Error("session expired");
