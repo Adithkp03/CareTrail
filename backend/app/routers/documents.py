@@ -1,3 +1,4 @@
+import hashlib
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -65,8 +66,12 @@ def upload_document(
         raise HTTPException(status_code=400, detail="Empty file")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    digest = hashlib.sha256(data).hexdigest()
+    earlier = (db.query(Document).filter(Document.journey_id == journey_id, Document.content_hash == digest)
+               .order_by(Document.uploaded_at).first())
     doc = Document(
         journey_id=journey_id,
+        content_hash=digest,
         milestone_id=milestone_id or None,
         filename=file.filename or "report",
         content_type=file.content_type or "application/octet-stream",
@@ -78,7 +83,11 @@ def upload_document(
     doc.storage_path = "db:" + doc.id
     audit(db, f"patient:{patient.id}", "upload_document", "document", doc.id, {"filename": doc.filename})
     db.commit()
-    return {"document_id": doc.id, "status": doc.status, "filename": doc.filename}
+    result = {"document_id": doc.id, "status": doc.status, "filename": doc.filename}
+    if earlier is not None:
+        result["duplicate_of"] = {"document_id": earlier.id, "filename": earlier.filename,
+                                  "uploaded_at": earlier.uploaded_at.isoformat()}
+    return result
 
 
 @router.post("/documents/{document_id}/extract")
