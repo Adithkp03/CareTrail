@@ -91,12 +91,14 @@ export default function DoctorPage() {
       ) : null}
 
       <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-ink/50">{t("flagsQueue", lang)}</h2>
+      <p className="mt-2 text-sm text-ink/70">{tr("Yellow means a result needs doctor review, not a diagnosis or an emergency alert. For warning symptoms, contact your doctor now.")}</p>
       {journey.flags.length === 0 ? (
         <p className="mt-2 rounded-2xl bg-white p-4 text-sm text-ink/60 shadow-sm">{t("noFlags", lang)}</p>
       ) : (
         <div className="mt-2 space-y-2">
           {journey.flags.map((f) => (
             <div key={f.observation_id} className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-950">{tr(f.signed_off ? "Reviewed" : "Needs doctor review")}</p>
               <p className="font-medium">{tr(f.label)}: {f.value} {f.unit}</p>
               <p className="mt-1 text-sm text-amber-900">{tr(f.message)}</p>
               <p className="mt-1 text-xs text-ink/50">{f.observed_on}</p>
