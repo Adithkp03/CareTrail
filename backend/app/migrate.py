@@ -13,6 +13,7 @@ _PATCHES = {
         "email": "ALTER TABLE patients ADD COLUMN email VARCHAR(200)",
     },
     "ai_call_traces": {"patient_id": "ALTER TABLE ai_call_traces ADD COLUMN patient_id VARCHAR(32)"},
+    "documents": {"content_hash": "ALTER TABLE documents ADD COLUMN content_hash VARCHAR(64)"},
     "signoffs": {"clinician_id": "ALTER TABLE signoffs ADD COLUMN clinician_id VARCHAR(32)"},
 }
 
