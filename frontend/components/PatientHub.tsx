@@ -92,7 +92,8 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
   const completed = journey.summary.done;
   const unresolved = journey.flags.filter((f) => !f.signed_off);
   const overdue = journey.milestones.filter((m) => m.overdue && m.status !== "done");
-  const action = overdue[0] ?? zones.now[0] ?? zones.upcoming[0] ?? zones.next[0];
+  const current = zones.now[0];
+  const next = zones.upcoming[0] ?? zones.next[0];
   const attention = [
     ...overdue.map((m) => `${t("overdueMilestone", lang)}: ${tr(m.title)}`),
     ...unresolved.map((f) => `${t("reviewPending", lang)}: ${tr(f.label)} (${f.value} ${f.unit})`),
@@ -116,26 +117,36 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
       </header> : <header><a href="/" className="text-sm text-brand">← CareTrail</a><h1 className="mt-4 text-2xl font-semibold">{tr(({timeline: "Your timeline", reminders: "Care reminders", movements: "Baby movements", care: "Care guidance", prep: "Visit preparation", home: "Home"})[feature])}</h1></header>}
 
       {!["en", "ml", "hi"].includes(lang) && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs text-amber-900">{t("translationNote", lang)}</p>}
-      {feature === "home" && <section className="ct-hero relative mt-6 overflow-hidden rounded-[28px] p-5 text-white" aria-label={t("journeyTitle", lang)}>
+      {feature === "home" && <section className="ct-hero relative mt-4 overflow-hidden rounded-[24px] p-4 text-white" aria-label={t("journeyTitle", lang)}>
         <div className="flex items-start justify-between gap-3">
           <div><p className="text-xs font-medium text-white/75">{t("journeyTitle", lang)}</p>
-            <h2 className="mt-3 text-[36px] font-semibold leading-none">{week} <span className="text-base font-normal text-white/80">{t("weeks", lang)}</span></h2>
+            <h2 className="mt-2 text-[28px] font-semibold leading-none">{week} <span className="text-base font-normal text-white/80">{t("weeks", lang)}</span></h2>
             <p className="mt-2 text-sm text-white/75">+ {journey.gestational_age.plus_days} {t("days", lang)} · {t(STAGES[currentStage], lang)}</p>
           </div>
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10"><CareIcon name="pregnancy" size={35} /></div>
         </div>
-        <div className="mt-6 flex items-center justify-between gap-2 text-xs"><span className="text-white/75">{t("youAreHere", lang)}</span><span>{completed} / {total} {t("completedOf", lang)}</span></div>
+        <div className="mt-3 flex items-center justify-between gap-2 text-xs"><span className="text-white/75">{t("youAreHere", lang)}</span><span>{completed} / {total} {t("completedOf", lang)}</span></div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} aria-label={t("completedOf", lang)}>
           <div className="h-full rounded-full bg-[#a5c5ff]" style={{ width: `${total ? 100 * completed / total : 0}%` }} />
         </div>
       </section>
 
       }
-      {feature === "home" && <div className="mt-4 grid grid-cols-3 gap-2.5">
-        {([{label: t("done", lang), value: completed, color: "#e4eafb"}, {label: t("now", lang), value: journey.summary.now, color: "#e9e7f5"}, {label: t("next", lang), value: journey.summary.next + journey.summary.upcoming, color: "#f4e9de"}]).map(item => <div key={item.label} className="rounded-[20px] px-3 py-3" style={{backgroundColor: item.color}}><p className="text-xs text-ink/70">{item.label}</p><p className="mt-1 text-2xl font-semibold">{item.value}</p></div>)}
-      </div>
+      {feature === "home" && <section className="mt-4 space-y-2" aria-label={tr("Your care priorities")}>
+        <a href={current ? `/milestone?id=${current.id}` : "/timeline"} className="ct-card flex min-h-[72px] items-center gap-3 rounded-2xl bg-white p-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand" aria-hidden="true"><CareIcon name="visit" size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="block text-xs font-bold uppercase tracking-wider text-brand">{t("now", lang)}</span><span className="block text-sm font-semibold">{current ? tr(current.title) : tr("No care step due right now")}</span><span className="block text-xs text-ink/65">{current ? t("currentWindow", lang) : tr("Open your journey to see all steps")}</span></span><span aria-hidden="true">→</span>
+        </a>
+        <a href={next ? `/milestone?id=${next.id}` : "/timeline"} className="ct-card flex min-h-[72px] items-center gap-3 rounded-2xl bg-white p-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f4e9de] text-brand" aria-hidden="true"><CareIcon name="review" size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="block text-xs font-bold uppercase tracking-wider text-brand">{t("next", lang)}</span><span className="block text-sm font-semibold">{next ? tr(next.title) : tr("No next step listed")}</span><span className="block text-xs text-ink/65">{next?.scheduled_date ?? (next ? `${next.window_weeks[0]}-${next.window_weeks[1]} ${t("weeks", lang)}` : tr("Check your plan with your doctor"))}</span></span><span aria-hidden="true">→</span>
+        </a>
+        <a href="/reminders" className={`flex min-h-[72px] items-center gap-3 rounded-2xl border p-3 ${attention.length ? "border-amber-300 bg-amber-50 text-amber-950" : "border-slate-200 bg-white text-ink"}`}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70" aria-hidden="true"><CareIcon name="bell" size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="block text-xs font-bold uppercase tracking-wider">{t("attentionNeeded", lang)}{attention.length ? ` · ${attention.length}` : ""}</span><span className="block text-sm">{attention[0] ?? t("noOpenItems", lang)}</span>{attention.length > 1 && <span className="block text-xs">+ {attention.length - 1} {tr("more to review")}</span>}</span><span aria-hidden="true">→</span>
+        </a>
+      </section>}
 
-      }
       {feature === "home" && <section className="ct-card mt-5 rounded-3xl bg-white p-4" aria-label={tr("Quick access")}>
         <h2 className="text-sm font-semibold">{tr("Quick access")}</h2>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
@@ -182,13 +193,6 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
       }
       {feature === "movements" && (week >= 14 ? <MovementTracker journeyId={journey.journey_id} lang={lang} /> : <p className="ct-card mt-5 rounded-3xl bg-white p-5">{tr("This personal movement tracker is available from the second trimester. It is not a medical test or target count.")}</p>)}
 
-      {feature === "home" && action ? <section className="ct-hero mt-5 rounded-3xl p-5 text-white">
-        <h2 className="text-sm font-semibold">{t("nextStep", lang)}</h2>
-        <a href={`/milestone?id=${action.id}`} className="mt-1 block font-medium underline">{tr(action.title)}</a>
-        <p className="mt-1 text-xs opacity-90">{action.overdue ? t("overdue", lang) : action.status === "now" ? t("currentWindow", lang) : action.status === "upcoming" ? t("scheduledNext", lang) : t("next", lang)}</p>
-        <a href={`/upload?milestone=${encodeURIComponent(action.id)}`} className="mt-3 inline-block rounded-lg bg-white px-3 py-2 text-sm font-semibold text-brand">{t("uploadReport", lang)}</a>
-      </section> : null}
-
       {feature === "reminders" && <section className="ct-card mt-5 rounded-3xl bg-white p-5">
         <h2 className="font-semibold">{t("attentionNeeded", lang)}{attention.length ? ` · ${attention.length}` : ""}</h2>
         {attention.length ? <ul className="mt-2 space-y-1 text-sm text-amber-900">{attention.map((item, i) => <li key={i}>⚠ {item}</li>)}</ul> :
@@ -225,12 +229,6 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
       ) : null}
 
       {feature === "prep" && !nextUp?.milestone && <p role="status" className="ct-card mt-5 rounded-3xl bg-white p-5 text-sm text-ink/70">{tr(nextUp ? "No next visit preparation is listed. Check your timeline and confirm your next visit with your doctor." : "Visit preparation is loading or unavailable. Check your timeline and confirm instructions with your doctor.")}</p>}
-
-      {feature === "home" && unresolved.length > 0 ? (
-        <a href="/doctor" className="mt-3 block rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          ⚠️ {unresolved.length} {t("flagsQueue", lang)}
-        </a>
-      ) : null}
 
       {feature === "timeline" && <details className="mt-6"><summary className="cursor-pointer font-semibold text-brand">{t("journeyTitle", lang)} · {t("done", lang)} / {t("now", lang)} / {t("next", lang)}</summary><div className="mt-3 space-y-6">
         {ZONE_ORDER.map((zone) =>
