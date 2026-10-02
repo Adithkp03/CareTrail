@@ -1,10 +1,11 @@
 """Clinician-only review, with explicit patient grants per journey."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..clinicians import authorized_journey, current_clinician
 from ..clinician_setup import redeem
+from .. import ratelimit
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
@@ -31,18 +32,22 @@ class SetupPassword(BaseModel):
 
 
 @router.post("/clinician/setup-password")
-def setup_password(body: SetupPassword, db: Session = Depends(get_db)):
+def setup_password(body: SetupPassword, request: Request, db: Session = Depends(get_db)):
+    ratelimit.check(db, request, "login_failed")
     if not 12 <= len(body.password) <= 128:
         raise HTTPException(status_code=400, detail="Password must be 12-128 characters")
     if not redeem(db, body.token, body.password):
+        ratelimit.record(db, request, "login_failed")
         raise HTTPException(status_code=400, detail="Setup link is invalid, used or expired")
     return {"status": "password_set"}
 
 
 @router.post("/clinician/login")
-def login(body: ClinicianLogin, db: Session = Depends(get_db)):
+def login(body: ClinicianLogin, request: Request, db: Session = Depends(get_db)):
+    ratelimit.check(db, request, "login_failed", "clin:" + body.email)
     clinician = db.query(Clinician).filter(Clinician.email == body.email.strip().lower()).first()
     if not clinician or not clinician.active or not verify_password(body.password, clinician.password_hash):
+        ratelimit.record(db, request, "login_failed", "clin:" + body.email)
         raise HTTPException(status_code=401, detail="Invalid clinician login")
     token = ClinicianToken(token=new_token(), clinician_id=clinician.id, expires_at=token_expiry())
     db.add(token)

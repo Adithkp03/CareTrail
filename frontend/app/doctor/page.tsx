@@ -38,7 +38,8 @@ export default function DoctorPage() {
 
   async function resetDemo() {
     if (!confirm(tr("Reset the demo journey? This restores Anjali to the starting state."))) return;
-    await api("/demo/seed", { method: "POST" }, false);
+    try { await api("/demo/seed", { method: "POST" }); }
+    catch { setMessage(tr("Demo reset is only available while signed in as the demo user.")); return; }
     setMessage("✅ " + tr("Demo reset - Anjali is back to the starting state."));
     await load();
   }

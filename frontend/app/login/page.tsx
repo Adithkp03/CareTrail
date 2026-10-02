@@ -32,8 +32,8 @@ export default function LoginPage() {
   async function tryDemo() {
     setBusy(true); setError("");
     try {
-      await api("/demo/seed", { method: "POST" }, false);
-      await doLogin("9000000001", "demo1234");
+      try { await doLogin("9000000001", "demo1234"); }
+      catch { await api("/demo/seed", { method: "POST" }, false); await doLogin("9000000001", "demo1234"); }
     } catch { setError(t("demoFailed", lang)); setBusy(false); }
   }
 

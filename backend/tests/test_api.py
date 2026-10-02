@@ -163,7 +163,7 @@ def test_demo_seed_is_idempotent_and_resets_state(client):
     review = next(m for m in journey["milestones"] if m["key"] == "second_trimester_review")
     client.post(f"/milestones/{review['id']}/complete", json={}, headers=auth(token))
 
-    second = client.post("/demo/seed")
+    second = client.post("/demo/seed", headers=auth(token))
     assert second.status_code == 200, second.text
     fresh_jid = second.json()["journey_id"]
     fresh = client.get(f"/journey/{fresh_jid}", headers=auth(token)).json()
@@ -184,7 +184,8 @@ def test_demo_reset_removes_old_journey_clinician_grant(client):
     db.add(JourneyClinicianGrant(journey_id=old_jid, clinician_id=clinician.id))
     db.commit()
 
-    second = client.post("/demo/seed")
+    token = client.post("/auth/login", json={"phone": DEMO_PHONE, "password": DEMO_PASSWORD}).json()["token"]
+    second = client.post("/demo/seed", headers=auth(token))
     assert second.status_code == 200, second.text
     assert second.json()["journey_id"] != old_jid
     assert db.query(JourneyClinicianGrant).filter_by(journey_id=old_jid).count() == 0
@@ -214,3 +215,33 @@ def test_existing_journey_receives_revised_nt_window_and_notes(client):
     detail = client.get(f"/milestones/{nt['id']}", headers=auth(token)).json()
     assert detail["window_weeks"] == nt["window_weeks"]
     assert "13+6" in detail["prep_notes"]
+
+
+def test_demo_reset_is_gated(client, monkeypatch):
+    assert client.post("/demo/seed").status_code == 200  # first creation is open
+    assert client.post("/demo/seed").status_code == 403  # anonymous reset refused
+    other = signup(client, phone="9000000077")["token"]
+    assert client.post("/demo/seed", headers=auth(other)).status_code == 403
+    monkeypatch.setenv("DEMO_RESET_KEY", "k-test")
+    assert client.post("/demo/seed", headers={"X-Demo-Key": "wrong"}).status_code == 403
+    assert client.post("/demo/seed", headers={"X-Demo-Key": "k-test"}).status_code == 200
+
+
+def test_login_rate_limit_and_demo_exempt(client):
+    signup(client, phone="9000000066")
+    for _ in range(8):
+        assert client.post("/auth/login", json={"phone": "9000000066", "password": "wrong-pass"}).status_code == 401
+    assert client.post("/auth/login", json={"phone": "9000000066", "password": "secret123"}).status_code == 429
+    client.post("/demo/seed")
+    for _ in range(9):
+        client.post("/auth/login", json={"phone": DEMO_PHONE, "password": "bad"})
+    assert client.post("/auth/login", json={"phone": DEMO_PHONE, "password": DEMO_PASSWORD}).status_code == 200
+
+
+def test_short_password_rejected_and_headers(client):
+    r = client.post("/auth/signup", json={"name": "A", "phone": "9000000055", "password": "short12", "consent": True})
+    assert r.status_code == 422
+    h = client.get("/health").headers
+    assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY"
+    pre = client.options("/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
+    assert "access-control-allow-origin" not in pre.headers

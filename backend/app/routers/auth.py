@@ -2,12 +2,13 @@ import secrets
 from datetime import datetime, timezone
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_patient
+from .. import ratelimit
 from ..models import AuthToken, Patient
 from ..schemas import LoginRequest, SignupRequest
 from ..security import hash_password, new_token, token_expiry, verify_password
@@ -24,7 +25,9 @@ def _issue_token(db: Session, patient: Patient) -> dict:
 
 
 @router.post("/signup", status_code=201)
-def signup(body: SignupRequest, db: Session = Depends(get_db)):
+def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
+    ratelimit.check(db, request, "signup")
+    ratelimit.record(db, request, "signup")
     if db.query(Patient).filter(Patient.phone == body.phone).first():
         raise HTTPException(status_code=409, detail="An account with this phone already exists")
     if not body.consent:
@@ -42,9 +45,11 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    ratelimit.check(db, request, "login_failed", body.phone)
     patient = db.query(Patient).filter(Patient.phone == body.phone.strip()).first()
     if patient is None or not verify_password(body.password, patient.password_hash):
+        ratelimit.record(db, request, "login_failed", body.phone)
         raise HTTPException(status_code=401, detail="Wrong phone or password")
     return _issue_token(db, patient)
 
