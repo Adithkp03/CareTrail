@@ -11,6 +11,7 @@ export type Milestone = {
   status: MilestoneStatus;
   overdue: boolean;
   completed_at: string | null;
+  completion_level?: "self_reported" | "evidence_confirmed" | "clinician_verified" | null;
   scheduled_date: string | null;
   signoff: { doctor_name: string; note: string; signed_at: string; verified_clinician?: boolean } | null;
   documents?: { id: string; filename: string; status: string; language: string | null }[];
