@@ -194,10 +194,11 @@ function UploadView() {
           {flags.length > 0 && (
             <div className="space-y-2">
               {flags.map((f) => (
-                <p key={f.code} className="rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">
-                  ⚠️ {tr(f.label)}: {f.value} {f.unit}. {tr(f.message)}
+                <p key={f.code} className="rounded-xl bg-amber-50 p-3 text-sm text-amber-950 ring-1 ring-amber-300">
+                  {tr("Needs doctor review")}: {tr(f.label)}: {f.value} {f.unit}. {tr(f.message)}
                 </p>
               ))}
+              <p className="text-sm text-amber-950">{tr("A value is outside the care plan range. This is not a diagnosis. Your doctor can review it with your report and symptoms.")}</p>
               <p className="text-xs text-ink/60">{tr(flags.length === 1 ? "Your doctor will see this flag in the review queue." : "Your doctor will see these flags in the review queue.")}</p>
             </div>
           )}
