@@ -361,3 +361,17 @@ def test_confirm_rejects_future_report_date(client):
                     json={"values": [{"code": "hb", "value": 10.2, "unit": "g/dL", "observed_on": future}]},
                     headers=auth(token))
     assert r.status_code == 422
+
+
+def test_duplicate_report_warns_same_journey_only(client):
+    token = signup(client)["token"]
+    j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
+    other = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
+    def up(jid, data):
+        return client.post(f"/journeys/{jid}/documents/upload", files={"file": ("r.txt", data, "text/plain")}, headers=auth(token)).json()
+    first = up(j, b"Hb 11.2 g/dL")
+    assert "duplicate_of" not in first
+    second = up(j, b"Hb 11.2 g/dL")
+    assert second["duplicate_of"]["document_id"] == first["document_id"]
+    assert "duplicate_of" not in up(j, b"Hb 10.0 g/dL")
+    assert "duplicate_of" not in up(other, b"Hb 11.2 g/dL")
