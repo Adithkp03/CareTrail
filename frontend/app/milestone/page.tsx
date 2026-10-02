@@ -138,6 +138,10 @@ function MilestoneView() {
         {m.completed_at ? ` · ✓ ${m.completed_at}` : ""}
       </p>
 
+      {m.completion_level ? (
+        <p className="mt-2 text-xs font-semibold text-brand">{tr({ self_reported: "Reported by you", evidence_confirmed: "Backed by a report you confirmed", clinician_verified: "Verified by your doctor" }[m.completion_level])}</p>
+      ) : null}
+
       {m.signoff ? (
         <div className="mt-4 rounded-2xl border border-green-300 bg-green-50 p-3 text-sm">
           ✅ {t("signedOffBy", lang)} <b>{m.signoff.doctor_name}</b>
