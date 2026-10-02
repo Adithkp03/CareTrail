@@ -227,3 +227,14 @@ class ReminderState(Base):
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     dismissed: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CareInstruction(Base):
+    """Clinician-written instructions, acknowledged by the journey owner."""
+    __tablename__ = "care_instructions"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
+    clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
+    note: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

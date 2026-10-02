@@ -1,6 +1,8 @@
 """Clinician-only review, with explicit patient grants per journey."""
+from datetime import timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..clinicians import authorized_journey, current_clinician
@@ -9,7 +11,7 @@ from .. import ratelimit
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
-from ..models import Clinician, ClinicianToken, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
+from ..models import CareInstruction, utcnow, Clinician, ClinicianToken, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
 from ..schemas import SignOffCreateRequest
 from ..security import new_token, token_expiry, verify_password
 from ..template_loader import load_template
@@ -104,3 +106,55 @@ def signoff(body: SignOffCreateRequest, clinician: Clinician = Depends(current_c
     audit(db, f"clinician:{clinician.id}", "signoff", "signoff", row.id, {"journey_id": journey.id})
     db.commit()
     return {"signoff_id": row.id, "doctor_name": clinician.name}
+
+
+class InstructionCreate(BaseModel):
+    note: str = Field(min_length=1, max_length=4000)
+
+
+def instruction_time(value):
+    return value.replace(tzinfo=timezone.utc).isoformat() if value.tzinfo is None else value.isoformat()
+
+
+def instruction_rows(db, journey_id):
+    rows = db.query(CareInstruction, Clinician.name).join(Clinician, Clinician.id == CareInstruction.clinician_id).filter(CareInstruction.journey_id == journey_id).order_by(CareInstruction.created_at.desc(), CareInstruction.id.desc()).all()
+    return [{"id": row.id, "note": row.note, "doctor_name": name, "created_at": instruction_time(row.created_at), "acknowledged_at": instruction_time(row.acknowledged_at) if row.acknowledged_at else None} for row, name in rows]
+
+
+@router.post("/clinician/journeys/{journey_id}/instructions", status_code=201)
+def create_instruction(journey_id: str, body: InstructionCreate, clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
+    journey = authorized_journey(db, journey_id, clinician)
+    note = body.note.strip()
+    if not note:
+        raise HTTPException(status_code=422, detail="Write an instruction first")
+    row = CareInstruction(journey_id=journey.id, clinician_id=clinician.id, note=note)
+    db.add(row)
+    db.flush()
+    audit(db, f"clinician:{clinician.id}", "create_instruction", "care_instruction", row.id, {"journey_id": journey.id})
+    db.commit()
+    return {"id": row.id}
+
+
+@router.get("/clinician/journeys/{journey_id}/instructions")
+def clinician_instructions(journey_id: str, clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
+    authorized_journey(db, journey_id, clinician)
+    return {"items": instruction_rows(db, journey_id)}
+
+
+@router.get("/journey/{journey_id}/instructions")
+def patient_instructions(journey_id: str, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    get_owned_journey(journey_id, patient, db)
+    return {"items": instruction_rows(db, journey_id)}
+
+
+@router.post("/instructions/{instruction_id}/acknowledge")
+def acknowledge_instruction(instruction_id: str, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    row = db.get(CareInstruction, instruction_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Instruction not found")
+    get_owned_journey(row.journey_id, patient, db)
+    if row.acknowledged_at is None:
+        row.acknowledged_at = utcnow()
+        audit(db, f"patient:{patient.id}", "acknowledge_instruction", "care_instruction", row.id)
+        db.commit()
+    return {"id": row.id, "acknowledged_at": instruction_time(row.acknowledged_at)}
