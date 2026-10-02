@@ -156,6 +156,13 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
 
       }
       {feature === "timeline" && <section className="ct-card mt-5 rounded-3xl bg-white p-5" aria-label={t("journeyTitle", lang)}>
+        <div className="mb-5 rounded-2xl bg-brand p-4 text-white">
+          <p className="text-xs font-semibold uppercase tracking-wider">{t("youAreHere", lang)}</p>
+          <h2 className="mt-1 text-xl font-semibold">{week} {t("weeks", lang)} + {journey.gestational_age.plus_days} {t("days", lang)}</h2>
+          <p className="text-sm text-white/85">{t(STAGES[currentStage], lang)}</p>
+          <p className="mt-1 text-xs text-white/85">{tr("Due date")}: {journey.edd}</p>
+        </div>
+        <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/75" aria-label={tr("Journey status key")}><span>✓ {t("done", lang)}</span><span>● {t("now", lang)}</span><span>○ {t("next", lang)}</span></div>
         {STAGES.map((stage, i) => {
           const items = journey.milestones.filter((m) => milestoneStage(m) === i);
           const highlighted = i === currentStage
@@ -163,14 +170,15 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
             : i < currentStage ? items : items.slice(0, 1);
           const rest = items.filter((m) => !highlighted.includes(m));
           const row = (m: Milestone) => <a key={m.id} href={`/milestone?id=${m.id}`} className="flex min-h-8 items-start gap-2 rounded-lg px-1 py-1 text-sm text-ink/80 hover:bg-brand-soft">
-            <span aria-hidden="true" className="shrink-0 text-lg"><CareIcon name={milestoneIcons[m.key] ?? TYPE_ICON[m.type]} size={20} /></span><span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" ? "○" : "●"}</span>
+            <span aria-hidden="true" className="shrink-0 text-lg"><CareIcon name={milestoneIcons[m.key] ?? TYPE_ICON[m.type]} size={20} /></span><span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" || m.status === "upcoming" ? "○" : "●"}</span>
             <span className="min-w-0 flex-1">{tr(m.title)}</span>
             {m.overdue ? <span className="text-xs text-amber-900">{t("overdue", lang)}</span> : null}
             {m.signoff ? <span className="text-xs" title={t("prototypeReview", lang)}>✓ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
           </a>;
-          return <div key={stage} className="relative border-l-2 border-brand/20 pb-5 pl-5 last:border-transparent last:pb-0">
+          return <div key={stage} className={`relative border-l-2 pb-5 pl-5 last:border-transparent last:pb-0 ${i === currentStage ? "border-brand" : "border-brand/20"}`}>
             <span className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full ${i === currentStage ? "bg-brand ring-4 ring-brand/20" : "bg-ink/25"}`} />
-            <h3 className="text-sm font-semibold text-ink">{t(stage, lang)} {i === currentStage ? `· ${t("youAreHere", lang)}` : ""}</h3>
+            <h3 className="text-sm font-semibold text-ink">{t(stage, lang)}</h3>
+            {i === currentStage && <p className="mt-1 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand">● {t("youAreHere", lang)} · {week} {t("weeks", lang)}</p>}
             <div className="mt-1">{highlighted.map(row)}</div>
             {rest.length > 0 ? <details className="mt-1 text-xs text-brand"><summary className="cursor-pointer">{t("showAllMilestones", lang)} · {items.length}</summary><div className="mt-1">{rest.map(row)}</div></details> : null}
           </div>;
