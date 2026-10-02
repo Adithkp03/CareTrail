@@ -100,6 +100,7 @@ class Document(Base):
     storage_path: Mapped[str] = mapped_column(String(400), default="")
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="stored")  # stored | extracting | extracted
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
