@@ -25,3 +25,10 @@ Record a full 3-min run on a laptop with seeded data; keep it downloaded locally
 - **Privacy?** Consent-gated access, per-user accounts, audit trail (trust ledger) of every view/edit.
 - **Regional languages?** Sarvam for ml/hi TTS+STT+translation; rules engine is language-agnostic.
 - **Scale?** FastAPI + Postgres in prod, stateless API; rules engine runs in-process.
+
+## Demo reset (security hardening)
+`POST /demo/seed` is no longer open once the demo account exists. Reset works two ways:
+- signed in as the demo user: the Doctor view "Reset demo" button;
+- operator: `curl -X POST $API/demo/seed -H "X-Demo-Key: $DEMO_RESET_KEY"` (set `DEMO_RESET_KEY` in the backend Vercel env).
+"Try the demo" on the login page logs straight in (it only seeds if the account is missing).
+Production also disables `/docs` and `/openapi.json` (set `ENABLE_DOCS=1` to re-enable) and restricts CORS to the web app + Capacitor origins (`CORS_ORIGINS` overrides).
