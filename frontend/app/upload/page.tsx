@@ -30,6 +30,7 @@ function UploadView() {
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<Step>("pick");
   const [documentId, setDocumentId] = useState("");
+  const [duplicateOn, setDuplicateOn] = useState("");
   const [provider, setProvider] = useState("");
   const [language, setLanguage] = useState("");
   const [values, setValues] = useState<ProposedValue[]>([]);
@@ -66,8 +67,9 @@ function UploadView() {
       const form = new FormData();
       form.append("file", file);
       if (milestoneId) form.append("milestone_id", milestoneId);
-      const up = await apiForm<{ document_id: string }>(`/journeys/${journey.journey_id}/documents/upload`, form);
+      const up = await apiForm<{ document_id: string; duplicate_of?: { uploaded_at: string } }>(`/journeys/${journey.journey_id}/documents/upload`, form);
       setDocumentId(up.document_id);
+      setDuplicateOn(up.duplicate_of ? new Date(up.duplicate_of.uploaded_at).toLocaleDateString() : "");
       setConfirmChecked(false);
       // The local File is the exact uploaded evidence; it stays beside the proposed values.
       setEvidenceUrl(URL.createObjectURL(file));
@@ -108,7 +110,7 @@ function UploadView() {
   }
 
   function reset() {
-    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage(""); setEvidenceUrl(""); setEvidenceText(""); setConfirmChecked(false);
+    setStep("pick"); setFile(null); setDocumentId(""); setValues([]); setFlags([]); setError(""); setExtractMessage(""); setEvidenceUrl(""); setEvidenceText(""); setConfirmChecked(false); setDuplicateOn("");
   }
 
   const input = "w-full rounded-xl border border-ink/15 bg-white p-3 text-sm";
@@ -134,6 +136,7 @@ function UploadView() {
 
       {step === "confirm" && (
         <div className="mt-4 space-y-4">
+          {duplicateOn && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{tr("You already uploaded this exact file on")} {duplicateOn}. {tr("Saving it again may repeat the same values on your timeline. If that was not intended, choose Cancel.")}</p>}
           <section className="rounded-xl border border-amber-300 bg-white p-3">
             <h2 className="font-semibold">Original report: {file?.name}</h2>
             <p className="mt-1 text-xs">Compare every value, unit and date with the original before saving. Blurry, conflicting or missing-unit results should not be confirmed.</p>
