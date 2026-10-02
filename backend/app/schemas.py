@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     phone: str = Field(min_length=6, max_length=32)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     language: str = Field(default="en", pattern="^(en|ml|hi|ta|te|kn|bn|mr)$")
     consent: bool = False
 
