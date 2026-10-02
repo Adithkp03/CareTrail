@@ -348,3 +348,16 @@ def test_image_provider_failure_does_not_confirm_blurry_report(client, monkeypat
     ext = client.post(f"/documents/{doc}/extract", headers=auth(a))
     assert ext.status_code == 200 and ext.json()["proposed"] == []
     assert client.get("/flags", params={"journey_id": j["journey_id"]}, headers=auth(a)).json()["flags"] == []
+
+
+def test_confirm_rejects_future_report_date(client):
+    from datetime import date, timedelta
+    token = signup(client)["token"]
+    j = make_journey(client, token)
+    doc_id = upload(client, token, j["journey_id"], "cbc_malayalam_low_hb.txt")
+    client.post(f"/documents/{doc_id}/extract", headers=auth(token))
+    future = (date.today() + timedelta(days=3)).isoformat()
+    r = client.post(f"/documents/{doc_id}/confirm",
+                    json={"values": [{"code": "hb", "value": 10.2, "unit": "g/dL", "observed_on": future}]},
+                    headers=auth(token))
+    assert r.status_code == 422
