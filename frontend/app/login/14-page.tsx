@@ -1,0 +1,76 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { api, setToken } from "@/lib/api";
+import { t, LANGS, useLang } from "@/lib/i18n";
+import SupabaseSignIn from "./supabase-signin";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [lang, setLang] = useLang();
+
+  async function doLogin(p: string, pw: string) {
+    const res = await api<{ token: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ phone: p, password: pw }),
+    }, false);
+    setToken(res.token);
+    router.push("/");
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError("");
+    try { await doLogin(phone.trim(), password); }
+    catch (err) { setError(err instanceof Error && err.message === "Wrong phone or password" ? t("wrongLogin", lang) : t("loginFailed", lang)); setBusy(false); }
+  }
+
+  async function tryDemo() {
+    setBusy(true); setError("");
+    try {
+      try { await doLogin("9000000001", "demo1234"); }
+      catch { await api("/demo/seed", { method: "POST" }, false); await doLogin("9000000001", "demo1234"); }
+    } catch { setError(t("demoFailed", lang)); setBusy(false); }
+  }
+
+  return (
+    <main className="pt-6">
+      <div className="ct-login-art relative overflow-hidden rounded-[32px] px-7 pb-16 pt-8 text-white">
+        <span className="ct-orb absolute right-7 top-10 h-20 w-20 rounded-full" aria-hidden="true" />
+        <p className="relative text-xs font-medium uppercase tracking-[0.18em]">CareTrail</p>
+        <p className="relative mt-16 text-3xl font-semibold">Welcome back.</p>
+      <h1 className="sr-only">{t("appName", lang)}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-white/80">{t("tagline", lang)}</p>
+      </div>
+      <form onSubmit={onSubmit} className="ct-card relative -mt-8 space-y-4 rounded-3xl bg-white p-6">
+        <label className="block text-xs font-medium text-ink/75">{t("phone", lang)}</label>
+        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("phone", lang)} placeholder={t("phone", lang)}
+          value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
+        <label className="block text-xs font-medium text-ink/75">{t("password", lang)}</label>
+        <input className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("password", lang)} placeholder={t("password", lang)}
+          type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button disabled={busy} className="w-full rounded-xl bg-brand p-3 font-semibold text-white disabled:opacity-50">
+          {t("login", lang)}
+        </button>
+      </form>
+      <button onClick={tryDemo} disabled={busy}
+        className="mt-3 w-full rounded-xl border border-brand p-3 font-semibold text-brand disabled:opacity-50">
+        {t("tryDemo", lang)}
+      </button>
+      <p className="mt-4 text-center text-sm">
+        <a className="text-brand underline" href="/signup">{t("signup", lang)}</a>
+      </p>
+      <SupabaseSignIn lang={lang} />
+      <label htmlFor="login-language" className="mt-8 block text-sm font-medium text-ink/70">{t("language", lang)}</label>
+      <select id="login-language" value={lang} onChange={(e) => setLang(e.target.value as typeof lang)} className="mt-2 w-full rounded-xl border border-ink/15 bg-white p-3">
+        {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+      </select>
+      {!["en", "ml", "hi"].includes(lang) && <p className="mt-2 text-xs text-amber-900">{t("translationNote", lang)}</p>}
+    </main>
+  );
+}
