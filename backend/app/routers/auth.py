@@ -68,12 +68,14 @@ class SupabaseExchangeRequest(BaseModel):
 @router.post("/supabase")
 def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_db)):
     """Bridge Supabase Auth into CareTrail sessions. The frontend signs the user
-    in with Supabase (email magic link / OTP), then trades the Supabase access
+    in with Supabase (Google / email magic link / OTP), then trades the Supabase access
     token for a CareTrail token. First sign-in provisions the patient row."""
     try:
         ident = verify_access_token(body.access_token)
     except RuntimeError:
         raise HTTPException(status_code=501, detail="Supabase auth is not configured on this server")
+    except jwt.PyJWKClientConnectionError:
+        raise HTTPException(status_code=503, detail="Identity verification is temporarily unavailable")
     except (jwt.PyJWTError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
@@ -84,6 +86,8 @@ def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_d
         # Phone comes from a Supabase phone claim when present; otherwise a
         # placeholder keeps the unique column satisfied (user can add one later).
         phone = ident["phone"] or ("sb-" + ident["sub"].replace("-", "")[:29])
+        if db.query(Patient).filter(Patient.phone == phone).first():
+            raise HTTPException(status_code=409, detail="This phone already has a CareTrail profile. Use phone and password to access it.")
         name = ident["name"] or (ident["email"].split("@")[0] if ident["email"] else "Patient")
         patient = Patient(
             name=name[:120],
