@@ -24,6 +24,10 @@ function ClinicianView() {
   const [journeyId, setJourneyId] = useState(params.get("journey") || "");
   const [patient, setPatient] = useState("");
   const [flags, setFlags] = useState<Flag[]>([]);
+  const [instructions, setInstructions] = useState<{id: string; note: string; doctor_name: string; acknowledged_at: string | null}[]>([]);
+  const [instruction, setInstruction] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [loadedJourney, setLoadedJourney] = useState("");
   const [tftNote, setTftNote] = useState("");
   const [message, setMessage] = useState("");
   useEffect(() => { setToken(sessionStorage.getItem(STORAGE_KEY) || ""); }, []);
@@ -39,8 +43,16 @@ function ClinicianView() {
   async function load() {
     try {
       const result = await clinicianApi<{patient: string; flags: Flag[]; tft_clinician_note: string}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/review`, {headers: h});
-      setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage("");
-    } catch (err) { setPatient(""); setFlags([]); setTftNote(""); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
+      setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage(""); setLoadedJourney(journeyId);
+      const notes = await clinicianApi<{items: typeof instructions}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/instructions`, {headers:h});setInstructions(notes.items);
+    } catch (err) { setPatient(""); setFlags([]); setTftNote(""); setInstructions([]);setLoadedJourney(""); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
+  }
+  async function sendInstruction() {
+    if(!instruction.trim() || !loadedJourney || journeyId !== loadedJourney) return;
+    if(!confirm(`Send this instruction to ${patient}?\n\n${instruction.trim()}`)) return;
+    setPosting(true);
+    try {await clinicianApi(`/clinician/journeys/${encodeURIComponent(loadedJourney)}/instructions`, {method:"POST",headers:h,body:JSON.stringify({note:instruction.trim()})});setInstruction("");await load();setMessage("Instruction sent to the patient.");}
+    catch(err){setMessage(err instanceof Error?err.message:"Could not send instruction");}finally{setPosting(false);}
   }
   async function signOff(flag: Flag) {
     if (!confirm(`Sign off ${flag.label}: ${flag.value} ${flag.unit} for ${patient}?`)) return;
@@ -59,12 +71,20 @@ function ClinicianView() {
       <input className="w-full rounded-xl border p-3" type="password" aria-label="Password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
       <button className="rounded-xl bg-brand px-4 py-2 text-white">Sign in</button>
     </form> : <div className="ct-card mt-5 space-y-3 rounded-3xl bg-white p-5">
-      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");}}>Sign out</button>
-      <input className="w-full rounded-xl border p-3" aria-label="Patient-authorized journey ID" placeholder="Patient-authorized journey ID" value={journeyId} onChange={e=>setJourneyId(e.target.value)} />
+      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");setInstructions([]);setLoadedJourney("");setInstruction("");}}>Sign out</button>
+      <input className="w-full rounded-xl border p-3" aria-label="Patient-authorized journey ID" placeholder="Patient-authorized journey ID" value={journeyId} onChange={e=>{setJourneyId(e.target.value);setPatient("");setFlags([]);setInstructions([]);setLoadedJourney("");setInstruction("");}} />
       <button className="rounded-xl bg-brand px-4 py-2 text-white" onClick={load} disabled={!journeyId}>Load review</button>
       {patient && <h2 className="font-semibold">{patient}: configured-threshold items for review</h2>}
       {patient && tftNote && <p className="rounded-2xl bg-[#f4efe5] p-4 text-sm leading-relaxed">{tftNote}</p>}
       {patient && !flags.length && <p>No configured-threshold items requiring review.</p>}
+      {patient && loadedJourney===journeyId && <section className="rounded-2xl border border-brand/20 bg-brand-soft p-4">
+        <h2 className="font-semibold">Instructions for {patient}</h2>
+        <p className="mt-1 text-xs text-ink/70">The patient sees your exact note and can acknowledge reading it. This does not mark care complete.</p>
+        <label className="mt-3 block text-sm" htmlFor="doctor-instruction">Write a patient instruction</label>
+        <textarea id="doctor-instruction" className="mt-1 min-h-28 w-full rounded-xl border bg-white p-3 text-sm" maxLength={4000} value={instruction} onChange={e=>setInstruction(e.target.value)} />
+        <button disabled={posting||!instruction.trim()} onClick={()=>void sendInstruction()} className="mt-2 rounded-xl bg-brand px-4 py-2 text-sm text-white disabled:opacity-50">{posting?"Sending...":"Review and send instruction"}</button>
+        <div className="mt-4 space-y-3">{instructions.map(i=><article key={i.id} className="rounded-xl bg-white p-3 text-sm"><p className="whitespace-pre-wrap break-words">{i.note}</p><p className="mt-2 text-xs text-ink/70">{i.acknowledged_at?`Patient acknowledged: ${new Date(i.acknowledged_at).toLocaleString()}`:"Waiting for patient acknowledgment"}</p></article>)}</div>
+      </section>}
       {flags.map(f=><article className="rounded-2xl border border-ink/10 bg-[#f5f7f9] p-4" key={f.observation_id}>
         <p>{f.label}: {f.value} {f.unit} ({f.observed_on})</p><p className="text-sm">{f.message}</p>
         {f.signed_off ? <p>{f.signed_off.verified_clinician ? "Reviewed by verified clinician " : "Historical prototype review by "}{f.signed_off.doctor_name}</p> : <button className="mt-2 rounded-lg bg-brand px-3 py-2 text-white" onClick={()=>signOff(f)}>Sign off</button>}
