@@ -33,7 +33,7 @@ function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: stri
         </span>
       </span>
       {m.signoff ? <span title={t("prototypeReview", lang)}>✅ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
-      {m.overdue ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">{t("overdue", lang)}</span> : null}
+      {m.overdue ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{t("overdue", lang)}</span> : null}
     </button>
   );
 }
@@ -165,7 +165,7 @@ export default function PatientHub({ feature = "home" }: { feature?: "home" | "t
           const row = (m: Milestone) => <a key={m.id} href={`/milestone?id=${m.id}`} className="flex min-h-8 items-start gap-2 rounded-lg px-1 py-1 text-sm text-ink/80 hover:bg-brand-soft">
             <span aria-hidden="true" className="shrink-0 text-lg"><CareIcon name={milestoneIcons[m.key] ?? TYPE_ICON[m.type]} size={20} /></span><span aria-hidden="true">{m.status === "done" ? "✓" : m.status === "next" ? "○" : "●"}</span>
             <span className="min-w-0 flex-1">{tr(m.title)}</span>
-            {m.overdue ? <span className="text-xs text-red-700">{t("overdue", lang)}</span> : null}
+            {m.overdue ? <span className="text-xs text-amber-900">{t("overdue", lang)}</span> : null}
             {m.signoff ? <span className="text-xs" title={t("prototypeReview", lang)}>✓ {t("signedOffBy", lang)} {m.signoff.doctor_name}</span> : null}
           </a>;
           return <div key={stage} className="relative border-l-2 border-brand/20 pb-5 pl-5 last:border-transparent last:pb-0">
