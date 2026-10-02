@@ -30,14 +30,29 @@ function ClinicianView() {
   const [loadedJourney, setLoadedJourney] = useState("");
   const [tftNote, setTftNote] = useState("");
   const [message, setMessage] = useState("");
+  type Roster = {journey_id: string; patient: string; weeks: number; plus_days: number; edd: string | null; pending_reviews: number; instructions_waiting: number};
+  const [roster, setRoster] = useState<Roster[] | null>(null);
   useEffect(() => { setToken(sessionStorage.getItem(STORAGE_KEY) || ""); }, []);
   const h = { Authorization: `Bearer ${token}` };
+  async function loadRoster(tok = token) {
+    try { setRoster((await clinicianApi<{items: Roster[]}>("/clinician/patients", {headers: {Authorization: `Bearer ${tok}`}})).items); }
+    catch { setRoster(null); setMessage("Patient list unavailable. Connect and try again."); }
+  }
+  useEffect(() => { if (token) void loadRoster(token); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function open(id: string) {
+    setJourneyId(id); setPatient(""); setFlags([]); setInstructions([]); setLoadedJourney(""); setInstruction("");
+    try {
+      const result = await clinicianApi<{patient: string; flags: Flag[]; tft_clinician_note: string}>(`/clinician/journeys/${encodeURIComponent(id)}/review`, {headers: h});
+      setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage(""); setLoadedJourney(id);
+      const notes = await clinicianApi<{items: typeof instructions}>(`/clinician/journeys/${encodeURIComponent(id)}/instructions`, {headers:h}); setInstructions(notes.items);
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Review unavailable"); }
+  }
   async function login(e: React.FormEvent) {
     e.preventDefault(); setMessage("");
     try {
       const result = await clinicianApi<{token: string; name: string}>("/clinician/login", {method: "POST", body: JSON.stringify({email, password})});
       sessionStorage.setItem(STORAGE_KEY, result.token); setToken(result.token); setPassword("");
-      setMessage(`Signed in as ${result.name}. Enter the patient-authorized journey ID to review.`);
+      setMessage(`Signed in as ${result.name}. Choose a patient to review.`);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Login failed"); }
   }
   async function load() {
@@ -58,7 +73,7 @@ function ClinicianView() {
     if (!confirm(`Sign off ${flag.label}: ${flag.value} ${flag.unit} for ${patient}?`)) return;
     try {
       await clinicianApi("/clinician/signoffs", {method: "POST", headers: h, body: JSON.stringify({journey_id: journeyId, observation_id: flag.observation_id, note: "Reviewed."})});
-      await load();
+      await load(); void loadRoster();
     } catch (err) { setMessage(err instanceof Error ? err.message : "Sign-off failed"); }
   }
   return <main className="pt-7">
@@ -72,6 +87,18 @@ function ClinicianView() {
       <button className="rounded-xl bg-brand px-4 py-2 text-white">Sign in</button>
     </form> : <div className="ct-card mt-5 space-y-3 rounded-3xl bg-white p-5">
       <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");setInstructions([]);setLoadedJourney("");setInstruction("");}}>Sign out</button>
+      <section aria-label="Your patients">
+        <h2 className="font-semibold">Your patients{roster ? ` (${roster.length})` : ""}</h2>
+        {roster && !roster.length && <p className="mt-1 text-sm text-ink/70">No patient has shared a journey with you yet. A patient grants access from the Doctor view in their app.</p>}
+        <div className="mt-2 space-y-2">{roster?.map(r=><button key={r.journey_id} onClick={()=>void open(r.journey_id)} className={`w-full rounded-2xl border p-3 text-left ${loadedJourney===r.journey_id?"border-brand bg-brand-soft":"border-ink/10 bg-white"}`}>
+          <span className="block font-semibold">{r.patient}</span>
+          <span className="block text-xs text-ink/70">{r.weeks}w+{r.plus_days}d · Due {r.edd ?? "unknown"}</span>
+          <span className="mt-1 flex flex-wrap gap-2 text-xs">
+            <span className={`rounded-full px-2 py-0.5 ${r.pending_reviews?"bg-amber-100 text-amber-950":"bg-slate-100"}`}>{r.pending_reviews} to review</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5">Unread notes: {r.instructions_waiting}</span>
+          </span>
+        </button>)}</div>
+      </section>
       <input className="w-full rounded-xl border p-3" aria-label="Patient-authorized journey ID" placeholder="Patient-authorized journey ID" value={journeyId} onChange={e=>{setJourneyId(e.target.value);setPatient("");setFlags([]);setInstructions([]);setLoadedJourney("");setInstruction("");}} />
       <button className="rounded-xl bg-brand px-4 py-2 text-white" onClick={load} disabled={!journeyId}>Load review</button>
       {patient && <h2 className="font-semibold">{patient}: configured-threshold items for review</h2>}
