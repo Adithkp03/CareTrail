@@ -168,6 +168,8 @@ def confirm_document(
     # Validate every value before deleting an earlier confirmation.
     normalized = []
     for v in body.values:
+        if v.observed_on and v.observed_on > date.today():
+            raise HTTPException(status_code=422, detail="Report date cannot be in the future; check the original report")
         if v.code not in KNOWN_TEST_CODES:
             raise HTTPException(status_code=400, detail=f"Unknown test code: {v.code}")
         try:
