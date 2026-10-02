@@ -36,7 +36,7 @@ export default function SignupPage() {
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("phone", lang)}
           value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
         <input className="w-full rounded-xl border border-ink/15 bg-white p-3" placeholder={t("password", lang)}
-          type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+          type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
         <label className="block text-sm text-ink/60">{t("language", lang)}</label>
         <select value={lang} onChange={(e) => setLang(e.target.value as typeof lang)} className="w-full rounded-xl border border-ink/15 bg-white p-3" aria-label={t("language", lang)}>
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
