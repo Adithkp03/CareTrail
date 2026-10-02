@@ -32,7 +32,7 @@ export default function DoctorPage() {
     if (!journey || !clinicianEmail.trim()) return;
     try {
       await api(`/journeys/${journey.journey_id}/clinicians`, { method: "POST", body: JSON.stringify({ clinician_email: clinicianEmail.trim() }) });
-      setMessage("Clinician granted access to this journey. They must sign in separately.");
+      setMessage("Your doctor now has access to this journey. They must sign in with their own account.");
     } catch (err) { setMessage(err instanceof Error ? err.message : "Grant failed"); }
   }
 
@@ -55,22 +55,22 @@ export default function DoctorPage() {
           {tr("Reset demo")}
         </button>
       </div>
-      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Patient view. Historical sign-offs may be unverified; new sign-offs need a separate verified clinician account.</p>
+      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">Your doctor can review this journey. Older review records may not have a verified doctor account.</p>
       <p className="text-sm text-ink/60">{journey.patient.name} · {journey.gestational_age.weeks} {t("weeks", lang)}</p>
 
       <div className="mt-4 rounded-xl border border-amber-200 bg-white p-3 text-sm">
-        <p>Patient view only. A typed name cannot sign off. Grant a provisioned clinician by email, then they sign in with their own account.</p>
-        <input className="mt-2 w-full rounded-lg border p-2" type="email" aria-label="Clinician account email" placeholder="Clinician account email"
+        <p>Invite a doctor who already has a CareTrail doctor account. They sign in separately to review your journey. Typing a name does not count as a doctor review.</p>
+        <input className="mt-2 w-full rounded-lg border p-2" type="email" aria-label="Doctor account email" placeholder="Doctor account email"
           value={clinicianEmail} onChange={(e) => setClinicianEmail(e.target.value)} />
-        <button onClick={grantClinician} className="mt-2 rounded-lg bg-brand px-3 py-2 font-semibold text-white">Grant clinician access</button>
-        <p className="mt-2">Journey ID for clinician: <code className="break-all">{journey.journey_id}</code></p>
-        <a className="mt-2 inline-block text-brand underline" href={`/clinician?journey=${encodeURIComponent(journey.journey_id)}`}>Clinician sign-in</a>
+        <button onClick={grantClinician} className="mt-2 rounded-lg bg-brand px-3 py-2 font-semibold text-white">Give doctor access</button>
+        <p className="mt-2">Journey code for your doctor: <code className="break-all">{journey.journey_id}</code></p>
+        <a className="mt-2 inline-block text-brand underline" href={`/clinician?journey=${encodeURIComponent(journey.journey_id)}`}>Doctor sign-in</a>
       </div>
       {message && <p className="mt-2 text-sm text-brand">{message}</p>}
 
       {brief ? (
         <section className="mt-4 ct-card rounded-3xl bg-white p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/50">{tr("Pre-consult brief")}</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/50">{tr("Summary for your doctor")}</h2>
           <p className="mt-1 text-sm text-ink/70">
             {brief.gestational_age.weeks}w{brief.gestational_age.plus_days}d · {tr("Due date")} {brief.edd}
             {brief.next_appointment ? ` · ${tr("Next")}: ${tr(brief.next_appointment.title)} (${brief.next_appointment.scheduled_date})` : ""}
@@ -105,7 +105,7 @@ export default function DoctorPage() {
               {f.signed_off ? (
                 <p className="mt-3 text-sm text-green-700">{f.signed_off.verified_clinician ? "✅ Verified clinician: " : "Prototype historical review (not independently verified): "}{f.signed_off.doctor_name}{f.signed_off.note ? ` - ${tr(f.signed_off.note)}` : ""}</p>
               ) : (
-                <p className="mt-3 text-sm text-amber-900">Pending review by a verified clinician.</p>
+                <p className="mt-3 text-sm text-amber-900">Waiting for your doctor to review.</p>
               )}
             </div>
           ))}
