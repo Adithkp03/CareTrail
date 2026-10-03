@@ -18,6 +18,12 @@ const STAGES = ["firstTrimester", "secondTrimester", "thirdTrimester"] as const;
 function trimester(week: number): number { return week < 14 ? 0 : week < 28 ? 1 : 2; }
 function milestoneStage(m: Milestone): number { return trimester(m.window_weeks[0]); }
 
+const LEVEL_TEXT: Record<string, string> = {
+  self_reported: "Reported by you",
+  evidence_confirmed: "Backed by a report you confirmed",
+  clinician_verified: "Verified by your doctor",
+};
+
 function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: string) => string }) {
   const router = useRouter();
   return (
@@ -28,6 +34,7 @@ function MilestoneCard({ m, lang, tr }: { m: Milestone; lang: Lang; tr: (s: stri
         <span className="block font-medium">{tr(m.title)}</span>
         <span className="block text-xs text-ink/50">
           {m.status === "done" && m.completed_at ? `✓ ${m.completed_at}` : null}
+          {m.completion_level ? ` · ${tr(LEVEL_TEXT[m.completion_level])}` : null}
           {m.status === "upcoming" && m.scheduled_date ? `📅 ${m.scheduled_date}` : null}
           {m.status === "now" ? `${t("window", lang)}: ${m.window_weeks[0]}-${m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} ${t("weeks", lang)}` : null}
           {m.status === "next" ? `${m.window_weeks[0]}-${m.key === "nt_scan" ? "13+6" : m.window_weeks[1]} ${t("weeks", lang)}` : null}

@@ -7,14 +7,23 @@ from .. import engine as journey_engine
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
-from ..models import Journey, Milestone, Patient, SignOff
+from ..models import Document, Journey, Milestone, Patient, SignOff
 from ..schemas import JourneyCreateRequest
 from ..template_loader import load_template
 
 router = APIRouter(tags=["journey"])
 
 
-def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[SignOff], template_milestones: dict) -> dict:
+def completion_level(m: Milestone, signoffs: list[SignOff], has_confirmed_report: bool) -> str | None:
+    """Strength of proof that a step happened: clinician_verified > evidence_confirmed > self_reported."""
+    if any(s.clinician_id for s in signoffs):
+        return "clinician_verified"
+    if m.completed_at is None and not signoffs:
+        return None
+    return "evidence_confirmed" if has_confirmed_report else "self_reported"
+
+
+def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[SignOff], template_milestones: dict, has_confirmed_report: bool = False) -> dict:
     # Existing journeys store milestone rows. Read the current v1 wording/window too,
     # so an existing patient does not keep the old NT end of week 14.
     current = template_milestones.get(m.key, {})
@@ -33,6 +42,7 @@ def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[Si
         "status": status,
         "overdue": overdue,
         "completed_at": m.completed_at.isoformat() if m.completed_at else None,
+        "completion_level": completion_level(m, signoffs, has_confirmed_report),
         "scheduled_date": m.scheduled_date.isoformat() if m.scheduled_date else None,
         "signoff": (
             {
@@ -60,7 +70,12 @@ def journey_payload(db: Session, journey: Journey, today: date | None = None) ->
             all_signoffs.setdefault(s.milestone_id, []).append(s)
 
     template_milestones = {item["key"]: item for item in template["milestones"]}
-    milestones = [milestone_payload(m, ga_days, today, all_signoffs.get(m.id, []), template_milestones) for m in journey.milestones]
+    confirmed_ids = {
+        d.milestone_id for d in db.query(Document).filter(Document.journey_id == journey.id, Document.status == "confirmed")
+        if d.milestone_id
+    }
+    milestones = [milestone_payload(m, ga_days, today, all_signoffs.get(m.id, []), template_milestones, m.id in confirmed_ids)
+                  for m in journey.milestones]
     next_appointments = [
         {"key": m["key"], "title": m["title"], "scheduled_date": m["scheduled_date"]}
         for m in milestones

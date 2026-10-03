@@ -31,7 +31,8 @@ def get_milestone(milestone_id: str, patient: Patient = Depends(get_current_pati
     documents = db.query(Document).filter(Document.milestone_id == m.id).all()
     observations = db.query(Observation).filter(Observation.milestone_id == m.id).all()
     template = load_template(m.journey.template_id, m.journey.template_version)
-    payload = milestone_payload(m, ga_days, today, signoffs, {item["key"]: item for item in template["milestones"]})
+    payload = milestone_payload(m, ga_days, today, signoffs, {item["key"]: item for item in template["milestones"]},
+                                has_confirmed_report=any(d.status == "confirmed" for d in documents))
     payload["documents"] = [
         {"id": d.id, "filename": d.filename, "status": d.status, "language": d.language} for d in documents
     ]
