@@ -11,6 +11,7 @@ export default function DataSafetyPage() {
     <p>{tr("CareTrail is a prototype, not a clinical record or emergency service. It keeps pregnancy dates, reports, extracted results, and account details to build your timeline. Reports are stored on the service; recent timeline data may also be cached on this device for offline viewing.")}</p>
     <p>{tr("Cloud AI services may process report text, images, and questions. Phone numbers, email addresses and some name lines are masked in text before a cloud model call, but that masking is not complete protection, especially in images or unusual report formats. Do not upload a real patient report to this demo.")}</p>
     <p>{tr("AI trace records now keep provider metadata rather than prompts and outputs, and the trace view is scoped to your patient account. Legacy trace text is cleared on service startup. This does not remove every risk of exposing lab or patient identity, including data sent to providers or existing copies. Do not use real patient reports in this demo.")}</p>
-    <p>{tr("New uploaded files are stored in the app database with their report record. Older files kept on instance-local disk may be unavailable. The prototype does not offer a tested retention or deletion workflow, and it is not a backup. Ask the team before entering real health information.")}</p>
+    <p>{tr("New uploaded files are stored in the app database with their report record. Older files kept on instance-local disk may be unavailable. You can download your data or delete your account from the link below; this is not a backup. Ask the team before entering real health information.")}</p>
+    <p><a className="text-brand underline" href="/account">{tr("Download or delete your data")}</a></p>
   </main>;
 }
