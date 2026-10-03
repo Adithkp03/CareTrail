@@ -25,3 +25,4 @@ def test_demo_account_cannot_be_deleted(client):
     client.post("/demo/seed")
     tok = client.post("/auth/login", json={"phone": "9000000001", "password": "demo1234"}).json()["token"]
     assert client.request("DELETE", "/me", json={"confirm": "DELETE"}, headers=auth(tok)).status_code == 403
+# re-trigger checks
