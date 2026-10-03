@@ -11,7 +11,7 @@ from .. import ratelimit
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
-from ..models import CareInstruction, utcnow, Clinician, ClinicianToken, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
+from ..models import CareInstruction, utcnow, Clinician, ClinicianToken, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
 from ..schemas import SignOffCreateRequest
 from ..security import new_token, token_expiry, verify_password
 from ..template_loader import load_template
@@ -158,3 +158,27 @@ def acknowledge_instruction(instruction_id: str, patient: Patient = Depends(get_
         audit(db, f"patient:{patient.id}", "acknowledge_instruction", "care_instruction", row.id)
         db.commit()
     return {"id": row.id, "acknowledged_at": instruction_time(row.acknowledged_at)}
+
+
+@router.get("/clinician/patients")
+def clinician_patients(clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
+    """Everyone who granted this clinician access: who needs review first."""
+    from datetime import date
+
+    from .. import engine as journey_engine
+
+    rows = (db.query(Journey).join(JourneyClinicianGrant, JourneyClinicianGrant.journey_id == Journey.id)
+            .filter(JourneyClinicianGrant.clinician_id == clinician.id).all())
+    out = []
+    for j in rows:
+        template = load_template(j.template_id, j.template_version)
+        flags = compute_flags(db, j.id, template)
+        pending = [f for f in flags if not f.get("signed_off")]
+        unread = db.query(CareInstruction).filter(CareInstruction.journey_id == j.id, CareInstruction.acknowledged_at.is_(None)).count()
+        ga = journey_engine.gestational_age_days(j.lmp, j.edd, date.today())
+        edd = j.edd or (journey_engine.edd_from_lmp(j.lmp) if j.lmp else None)
+        out.append({"journey_id": j.id, "patient": j.patient.name, "weeks": ga // 7, "plus_days": ga % 7,
+                    "edd": edd.isoformat() if edd else None, "pending_reviews": len(pending),
+                    "instructions_waiting": unread})
+    out.sort(key=lambda r: (-r["pending_reviews"], r["patient"].lower()))
+    return {"items": out, "pending_total": sum(r["pending_reviews"] for r in out)}
