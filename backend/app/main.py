@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from .migrate import apply as apply_migrations
-from .routers import auth, clinicians, demo, documents, flags, i18n, journeys, milestones, prep, reminders, signoffs, trust, voice
+from .routers import account, auth, clinicians, demo, documents, flags, i18n, journeys, milestones, prep, reminders, signoffs, trust, voice
 
 Base.metadata.create_all(engine)
 apply_migrations()
@@ -58,6 +58,7 @@ app.include_router(voice.router)
 app.include_router(prep.router)
 app.include_router(reminders.router)
 app.include_router(trust.router)
+app.include_router(account.router)
 app.include_router(i18n.router)
 
 
