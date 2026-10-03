@@ -32,3 +32,4 @@ def test_completion_levels(client):
     s = client.post("/clinician/signoffs", json={"journey_id": j, "milestone_id": mid, "note": "ok"}, headers=auth(doc))
     assert s.status_code == 201, s.text
     assert next(m for m in _ms(client, token, j) if m["id"] == mid)["completion_level"] == "clinician_verified"
+# re-trigger checks
