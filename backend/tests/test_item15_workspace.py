@@ -20,3 +20,4 @@ def test_clinician_patient_list_only_granted(client):
     r = client.get("/clinician/patients", headers=auth(doc)).json()
     assert len(r["items"]) == 1 and r["items"][0]["journey_id"] == ja
     assert r["items"][0]["pending_reviews"] >= 1 and r["items"][0]["instructions_waiting"] == 1 and r["pending_total"] >= 1
+# re-trigger checks
