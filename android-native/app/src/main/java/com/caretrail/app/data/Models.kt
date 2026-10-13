@@ -22,7 +22,7 @@ data class Milestone(
     val key: String = "",
     val title: String = "",
     val type: String = "visit",
-    val window_weeks: List<Int> = listOf(0, 0),
+    val window_weeks: List<Double> = listOf(0.0, 0.0),
     val required_tests: List<String> = emptyList(),
     val prep_notes: String = "",
     val status: String = "next",
@@ -35,7 +35,7 @@ data class Milestone(
     val observations: List<Obs> = emptyList(),
 ) {
     /** The NT scan window is shown as 11-13+6 weeks, matching the web app. */
-    val windowLabel: String get() = "${window_weeks.getOrElse(0) { 0 }}-" + (if (key == "nt_scan") "13+6" else "${window_weeks.getOrElse(1) { 0 }}")
+    val windowLabel: String get() = "${window_weeks.getOrElse(0) { 0.0 }.toInt()}-" + (if (key == "nt_scan") "13+6" else "${window_weeks.getOrElse(1) { 0.0 }.toInt()}")
 }
 
 @Serializable

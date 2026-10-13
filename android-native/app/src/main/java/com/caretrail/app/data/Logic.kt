@@ -9,7 +9,7 @@ object Logic {
     val ZONE_ORDER = listOf("now", "upcoming", "next", "done")
 
     fun trimester(week: Int): Int = if (week < 14) 0 else if (week < 28) 1 else 2
-    fun milestoneStage(m: Milestone): Int = trimester(m.window_weeks.getOrElse(0) { 0 })
+    fun milestoneStage(m: Milestone): Int = trimester(m.window_weeks.getOrElse(0) { 0.0 }.toInt())
 
     val LEVEL_TEXT = mapOf(
         "self_reported" to "Reported by you",

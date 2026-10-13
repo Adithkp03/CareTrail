@@ -174,7 +174,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     Column(Modifier.weight(1f)) {
                         Text(l.t("next").uppercase(), color = CT.Brand, style = MaterialTheme.typography.labelSmall)
                         Text(if (next != null) l.tr(next.title) else l.tr("No next step listed"), style = MaterialTheme.typography.titleSmall)
-                        Muted(next?.scheduled_date ?: next?.let { "${it.window_weeks[0]}-${it.window_weeks[1]} ${l.t("weeks")}" } ?: "")
+                        Muted(next?.scheduled_date ?: next?.let { "${it.window_weeks[0].toInt()}-${it.window_weeks[1].toInt()} ${l.t("weeks")}" } ?: "")
                     }
                 }
             }
