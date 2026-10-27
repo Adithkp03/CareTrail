@@ -20,6 +20,12 @@ class Nav(
     val vaccines: () -> Unit,
     val vault: () -> Unit,
     val facilities: () -> Unit,
+    val wellness: () -> Unit,
+    val recovery: () -> Unit,
+    val mindCheck: () -> Unit,
+    val bpLog: () -> Unit,
+    val familyPlanning: () -> Unit,
+    val mindfulness: () -> Unit,
     val newJourney: () -> Unit,
     val back: () -> Unit,
     val milestone: (String) -> Unit,
@@ -48,6 +54,12 @@ object Routes {
     const val VACCINES = "vaccines"
     const val VAULT = "vault"
     const val FACILITIES = "facilities"
+    const val WELLNESS = "wellness"
+    const val RECOVERY = "recovery"
+    const val MINDCHECK = "mindcheck"
+    const val BPLOG = "bplog"
+    const val FAMILYPLAN = "familyplan"
+    const val MINDFUL = "mindful"
     const val MILESTONE = "milestone/{id}"
     const val UPLOAD = "upload?milestone={milestone}"
     val TABS = listOf(HOME, TIMELINE, REMINDERS, MOVEMENTS)
