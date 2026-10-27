@@ -19,6 +19,7 @@ class Nav(
     val growth: () -> Unit,
     val vaccines: () -> Unit,
     val vault: () -> Unit,
+    val facilities: () -> Unit,
     val newJourney: () -> Unit,
     val back: () -> Unit,
     val milestone: (String) -> Unit,
@@ -46,6 +47,7 @@ object Routes {
     const val GROWTH = "growth"
     const val VACCINES = "vaccines"
     const val VAULT = "vault"
+    const val FACILITIES = "facilities"
     const val MILESTONE = "milestone/{id}"
     const val UPLOAD = "upload?milestone={milestone}"
     val TABS = listOf(HOME, TIMELINE, REMINDERS, MOVEMENTS)

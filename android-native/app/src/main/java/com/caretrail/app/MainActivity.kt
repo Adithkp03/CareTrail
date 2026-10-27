@@ -70,13 +70,13 @@ fun CareTrailApp(vm: AppViewModel) {
         movements = { tab(Routes.MOVEMENTS) }, care = { go(Routes.CARE) }, prep = { go(Routes.PREP) },
         doctor = { go(Routes.DOCTOR) }, account = { go(Routes.ACCOUNT) }, dataSafety = { go(Routes.DATA_SAFETY) },
         intake = { go(Routes.INTAKE) }, registration = { go(Routes.REGISTRATION) }, rh = { go(Routes.RH) }, danger = { go(Routes.DANGER) },
-        birth = { go(Routes.BIRTH) }, growth = { go(Routes.GROWTH) }, vaccines = { go(Routes.VACCINES) }, vault = { go(Routes.VAULT) },
+        birth = { go(Routes.BIRTH) }, growth = { go(Routes.GROWTH) }, vaccines = { go(Routes.VACCINES) }, vault = { go(Routes.VAULT) }, facilities = { go(Routes.FACILITIES) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
         back = { if (!nav.popBackStack()) tab(Routes.HOME) },
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities")
 
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
@@ -101,6 +101,7 @@ fun CareTrailApp(vm: AppViewModel) {
                 composable(Routes.GROWTH) { GrowthScreen(vm, callbacks) }
                 composable(Routes.VACCINES) { VaccinesScreen(vm, callbacks) }
                 composable(Routes.VAULT) { VaultScreen(vm, callbacks) }
+                composable(Routes.FACILITIES) { FacilitiesScreen(vm, callbacks) }
                 composable(Routes.MILESTONE, listOf(navArgument("id") { type = NavType.StringType })) {
                     MilestoneScreen(vm, it.arguments?.getString("id") ?: "", callbacks)
                 }
