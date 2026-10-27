@@ -151,4 +151,37 @@ class CoreTest {
         assertEquals(g, AppJson.decodeFromString<GrowthEntry>(AppJson.encodeToString(GrowthEntry.serializer(), g)))
         assertEquals(1.05, WhoGrowth.ageMonths("2026-10-19", "2026-11-20")!!, 0.01)
     }
+
+    @Test fun haversineKnownDistance() {
+        // Kochi (9.9312, 76.2673) to Thrissur (10.5276, 76.2144) is roughly 67 km.
+        val d = Geo.haversineKm(9.9312, 76.2673, 10.5276, 76.2144)
+        assertTrue(d in 60.0..75.0)
+        assertEquals(0.0, Geo.haversineKm(9.93, 76.26, 9.93, 76.26), 0.001)
+    }
+
+    @Test fun governmentClassification() {
+        assertTrue(Geo.isGovernment(mapOf("operator:type" to "public"), "Some Hospital"))
+        assertTrue(Geo.isGovernment(emptyMap(), "Government Medical College, Thrissur"))
+        assertTrue(Geo.isGovernment(emptyMap(), "Chellanam PHC"))
+        assertFalse(Geo.isGovernment(emptyMap(), "Sunrise Speciality Hospital"))
+    }
+
+    @Test fun overpassParsesAndFilters() {
+        val json = """{"elements":[
+            {"type":"node","id":1,"lat":9.94,"lon":76.27,"tags":{"amenity":"hospital","name":"General Hospital","phone":"+911234"}},
+            {"type":"way","id":2,"center":{"lat":9.90,"lon":76.29},"tags":{"amenity":"clinic","name":"Chellanam PHC"}},
+            {"type":"node","id":3,"lat":9.95,"lon":76.28,"tags":{"healthcare":"blood_bank","name":"IMA Blood Bank"}},
+            {"type":"node","id":4,"lat":9.95,"lon":76.28,"tags":{"amenity":"cafe","name":"Not a facility"}},
+            {"type":"node","id":5,"lat":9.95,"lon":76.28,"tags":{"amenity":"hospital"}},
+            {"type":"node","id":6,"lat":10.50,"lon":76.90,"tags":{"amenity":"hospital","name":"Far Away Hospital"}}
+        ]}"""
+        val out = Geo.parseOverpass(json, 9.93, 76.26, 10.0)
+        // cafe and the unnamed node are dropped; the 70+ km hospital is outside 10 km.
+        assertEquals(3, out.size)
+        assertEquals("General Hospital", out[0].name)   // nearest first
+        assertTrue(out[0].government)
+        assertEquals("+911234", out[0].phone)
+        assertTrue(out.any { it.kind == "blood_bank" })
+        assertTrue(out.all { it.distance_km <= 10.0 })
+    }
 }
