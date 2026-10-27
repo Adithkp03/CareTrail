@@ -69,12 +69,13 @@ fun CareTrailApp(vm: AppViewModel) {
         home = { tab(Routes.HOME) }, timeline = { tab(Routes.TIMELINE) }, reminders = { tab(Routes.REMINDERS) },
         movements = { tab(Routes.MOVEMENTS) }, care = { go(Routes.CARE) }, prep = { go(Routes.PREP) },
         doctor = { go(Routes.DOCTOR) }, account = { go(Routes.ACCOUNT) }, dataSafety = { go(Routes.DATA_SAFETY) },
+        intake = { go(Routes.INTAKE) }, registration = { go(Routes.REGISTRATION) }, rh = { go(Routes.RH) }, danger = { go(Routes.DANGER) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
         back = { if (!nav.popBackStack()) tab(Routes.HOME) },
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger")
 
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
@@ -91,6 +92,10 @@ fun CareTrailApp(vm: AppViewModel) {
                 composable(Routes.DOCTOR) { DoctorScreen(vm, callbacks) }
                 composable(Routes.ACCOUNT) { AccountScreen(vm, callbacks) }
                 composable(Routes.DATA_SAFETY) { DataSafetyScreen(vm, callbacks) }
+                composable(Routes.INTAKE) { HealthIntakeScreen(vm, callbacks) }
+                composable(Routes.REGISTRATION) { RegistrationScreen(vm, callbacks) }
+                composable(Routes.RH) { RhScreen(vm, callbacks) }
+                composable(Routes.DANGER) { DangerSignsScreen(vm, callbacks) }
                 composable(Routes.MILESTONE, listOf(navArgument("id") { type = NavType.StringType })) {
                     MilestoneScreen(vm, it.arguments?.getString("id") ?: "", callbacks)
                 }

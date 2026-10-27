@@ -41,6 +41,9 @@ import com.caretrail.app.data.Langs
 import com.caretrail.app.data.Logic
 import com.caretrail.app.data.Milestone
 import com.caretrail.app.data.NextUp
+import com.caretrail.app.data.RhEngine
+import com.caretrail.app.data.healthIntake
+import com.caretrail.app.data.rhProfile
 
 /** Loads the patient's journey and renders [content] once it is ready. */
 @Composable
@@ -193,7 +196,47 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     }
                 }
             }
-            Spacer(gap(16))
+            Spacer(gap(8))
+            // Sprint 1: health profile prompt, Rh follow-ups and the 28-week danger-sign check.
+            val intakeDone = vm.store.healthIntake(j.journey_id).completed
+            if (!intakeDone) {
+                CTCard(shape = RoundedCornerShape(16.dp), onClick = nav.intake) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("visit", 20.dp) }
+                        Column(Modifier.weight(1f)) {
+                            Text(l.tr("Finish your health profile").uppercase(), color = CT.Brand, style = MaterialTheme.typography.labelSmall)
+                            Text(l.tr("Conditions, surgeries, allergies and first-visit tests - answer once, use every visit."), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                Spacer(gap(8))
+            }
+            val rhOpen = RhEngine.openDueActions(vm.store.rhProfile(j.journey_id), week)
+            if (rhOpen > 0) {
+                CTCard(color = CT.Amber50, border = CT.Amber300, shape = RoundedCornerShape(16.dp), onClick = nav.rh) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { CareIcon("blood", 20.dp) }
+                        Column(Modifier.weight(1f)) {
+                            Text(l.tr("Rh follow-up due").uppercase(), color = CT.Amber900, style = MaterialTheme.typography.labelSmall)
+                            Text(l.tr("ICT / Anti-D steps need attention."), style = MaterialTheme.typography.bodySmall, color = CT.Amber900)
+                        }
+                    }
+                }
+                Spacer(gap(8))
+            }
+            if (week >= com.caretrail.app.data.DangerSigns.START_WEEK) {
+                CTCard(color = CT.Red50, border = CT.Red200, shape = RoundedCornerShape(16.dp), onClick = nav.danger) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { CareIcon("warning", 20.dp, tint = CT.Red800) }
+                        Column(Modifier.weight(1f)) {
+                            Text(l.tr("Danger-sign check").uppercase(), color = CT.Red800, style = MaterialTheme.typography.labelSmall)
+                            Text(l.tr("Quick preeclampsia check for 28+ weeks - tick any symptoms you have today."), style = MaterialTheme.typography.bodySmall, color = CT.Red800)
+                        }
+                    }
+                }
+                Spacer(gap(8))
+            }
+            Spacer(gap(8))
             // Doctor instructions
             if (!offline) DoctorInstructions(vm, j.journey_id, l)
             Spacer(gap(16))
@@ -205,6 +248,8 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("pregnancy", l.tr("Care guidance"), nav.care),
+                    Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
+                    Triple("blood", l.tr("Rh & ICT"), nav.rh), Triple("warning", l.tr("Danger signs"), nav.danger),
                 )
                 items.chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
