@@ -40,6 +40,11 @@ import com.caretrail.app.data.VaccineSchedule
 import com.caretrail.app.data.VaultEntry
 import com.caretrail.app.data.WhoGrowth
 import com.caretrail.app.data.birthRecord
+import com.caretrail.app.data.bpReadings
+import com.caretrail.app.data.followUps
+import com.caretrail.app.data.highRisk
+import com.caretrail.app.data.moodCheckins
+import com.caretrail.app.data.sugarReadings
 import com.caretrail.app.data.dangerLogs
 import com.caretrail.app.data.growthEntries
 import com.caretrail.app.data.healthIntake
@@ -75,6 +80,11 @@ private fun pendingSyncCount(vm: AppViewModel, journeyId: String): Int {
     n += vm.store.growthEntries(journeyId).count { it.pending_sync }
     n += vm.store.vaccineLogs(journeyId).values.count { it.pending_sync }
     val b = vm.store.birthRecord(journeyId); if (b.pending_sync && b.confirmed) n++
+    n += vm.store.bpReadings(journeyId).count { it.pending_sync }
+    n += vm.store.sugarReadings(journeyId).count { it.pending_sync }
+    n += vm.store.moodCheckins(journeyId).count { it.pending_sync }
+    val h4 = vm.store.highRisk(journeyId); if (h4.pending_sync && h4.updated_at.isNotEmpty()) n++
+    val f4 = vm.store.followUps(journeyId); if (f4.pending_sync && f4.updated_at.isNotEmpty()) n++
     return n
 }
 

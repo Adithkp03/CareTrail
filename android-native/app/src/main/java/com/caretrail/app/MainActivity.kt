@@ -71,12 +71,14 @@ fun CareTrailApp(vm: AppViewModel) {
         doctor = { go(Routes.DOCTOR) }, account = { go(Routes.ACCOUNT) }, dataSafety = { go(Routes.DATA_SAFETY) },
         intake = { go(Routes.INTAKE) }, registration = { go(Routes.REGISTRATION) }, rh = { go(Routes.RH) }, danger = { go(Routes.DANGER) },
         birth = { go(Routes.BIRTH) }, growth = { go(Routes.GROWTH) }, vaccines = { go(Routes.VACCINES) }, vault = { go(Routes.VAULT) }, facilities = { go(Routes.FACILITIES) },
+        wellness = { go(Routes.WELLNESS) }, recovery = { go(Routes.RECOVERY) }, mindCheck = { go(Routes.MINDCHECK) },
+        bpLog = { go(Routes.BPLOG) }, familyPlanning = { go(Routes.FAMILYPLAN) }, mindfulness = { go(Routes.MINDFUL) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
         back = { if (!nav.popBackStack()) tab(Routes.HOME) },
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful")
 
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
@@ -102,6 +104,12 @@ fun CareTrailApp(vm: AppViewModel) {
                 composable(Routes.VACCINES) { VaccinesScreen(vm, callbacks) }
                 composable(Routes.VAULT) { VaultScreen(vm, callbacks) }
                 composable(Routes.FACILITIES) { FacilitiesScreen(vm, callbacks) }
+                composable(Routes.WELLNESS) { WellnessScreen(vm, callbacks) }
+                composable(Routes.RECOVERY) { RecoveryCareScreen(vm, callbacks) }
+                composable(Routes.MINDCHECK) { MindCheckScreen(vm, callbacks) }
+                composable(Routes.BPLOG) { BpSugarScreen(vm, callbacks) }
+                composable(Routes.FAMILYPLAN) { FamilyPlanningScreen(vm, callbacks) }
+                composable(Routes.MINDFUL) { MindfulnessScreen(vm, callbacks) }
                 composable(Routes.MILESTONE, listOf(navArgument("id") { type = NavType.StringType })) {
                     MilestoneScreen(vm, it.arguments?.getString("id") ?: "", callbacks)
                 }

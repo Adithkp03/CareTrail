@@ -184,4 +184,62 @@ class CoreTest {
         assertTrue(out.any { it.kind == "blood_bank" })
         assertTrue(out.all { it.distance_km <= 10.0 })
     }
+
+    @Test fun bpLevelBoundaries() {
+        assertEquals(BpRules.Level.NORMAL, BpRules.level(120, 80))
+        assertEquals(BpRules.Level.NORMAL, BpRules.level(139, 89))
+        assertEquals(BpRules.Level.RAISED, BpRules.level(140, 85))
+        assertEquals(BpRules.Level.RAISED, BpRules.level(130, 90))
+        assertEquals(BpRules.Level.SEVERE, BpRules.level(160, 100))
+        assertEquals(BpRules.Level.SEVERE, BpRules.level(150, 110))
+        assertTrue(BpRules.latePreeclampsiaWarning(listOf(BpReading(date = "2026-10-27", systolic = 142, diastolic = 92))))
+        assertFalse(BpRules.latePreeclampsiaWarning(listOf(BpReading(date = "2026-10-27", systolic = 118, diastolic = 76))))
+    }
+
+    @Test fun followUpStates() {
+        val birth = "2026-09-15"
+        val day10 = java.time.LocalDate.parse("2026-09-25")
+        val day14 = java.time.LocalDate.parse("2026-09-29")
+        val day50 = java.time.LocalDate.parse("2026-11-04")
+        // 2-week review only applies to high-risk mothers.
+        assertEquals(FollowUps.State.NOT_APPLICABLE, FollowUps.twoWeekState(birth, false, FollowUpDone(), day14))
+        assertEquals(FollowUps.State.UPCOMING, FollowUps.twoWeekState(birth, true, FollowUpDone(), day10))
+        assertEquals(FollowUps.State.DUE, FollowUps.twoWeekState(birth, true, FollowUpDone(), day14))
+        assertEquals(FollowUps.State.DONE, FollowUps.twoWeekState(birth, true, FollowUpDone(two_week_done = "2026-09-30"), day50))
+        // The 42-day checkup is mandatory for everyone.
+        assertEquals(FollowUps.State.UPCOMING, FollowUps.checkup42State(birth, FollowUpDone(), day14))
+        assertEquals(FollowUps.State.DUE, FollowUps.checkup42State(birth, FollowUpDone(), day50))
+        assertEquals(FollowUps.State.DONE, FollowUps.checkup42State(birth, FollowUpDone(checkup42_done = "2026-10-30"), day50))
+        assertEquals("2026-10-27", FollowUps.checkup42DueDate(birth))
+    }
+
+    @Test fun mentalHealthFlags() {
+        assertFalse(MentalHealth.anyFlag(MoodCheckin(date = "2026-10-27")))
+        assertTrue(MentalHealth.anyFlag(MoodCheckin(date = "2026-10-27", flags = listOf("guilt"))))
+        assertTrue(MentalHealth.anyFlag(MoodCheckin(date = "2026-10-27", self_harm = true)))
+        assertEquals(5, MentalHealth.SIGNS.size)
+        assertTrue(MentalHealth.SOS_LINES.isNotEmpty())
+    }
+
+    @Test fun mindfulnessAffirmationRotates() {
+        val a = Mindfulness.affirmationOfTheDay(java.time.LocalDate.parse("2026-10-27"))
+        val b = Mindfulness.affirmationOfTheDay(java.time.LocalDate.parse("2026-10-28"))
+        assertTrue(a.isNotEmpty())
+        assertNotEquals(a, b)
+        // Wraps around the list without ever indexing out of range.
+        for (d in 0L..40L) assertTrue(Mindfulness.affirmationOfTheDay(java.time.LocalDate.parse("2026-10-01").plusDays(d)).isNotEmpty())
+    }
+
+    @Test fun sprint4RecordsRoundTrip() {
+        val bp = BpReading(date = "2026-10-27", systolic = 128, diastolic = 84)
+        assertEquals(bp, AppJson.decodeFromString<BpReading>(AppJson.encodeToString(BpReading.serializer(), bp)))
+        val s = SugarReading(date = "2026-10-27", fasting = 95, post_meal = 140)
+        assertEquals(s, AppJson.decodeFromString<SugarReading>(AppJson.encodeToString(SugarReading.serializer(), s)))
+        val m = MoodCheckin(date = "2026-10-27", flags = listOf("crying_spells", "helpless"), self_harm = false)
+        assertEquals(m, AppJson.decodeFromString<MoodCheckin>(AppJson.encodeToString(MoodCheckin.serializer(), m)))
+        val hr = HighRiskRecord(gest_hypertension = true, gdm_insulin = true)
+        assertEquals(hr, AppJson.decodeFromString<HighRiskRecord>(AppJson.encodeToString(HighRiskRecord.serializer(), hr)))
+        assertTrue(hr.any())
+        assertFalse(HighRiskRecord().any())
+    }
 }

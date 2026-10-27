@@ -44,6 +44,8 @@ import com.caretrail.app.data.NextUp
 import com.caretrail.app.data.RhEngine
 import com.caretrail.app.data.VaccineSchedule
 import com.caretrail.app.data.birthRecord
+import com.caretrail.app.data.followUps
+import com.caretrail.app.data.highRisk
 import com.caretrail.app.data.vaccineLogs
 import com.caretrail.app.data.healthIntake
 import com.caretrail.app.data.rhProfile
@@ -302,6 +304,29 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
                 Spacer(gap(8))
             }
+            // Sprint 4: time-based postpartum follow-ups (2-week high-risk review, 42-day checkup).
+            if (postpartum) {
+                val fu = vm.store.followUps(j.journey_id)
+                val hr4 = vm.store.highRisk(j.journey_id).any() ||
+                    vm.store.healthIntake(j.journey_id).conditions.any { it == "hypertension" || it == "diabetes" }
+                val dueTwoWeek = com.caretrail.app.data.FollowUps.twoWeekState(birth.date, hr4, fu) == com.caretrail.app.data.FollowUps.State.DUE
+                val due42 = com.caretrail.app.data.FollowUps.checkup42State(birth.date, fu) == com.caretrail.app.data.FollowUps.State.DUE
+                if (dueTwoWeek || due42) {
+                    CTCard(color = CT.Red50, border = CT.Red200, shape = RoundedCornerShape(16.dp), onClick = nav.wellness) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { CareIcon("visit", 20.dp, tint = CT.Red800) }
+                            Column(Modifier.weight(1f)) {
+                                Text(l.tr("Postpartum checkup due").uppercase(), color = CT.Red800, style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    l.tr(if (due42) "Your mandatory 42-day postnatal checkup is due - tap to open your recovery hub." else "Your 2-week high-risk BP/sugar review is due - tap to open your recovery hub."),
+                                    style = MaterialTheme.typography.bodySmall, color = CT.Red800,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(gap(8))
+                }
+            }
             Spacer(gap(8))
             // Doctor instructions
             if (!offline) DoctorInstructions(vm, j.journey_id, l)
@@ -315,7 +340,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     Triple("review", l.tr("Report vault"), nav.vault), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
-                    Triple("hospital", l.tr("Facilities"), nav.facilities),
+                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("pregnancy", l.tr("Wellbeing"), nav.wellness),
                 ) else listOf(
                     Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
