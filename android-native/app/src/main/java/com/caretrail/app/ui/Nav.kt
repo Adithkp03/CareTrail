@@ -11,6 +11,10 @@ class Nav(
     val doctor: () -> Unit,
     val account: () -> Unit,
     val dataSafety: () -> Unit,
+    val intake: () -> Unit,
+    val registration: () -> Unit,
+    val rh: () -> Unit,
+    val danger: () -> Unit,
     val newJourney: () -> Unit,
     val back: () -> Unit,
     val milestone: (String) -> Unit,
@@ -30,6 +34,10 @@ object Routes {
     const val DOCTOR = "doctor"
     const val ACCOUNT = "account"
     const val DATA_SAFETY = "datasafety"
+    const val INTAKE = "intake"
+    const val REGISTRATION = "registration"
+    const val RH = "rh"
+    const val DANGER = "danger"
     const val MILESTONE = "milestone/{id}"
     const val UPLOAD = "upload?milestone={milestone}"
     val TABS = listOf(HOME, TIMELINE, REMINDERS, MOVEMENTS)
