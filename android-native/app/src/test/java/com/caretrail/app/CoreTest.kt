@@ -95,4 +95,60 @@ class CoreTest {
         val log = DangerLog(date = "2026-10-27", weeks = 30, symptoms = listOf("blurry_vision"))
         assertEquals(log, AppJson.decodeFromString<DangerLog>(AppJson.encodeToString(DangerLog.serializer(), log)))
     }
+
+    @Test fun whoLmsMedianGivesZeroZ() {
+        // A boy at the WHO median birth weight (3.3464 kg) has z ~= 0.
+        val z = WhoGrowth.zScore(WhoLms.weightBoys, 0.0, 3.3464)!!
+        assertTrue(Math.abs(z) < 0.01)
+        // 24-month girl at median head circumference.
+        val zh = WhoGrowth.zScore(WhoLms.headGirls, 24.0, 47.1822)!!
+        assertTrue(Math.abs(zh) < 0.01)
+        // Outside the 0-24 month tabulation -> no z-score.
+        assertNull(WhoGrowth.zScore(WhoLms.weightBoys, 30.0, 12.0))
+        assertNull(WhoGrowth.zScore(WhoLms.weightBoys, 6.0, 0.0))
+    }
+
+    @Test fun whoLmsValueAtInvertsZScore() {
+        val v = WhoGrowth.valueAt(0.3487, 3.3464, 0.14602, -2.0)
+        assertTrue(v < 3.3464)
+        val z = WhoGrowth.zScore(WhoLms.weightBoys, 0.0, v)!!
+        assertTrue(Math.abs(z - -2.0) < 0.05)
+        assertEquals(WhoGrowth.Band.BELOW, WhoGrowth.band(-2.5))
+        assertEquals(WhoGrowth.Band.ON_TRACK, WhoGrowth.band(0.0))
+        assertEquals(WhoGrowth.Band.ABOVE, WhoGrowth.band(2.5))
+    }
+
+    @Test fun whoInterpolationBetweenMonths() {
+        // Age 1.5 months lies between tabulated rows; z must still resolve.
+        val z = WhoGrowth.zScore(WhoLms.lengthBoys, 1.5, 57.5)
+        assertNotNull(z)
+        assertTrue(z!! in -4.0..4.0)
+    }
+
+    @Test fun vaccineScheduleStates() {
+        val birth = "2026-09-01"
+        val bcg = VaccineSchedule.ITEMS.first { it.key == "bcg" }
+        assertEquals("2026-09-01", VaccineSchedule.dueDate(birth, bcg))
+        val penta1 = VaccineSchedule.ITEMS.first { it.key == "penta1" }
+        assertEquals("2026-10-13", VaccineSchedule.dueDate(birth, penta1))
+        val done = VaccineLog("bcg", true, "2026-09-01")
+        assertEquals(VaccineSchedule.State.DONE, VaccineSchedule.state(bcg, birth, done, java.time.LocalDate.parse("2026-09-02")))
+        // Overdue when today is past the due date.
+        assertEquals(VaccineSchedule.State.OVERDUE, VaccineSchedule.state(penta1, birth, null, java.time.LocalDate.parse("2026-11-01")))
+        // Due soon within 14 days, upcoming beyond that.
+        assertEquals(VaccineSchedule.State.DUE_SOON, VaccineSchedule.state(penta1, birth, null, java.time.LocalDate.parse("2026-10-10")))
+        assertEquals(VaccineSchedule.State.UPCOMING, VaccineSchedule.state(penta1, birth, null, java.time.LocalDate.parse("2026-09-10")))
+        // Open items skip completed vaccines.
+        val open = VaccineSchedule.openItems(birth, mapOf("bcg" to done), java.time.LocalDate.parse("2026-10-01"))
+        assertTrue(open.none { it.first.key == "bcg" })
+        assertTrue(open.isNotEmpty())
+    }
+
+    @Test fun sprint2RecordsRoundTrip() {
+        val birth = BirthRecord(confirmed = true, ga_weeks = 38, ga_days = 4, date = "2026-10-20", time = "14:35", gender = "girl", weight_kg = 2.9, head_cm = 34.0, length_cm = 48.0)
+        assertEquals(birth, AppJson.decodeFromString<BirthRecord>(AppJson.encodeToString(BirthRecord.serializer(), birth)))
+        val g = GrowthEntry(date = "2026-11-20", age_months = 1.02, weight_kg = 4.2)
+        assertEquals(g, AppJson.decodeFromString<GrowthEntry>(AppJson.encodeToString(GrowthEntry.serializer(), g)))
+        assertEquals(1.05, WhoGrowth.ageMonths("2026-10-19", "2026-11-20")!!, 0.01)
+    }
 }

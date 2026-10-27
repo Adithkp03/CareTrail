@@ -39,6 +39,8 @@ import com.caretrail.app.data.ConfirmResponse
 import com.caretrail.app.data.Flag
 import com.caretrail.app.data.Logic
 import com.caretrail.app.data.ProposedValue
+import com.caretrail.app.data.saveVaultEntries
+import com.caretrail.app.data.vaultEntries
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -115,6 +117,9 @@ fun UploadScreen(vm: AppViewModel, preselect: String?, nav: Nav) {
                             try {
                                 val up = vm.api.upload(j.journey_id, f.name, f.mime, f.bytes, milestoneId.ifEmpty { null })
                                 documentId = up.document_id
+                                // Index it in the local report vault (reverse-chronological locker view).
+                                val srcTitle = j.milestones.firstOrNull { it.id == milestoneId }?.title ?: "Vault upload"
+                                vm.store.saveVaultEntries(j.journey_id, vm.store.vaultEntries(j.journey_id).filterNot { it.filename == f.name } + com.caretrail.app.data.VaultEntry(filename = f.name, uploaded_at = com.caretrail.app.data.nowIso(), source = srcTitle))
                                 duplicateOn = up.duplicate_of?.uploaded_at?.take(10) ?: ""
                                 confirmed = false
                                 val ext = vm.api.extract(up.document_id)
