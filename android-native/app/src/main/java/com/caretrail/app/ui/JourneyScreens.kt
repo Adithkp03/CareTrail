@@ -42,6 +42,9 @@ import com.caretrail.app.data.Logic
 import com.caretrail.app.data.Milestone
 import com.caretrail.app.data.NextUp
 import com.caretrail.app.data.RhEngine
+import com.caretrail.app.data.VaccineSchedule
+import com.caretrail.app.data.birthRecord
+import com.caretrail.app.data.vaccineLogs
 import com.caretrail.app.data.healthIntake
 import com.caretrail.app.data.rhProfile
 
@@ -110,6 +113,11 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             att.unresolved.map { "${l.t("reviewPending")}: ${l.tr(it.label)} (${Logic.fmtValue(it.value)} ${it.unit})" }
         val current = zones["now"]?.firstOrNull()
         val next = zones["upcoming"]?.firstOrNull() ?: zones["next"]?.firstOrNull()
+        // Sprint 2: postpartum mode starts from a confirmed birth record.
+        val birth = vm.store.birthRecord(j.journey_id)
+        val postpartum = birth.confirmed && birth.date.isNotEmpty()
+        val babyDays = if (postpartum) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(birth.date), java.time.LocalDate.now()).toInt() else 0
+        val nextVax = if (postpartum) VaccineSchedule.openItems(birth.date, vm.store.vaccineLogs(j.journey_id)).firstOrNull() else null
 
         Page {
             if (offline) Note("Offline - showing your last loaded timeline.", Modifier.padding(bottom = 12.dp))
@@ -127,6 +135,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             }
             if (l.lang !in Langs.reviewed) { Spacer(gap(12)); Note(l.t("translationNote")) }
             Spacer(gap(16))
+            if (!postpartum) {
             // "You are here" hero
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
@@ -181,6 +190,51 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     }
                 }
             }
+            } else {
+            // Postpartum hero: baby's age + next vaccine instead of the pregnancy timeline.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                    .background(Brush.linearGradient(listOf(CT.Navy, CT.NavyEnd))).padding(16.dp)
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text(l.tr("Your baby").uppercase(), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium)
+                        Spacer(gap(8))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("${babyDays / 7}", color = Color.White, style = MaterialTheme.typography.displayLarge)
+                            Text(" ${l.t("weeks")}", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 4.dp))
+                        }
+                        Spacer(gap(4))
+                        Text("+ ${babyDays % 7} ${l.t("days")}" + (if (birth.gender.isNotEmpty()) " · " + l.tr(if (birth.gender == "girl") "Girl" else "Boy") else ""), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Box(Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                        CareIcon("pregnancy", 34.dp, tint = Color(0xFFB9CFFF))
+                    }
+                }
+            }
+            Spacer(gap(16))
+            CTCard(shape = RoundedCornerShape(16.dp), onClick = nav.vaccines) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("vaccination", 20.dp) }
+                    Column(Modifier.weight(1f)) {
+                        Text(l.tr("Next vaccine").uppercase(), color = CT.Brand, style = MaterialTheme.typography.labelSmall)
+                        Text(if (nextVax != null) l.tr(nextVax.first.label) else l.tr("All vaccines done"), style = MaterialTheme.typography.titleSmall)
+                        Muted(if (nextVax != null) "${l.tr("Due")} ${VaccineSchedule.dueDate(birth.date, nextVax.first) ?: ""} (${nextVax.first.windowNote})" else l.tr("The schedule is complete - well done"))
+                    }
+                }
+            }
+            Spacer(gap(8))
+            CTCard(shape = RoundedCornerShape(16.dp), onClick = nav.growth) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.Peach), contentAlignment = Alignment.Center) { CareIcon("review", 20.dp) }
+                    Column(Modifier.weight(1f)) {
+                        Text(l.tr("Growth chart").uppercase(), color = CT.Brand, style = MaterialTheme.typography.labelSmall)
+                        Text(l.tr("Weight, length and head against WHO standards"), style = MaterialTheme.typography.titleSmall)
+                        Muted(l.tr("Log today's measurement after each check-up"))
+                    }
+                }
+            }
+            }
             Spacer(gap(8))
             val hasAtt = attention.isNotEmpty()
             CTCard(
@@ -224,13 +278,25 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
                 Spacer(gap(8))
             }
-            if (week >= com.caretrail.app.data.DangerSigns.START_WEEK) {
+            if (!postpartum && week >= com.caretrail.app.data.DangerSigns.START_WEEK) {
                 CTCard(color = CT.Red50, border = CT.Red200, shape = RoundedCornerShape(16.dp), onClick = nav.danger) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) { CareIcon("warning", 20.dp, tint = CT.Red800) }
                         Column(Modifier.weight(1f)) {
                             Text(l.tr("Danger-sign check").uppercase(), color = CT.Red800, style = MaterialTheme.typography.labelSmall)
                             Text(l.tr("Quick preeclampsia check for 28+ weeks - tick any symptoms you have today."), style = MaterialTheme.typography.bodySmall, color = CT.Red800)
+                        }
+                    }
+                }
+                Spacer(gap(8))
+            }
+            if (!postpartum && week >= 36) {
+                CTCard(shape = RoundedCornerShape(16.dp), onClick = nav.birth) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("pregnancy", 20.dp) }
+                        Column(Modifier.weight(1f)) {
+                            Text(l.tr("Baby arrived?").uppercase(), color = CT.Brand, style = MaterialTheme.typography.labelSmall)
+                            Text(l.tr("Record the birth to switch to postpartum mode - growth chart and vaccines."), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -244,7 +310,12 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             CTCard {
                 SectionTitle(l.tr("Quick access"))
                 Spacer(gap(12))
-                val items = listOf(
+                val items = if (postpartum) listOf(
+                    Triple("vaccination", l.tr("Vaccines"), nav.vaccines), Triple("pregnancy", l.tr("Growth chart"), nav.growth),
+                    Triple("review", l.tr("Report vault"), nav.vault), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
+                    Triple("visit", l.t("doctorView"), nav.doctor), Triple("bell", l.tr("Reminders"), nav.reminders),
+                    Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
+                ) else listOf(
                     Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("pregnancy", l.tr("Care guidance"), nav.care),
