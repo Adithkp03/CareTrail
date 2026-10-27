@@ -242,4 +242,40 @@ class CoreTest {
         assertTrue(hr.any())
         assertFalse(HighRiskRecord().any())
     }
+
+    private fun referralFixture() = Referral.build(
+        "Demo Mother", HealthIntake(completed = true, allergies = "penicillin", abha_number = "12345678901234"),
+        RegistrationData(updated_at = "2026-10-27", mcp_images = listOf("/private/local/image.jpg")),
+        RhProfile(), emptyList(), BirthRecord(), emptyList(), emptyMap(),
+        listOf(BpReading(date = "2026-10-27", systolic = 120, diastolic = 80)), emptyList(), HighRiskRecord())
+
+    @Test fun referralRoundTripAndChecksum() {
+        val p = referralFixture()
+        assertTrue(Referral.verify(p))
+        val raw = AppJson.encodeToString(ReferralPackage.serializer(), p)
+        assertEquals(p, Referral.parse(raw))
+        assertFalse(raw.contains("/private/local"))
+        assertFalse(raw.contains("mood"))
+        assertTrue(Referral.summaryText(p).contains("penicillin"))
+        assertFalse(Referral.verify(p.copy(patient_name = "Changed")))
+    }
+
+    @Test fun referralRejectsCorruptUnsupportedAndWrongType() {
+        val p = referralFixture()
+        assertNull(Referral.parse("not JSON"))
+        assertNull(Referral.parse(AppJson.encodeToString(ReferralPackage.serializer(), p.copy(checksum = "bad"))))
+        assertNull(Referral.parse(AppJson.encodeToString(ReferralPackage.serializer(), p.copy(version = 999))))
+        assertNull(Referral.parse(AppJson.encodeToString(ReferralPackage.serializer(), p.copy(kind = "other"))))
+        assertNull(Referral.parse("{}"))
+    }
+
+    @Test fun marathiAssameseStaticCoverageNotReviewed() {
+        assertTrue(Langs.valid("as"))
+        assertFalse("as" in Langs.reviewed)
+        assertFalse("mr" in Langs.reviewed)
+        I18nData.labels.forEach { (key, values) ->
+            assertFalse("Assamese missing: $key", values["as"].isNullOrBlank())
+            assertFalse("Marathi missing: $key", values["mr"].isNullOrBlank())
+        }
+    }
 }

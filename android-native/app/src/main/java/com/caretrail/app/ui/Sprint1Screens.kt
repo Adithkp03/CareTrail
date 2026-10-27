@@ -142,6 +142,14 @@ fun HealthIntakeScreen(vm: AppViewModel, nav: Nav) {
                 Spacer(gap(8))
                 CTField(data.allergies, { save(data.copy(allergies = it)); saved = false }, l.tr("Drug or food allergies"), singleLine = false)
             }
+            Spacer(gap(12))
+            CTCard {
+                SectionTitle(l.tr("ABHA (optional, unverified)"))
+                Muted(l.tr("For reference only. CareTrail does not verify ABHA or connect to ABDM. You can leave this blank."))
+                CTField(data.abha_number, { save(data.copy(abha_number = it.filter { c -> c.isDigit() }.take(14))) }, l.tr("14-digit ABHA number"))
+                CTField(data.abha_address, { save(data.copy(abha_address = it.take(100))) }, l.tr("ABHA address (optional)"))
+                if (data.abha_number.isNotEmpty() && data.abha_number.length != 14) Note(l.tr("ABHA number should contain 14 digits. This entry is not verified."))
+            }
             Spacer(gap(16))
             PrimaryButton(l.tr(if (data.completed) "Saved - update anyway" else "Save my health profile")) {
                 save(data.copy(completed = true)); saved = true

@@ -340,14 +340,14 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     Triple("review", l.tr("Report vault"), nav.vault), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
-                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("pregnancy", l.tr("Wellbeing"), nav.wellness),
+                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral), Triple("pregnancy", l.tr("Wellbeing"), nav.wellness),
                 ) else listOf(
                     Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("pregnancy", l.tr("Care guidance"), nav.care),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
                     Triple("blood", l.tr("Rh & ICT"), nav.rh), Triple("warning", l.tr("Danger signs"), nav.danger),
-                    Triple("hospital", l.tr("Facilities"), nav.facilities),
+                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral),
                 )
                 items.chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

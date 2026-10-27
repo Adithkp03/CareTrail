@@ -12,6 +12,7 @@ object Langs {
         LangOption("kn", "ಕನ್ನಡ"),
         LangOption("bn", "বাংলা"),
         LangOption("mr", "मराठी"),
+        LangOption("as", "অসমীয়া"),
     )
     /** Languages whose clinical text was reviewed by hand; others carry the translation note. */
     val reviewed = setOf("en", "ml", "hi")
