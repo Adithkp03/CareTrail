@@ -71,6 +71,7 @@ fun CareTrailApp(vm: AppViewModel) {
         doctor = { go(Routes.DOCTOR) }, account = { go(Routes.ACCOUNT) }, dataSafety = { go(Routes.DATA_SAFETY) },
         intake = { go(Routes.INTAKE) }, registration = { go(Routes.REGISTRATION) }, rh = { go(Routes.RH) }, danger = { go(Routes.DANGER) },
         birth = { go(Routes.BIRTH) }, growth = { go(Routes.GROWTH) }, vaccines = { go(Routes.VACCINES) }, vault = { go(Routes.VAULT) }, facilities = { go(Routes.FACILITIES) },
+        referral = { go(Routes.REFERRAL) },
         wellness = { go(Routes.WELLNESS) }, recovery = { go(Routes.RECOVERY) }, mindCheck = { go(Routes.MINDCHECK) },
         bpLog = { go(Routes.BPLOG) }, familyPlanning = { go(Routes.FAMILYPLAN) }, mindfulness = { go(Routes.MINDFUL) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
@@ -78,7 +79,7 @@ fun CareTrailApp(vm: AppViewModel) {
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral")
 
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
@@ -103,6 +104,7 @@ fun CareTrailApp(vm: AppViewModel) {
                 composable(Routes.GROWTH) { GrowthScreen(vm, callbacks) }
                 composable(Routes.VACCINES) { VaccinesScreen(vm, callbacks) }
                 composable(Routes.VAULT) { VaultScreen(vm, callbacks) }
+                composable(Routes.REFERRAL) { ReferralScreen(vm, callbacks) }
                 composable(Routes.FACILITIES) { FacilitiesScreen(vm, callbacks) }
                 composable(Routes.WELLNESS) { WellnessScreen(vm, callbacks) }
                 composable(Routes.RECOVERY) { RecoveryCareScreen(vm, callbacks) }

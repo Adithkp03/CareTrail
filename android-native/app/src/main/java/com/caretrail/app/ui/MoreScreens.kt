@@ -179,6 +179,16 @@ fun DataSafetyScreen(vm: AppViewModel, nav: Nav) {
             l.tr("AI trace records now keep provider metadata rather than prompts and outputs, and the trace view is scoped to your patient account."),
             l.tr("New uploaded files are stored in the app database with their report record. You can download your data or delete your account from the link below; this is not a backup. Ask the team before entering real health information."),
         ).forEach { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 6.dp)) }
+        var cryptoStatus by remember { mutableStateOf("") }
+        Note(l.tr("ABDM is not connected. ABHA entries are unverified references. Referral files are patient-controlled copies, not signed clinical records. There is no end-to-end encryption or compliance certification."))
+        Spacer(gap(8))
+        OutlineButton(l.tr("Enable device-key encryption for local cache")) {
+            cryptoStatus = runCatching { vm.store.migrateCacheToEncrypted() }
+                .fold({ "Local cache and session token encrypted with this device's Android Keystore. Original report/image files and exported copies are not covered. Losing the device key can make the cache unreadable." },
+                      { "Encryption could not be enabled. Existing data was kept. Retry on this device." })
+        }
+        if (cryptoStatus.isNotEmpty()) Note(l.tr(cryptoStatus), tone = Tone.Blue)
+        Spacer(gap(8))
         Text(l.tr("Download or delete your data"), color = CT.Brand, style = MaterialTheme.typography.labelLarge, modifier = Modifier.androidClick(nav.account))
     }
 }

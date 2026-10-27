@@ -20,6 +20,8 @@ data class HealthIntake(
     val surgeries: List<String> = emptyList(),    // previous_cesarean, myomectomy
     val other_history: String = "",
     val allergies: String = "",
+    val abha_number: String = "",     // optional 14-digit ABHA (Ayushman Bharat Health Account) id
+    val abha_address: String = "",    // optional ABHA address (name@abdm)
     val completed: Boolean = false,
     val updated_at: String = "",
     val pending_sync: Boolean = true,

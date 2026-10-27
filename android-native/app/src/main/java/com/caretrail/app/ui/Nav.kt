@@ -19,6 +19,7 @@ class Nav(
     val growth: () -> Unit,
     val vaccines: () -> Unit,
     val vault: () -> Unit,
+    val referral: () -> Unit,
     val facilities: () -> Unit,
     val wellness: () -> Unit,
     val recovery: () -> Unit,
@@ -53,6 +54,7 @@ object Routes {
     const val GROWTH = "growth"
     const val VACCINES = "vaccines"
     const val VAULT = "vault"
+    const val REFERRAL = "referral"
     const val FACILITIES = "facilities"
     const val WELLNESS = "wellness"
     const val RECOVERY = "recovery"
