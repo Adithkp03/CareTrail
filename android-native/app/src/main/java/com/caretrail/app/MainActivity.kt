@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Closed-app appointment reminders: periodic local check, opt-in and generic text.
+        ReminderWorker.schedule(applicationContext)
         setContent { CareTrailTheme { CareTrailApp(vm) } }
     }
 }
@@ -74,12 +76,13 @@ fun CareTrailApp(vm: AppViewModel) {
         referral = { go(Routes.REFERRAL) },
         wellness = { go(Routes.WELLNESS) }, recovery = { go(Routes.RECOVERY) }, mindCheck = { go(Routes.MINDCHECK) },
         bpLog = { go(Routes.BPLOG) }, familyPlanning = { go(Routes.FAMILYPLAN) }, mindfulness = { go(Routes.MINDFUL) },
+        chat = { go(Routes.CHAT) }, doctorQuestions = { go(Routes.DOCTORQ) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
         back = { if (!nav.popBackStack()) tab(Routes.HOME) },
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral", "chat", "doctorq")
 
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
@@ -112,6 +115,8 @@ fun CareTrailApp(vm: AppViewModel) {
                 composable(Routes.BPLOG) { BpSugarScreen(vm, callbacks) }
                 composable(Routes.FAMILYPLAN) { FamilyPlanningScreen(vm, callbacks) }
                 composable(Routes.MINDFUL) { MindfulnessScreen(vm, callbacks) }
+                composable(Routes.CHAT) { AssistantScreen(vm, callbacks) }
+                composable(Routes.DOCTORQ) { AskDoctorScreen(vm, callbacks) }
                 composable(Routes.MILESTONE, listOf(navArgument("id") { type = NavType.StringType })) {
                     MilestoneScreen(vm, it.arguments?.getString("id") ?: "", callbacks)
                 }

@@ -238,6 +238,22 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             }
             }
             Spacer(gap(8))
+            // Sprint 6: help assistant + ask-the-doctor entries.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CTCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), onClick = nav.chat) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("review", 18.dp) }
+                    Spacer(gap(6))
+                    Text(l.tr("Help assistant"), style = MaterialTheme.typography.titleSmall)
+                    Muted(l.tr("General info & app help"))
+                }
+                CTCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), onClick = nav.doctorQuestions) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CT.Peach), contentAlignment = Alignment.Center) { CareIcon("visit", 18.dp) }
+                    Spacer(gap(6))
+                    Text(l.tr("Ask your doctor"), style = MaterialTheme.typography.titleSmall)
+                    Muted(l.tr("Send a question"))
+                }
+            }
+            Spacer(gap(8))
             val hasAtt = attention.isNotEmpty()
             CTCard(
                 color = if (hasAtt) CT.Amber50 else Color.White, border = if (hasAtt) CT.Amber300 else CT.CardBorder,

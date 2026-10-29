@@ -27,6 +27,8 @@ class Nav(
     val bpLog: () -> Unit,
     val familyPlanning: () -> Unit,
     val mindfulness: () -> Unit,
+    val chat: () -> Unit,
+    val doctorQuestions: () -> Unit,
     val newJourney: () -> Unit,
     val back: () -> Unit,
     val milestone: (String) -> Unit,
@@ -62,6 +64,8 @@ object Routes {
     const val BPLOG = "bplog"
     const val FAMILYPLAN = "familyplan"
     const val MINDFUL = "mindful"
+    const val CHAT = "chat"
+    const val DOCTORQ = "doctorq"
     const val MILESTONE = "milestone/{id}"
     const val UPLOAD = "upload?milestone={milestone}"
     val TABS = listOf(HOME, TIMELINE, REMINDERS, MOVEMENTS)

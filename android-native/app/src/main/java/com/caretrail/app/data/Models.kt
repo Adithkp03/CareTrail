@@ -195,3 +195,50 @@ data class TranslateResponse(val lang: String = "", val translations: Map<String
 
 @Serializable
 data class Me(val patient_id: String = "", val name: String = "", val phone: String = "", val language: String = "en")
+
+// ---- Sprint 6: help assistant + doctor questions -------------------------
+
+@Serializable
+data class ChatMsg(
+    val id: String = "",
+    val role: String = "user",
+    val text: String = "",
+    val source: String = "",
+    val urgent: Boolean = false,
+    val suggest_doctor: Boolean = false,
+    val created_at: String = "",
+)
+
+@Serializable
+data class ChatHistory(val items: List<ChatMsg> = emptyList())
+
+@Serializable
+data class ChatResult(
+    val message_id: String = "",
+    val answer: String = "",
+    val source: String = "",
+    val urgent: Boolean = false,
+    val suggest_doctor: Boolean = false,
+    val language: String = "en",
+    val note: String? = null,
+)
+
+@Serializable
+data class LinkedDoctor(val id: String = "", val name: String = "")
+
+@Serializable
+data class DoctorQuestion(
+    val id: String = "",
+    val journey_id: String = "",
+    val clinician_id: String = "",
+    val recipient_name: String = "",
+    val question: String = "",
+    val created_at: String = "",
+    val answer: String? = null,
+    val answered_at: String? = null,
+    val answerer_name: String? = null,
+    val answered: Boolean = false,
+)
+
+@Serializable
+data class DoctorQuestionList(val items: List<DoctorQuestion> = emptyList(), val linked_doctors: List<LinkedDoctor> = emptyList())
