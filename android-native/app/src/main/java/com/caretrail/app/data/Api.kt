@@ -160,5 +160,19 @@ class Api(
 
     suspend fun deleteAccount(): JsonElement = send("DELETE", "/me", obj { put("confirm", "DELETE") }, serializer())
 
+    // ---- Sprint 6: help assistant + doctor questions ----------------------
+
+    suspend fun assistantChat(message: String, lang: String): ChatResult =
+        send("POST", "/assistant/chat", obj { put("message", message); put("lang", lang) }, serializer())
+
+    suspend fun assistantHistory(): ChatHistory = get("/assistant/history", serializer())
+
+    suspend fun clearAssistantHistory(): JsonElement = send("DELETE", "/assistant/history", null, serializer())
+
+    suspend fun askDoctor(journeyId: String, question: String): DoctorQuestion =
+        send("POST", "/journeys/$journeyId/doctor-questions", obj { put("question", question) }, serializer())
+
+    suspend fun doctorQuestions(journeyId: String): DoctorQuestionList = get("/journeys/$journeyId/doctor-questions", serializer())
+
     private fun obj(f: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): String = buildJsonObject(f).toString()
 }

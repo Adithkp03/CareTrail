@@ -11,7 +11,7 @@ from .. import ratelimit
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
 from ..flags import compute_flags
-from ..models import CareInstruction, utcnow, Clinician, ClinicianToken, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
+from ..models import CareInstruction, DoctorQuestion, utcnow, Clinician, ClinicianToken, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, SignOff
 from ..schemas import SignOffCreateRequest
 from ..security import new_token, token_expiry, verify_password
 from ..template_loader import load_template
@@ -175,10 +175,11 @@ def clinician_patients(clinician: Clinician = Depends(current_clinician), db: Se
         flags = compute_flags(db, j.id, template)
         pending = [f for f in flags if not f.get("signed_off")]
         unread = db.query(CareInstruction).filter(CareInstruction.journey_id == j.id, CareInstruction.acknowledged_at.is_(None)).count()
+        open_q = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == j.id, DoctorQuestion.answer.is_(None)).count()
         ga = journey_engine.gestational_age_days(j.lmp, j.edd, date.today())
         edd = j.edd or (journey_engine.edd_from_lmp(j.lmp) if j.lmp else None)
         out.append({"journey_id": j.id, "patient": j.patient.name, "weeks": ga // 7, "plus_days": ga % 7,
                     "edd": edd.isoformat() if edd else None, "pending_reviews": len(pending),
-                    "instructions_waiting": unread})
+                    "instructions_waiting": unread, "open_questions": open_q})
     out.sort(key=lambda r: (-r["pending_reviews"], r["patient"].lower()))
-    return {"items": out, "pending_total": sum(r["pending_reviews"] for r in out)}
+    return {"items": out, "pending_total": sum(r["pending_reviews"] for r in out), "open_questions_total": sum(r["open_questions"] for r in out)}

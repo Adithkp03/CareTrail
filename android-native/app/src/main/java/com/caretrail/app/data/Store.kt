@@ -73,6 +73,11 @@ class Store(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean("lang_chosen", false)
         set(v) { prefs.edit().putBoolean("lang_chosen", v).apply() }
 
+    /** One-time acknowledgement of what the help assistant is (and is not). */
+    var chatAcknowledged: Boolean
+        get() = prefs.getBoolean("chat_ack", false)
+        set(v) { prefs.edit().putBoolean("chat_ack", v).apply() }
+
     fun encryptedRecordsEnabled() = prefs.getBoolean("encrypted_records", false)
 
     fun getCache(key: String): String? = prefs.getString("cache:$key", null)?.let { StoreCrypto.decrypt(it) }

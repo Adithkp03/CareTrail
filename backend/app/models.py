@@ -239,3 +239,36 @@ class CareInstruction(Base):
     note: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AssistantMessage(Base):
+    """One turn of the general-help assistant chat. Patient can wipe the whole history."""
+
+    __tablename__ = "assistant_messages"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    role: Mapped[str] = mapped_column(String(10))  # user | assistant
+    text: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(8), default="en")
+    source: Mapped[str] = mapped_column(String(40), default="")  # rule id, empty for user turns
+    urgent: Mapped[bool] = mapped_column(Boolean, default=False)
+    suggest_doctor: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class DoctorQuestion(Base):
+    """A question the patient explicitly sends to a clinician she granted access to.
+    One question, one answer; a follow-up is a new question. Never an emergency channel."""
+
+    __tablename__ = "doctor_questions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    answered_by: Mapped[str | None] = mapped_column(ForeignKey("clinicians.id"), nullable=True)
+    answerer_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
