@@ -256,3 +256,26 @@ def test_export_and_delete_cover_chat_and_questions(client):
     db = next(client.app.dependency_overrides[get_db]())
     assert db.query(AssistantMessage).count() == 0
     assert db.query(DoctorQuestion).count() == 0
+
+
+def test_demo_reset_clears_assistant_chat_and_doctor_questions(client):
+    """Regression: /demo/seed must wipe Sprint 6 tables. Doctor questions FK-reference
+    the journey; without cleanup the reset's journey delete fails with a 500."""
+    from app.seed import DEMO_PASSWORD, DEMO_PHONE
+
+    seed = client.post("/demo/seed").json()
+    token = client.post("/auth/login", json={"phone": DEMO_PHONE, "password": DEMO_PASSWORD}).json()["token"]
+    j = seed["journey_id"]
+    assert chat(client, token, "When is my next appointment?").status_code == 201
+    c = provision(client)
+    client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(token))
+    assert client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c.id, "question": "Is my scan date fine?"}, headers=auth(token)).status_code == 201
+
+    again = client.post("/demo/seed", headers=auth(token))
+    assert again.status_code == 200, again.text
+    j2 = again.json()["journey_id"]
+    assert j2 != j
+    assert client.get("/assistant/history", headers=auth(token)).json()["items"] == []
+    fresh = client.get(f"/journeys/{j2}/doctor-questions", headers=auth(token)).json()
+    assert fresh["items"] == []
+    assert fresh["linked_doctors"] == []
