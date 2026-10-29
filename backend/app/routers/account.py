@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import audit, get_current_patient
-from ..models import (AiCallTrace, AuditLog, AuthToken, CareInstruction, Clinician, Document, DocumentBlob, Journey,
-                      JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
+from ..models import (AiCallTrace, AssistantMessage, AuditLog, AuthToken, CareInstruction, Clinician, Document, DocumentBlob,
+                      DoctorQuestion, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
 
 router = APIRouter(tags=["account"])
 
@@ -40,11 +40,16 @@ def export_my_data(patient: Patient = Depends(get_current_patient), db: Session 
             "doctor_instructions": [{"doctor": doctor_names.get(i.clinician_id), "note": i.note, "created_at": _iso(i.created_at),
                                      "acknowledged_at": _iso(i.acknowledged_at)}
                                     for i in db.query(CareInstruction).filter(CareInstruction.journey_id == j.id)],
+            "doctor_questions": [{"question": q.question, "asked_at": _iso(q.created_at), "answer": q.answer,
+                                  "answered_by": q.answerer_name, "answered_at": _iso(q.answered_at)}
+                                 for q in db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == j.id).order_by(DoctorQuestion.created_at)],
         })
     data = {
         "exported_for": {"name": patient.name, "phone": patient.phone, "email": patient.email, "language": patient.language,
                          "consent_at": _iso(patient.consent_at), "created_at": _iso(patient.created_at)},
         "journeys": journeys,
+        "assistant_chat": [{"role": m.role, "text": m.text, "language": m.language, "created_at": _iso(m.created_at)}
+                           for m in db.query(AssistantMessage).filter(AssistantMessage.patient_id == patient.id).order_by(AssistantMessage.created_at)],
         "note": "Original report files are not included in this download. Open them from the report on your timeline.",
     }
     audit(db, f"patient:{patient.id}", "export_data", "patient", patient.id, {})
@@ -76,7 +81,9 @@ def delete_my_account(body: DeleteAccountRequest, patient: Patient = Depends(get
         db.query(Document).filter(Document.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(Milestone).filter(Milestone.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(AuditLog).filter(AuditLog.entity == "journey", AuditLog.entity_id.in_(jids)).delete(synchronize_session=False)
+        db.query(DoctorQuestion).filter(DoctorQuestion.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(Journey).filter(Journey.patient_id == pid).delete(synchronize_session=False)
+    db.query(AssistantMessage).filter(AssistantMessage.patient_id == pid).delete(synchronize_session=False)
     db.query(ReminderState).filter(ReminderState.patient_id == pid).delete(synchronize_session=False)
     db.query(AiCallTrace).filter(AiCallTrace.patient_id == pid).delete(synchronize_session=False)
     db.query(AuditLog).filter(AuditLog.actor == f"patient:{pid}").delete(synchronize_session=False)

@@ -141,3 +141,92 @@ def test_doctor_question_revocation_blocks_answer(client):
     assert client.post(f"/clinician/questions/{qid}/answer", json={"answer": "At reception."}, headers=auth(doc)).status_code == 404
     # The patient's own record of the exchange survives revocation.
     assert client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()["items"][0]["id"] == qid
+
+
+def test_assistant_malayalam_advice_defers(client):
+    token = signup(client)["token"]
+    client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token))
+    r = chat(client, token, "എനിക്ക് വയറ്റുവേദനയുണ്ട്, ഏത് മരുന്ന് കഴിക്കാം?", lang="ml").json()
+    # വയറ്റുവേദന (abdominal pain) is also a danger-sign keyword; either way it must
+    # route to the doctor, never to advice or a corpus answer.
+    assert r["source"] in ("danger-sign-rule", "defer-advice")
+    assert r["suggest_doctor"] is True
+
+
+def test_assistant_unsupported_language_falls_back_safely(client):
+    # Tamil is not in the en/ml/hi fixed-string set and the test env has no Sarvam
+    # key, so no translation pass is possible: the safe fallback must fire.
+    token = signup(client)["token"]
+    client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token))
+    r = chat(client, token, "கர்ப்பத்தில் என்ன சாப்பிடலாம்?", lang="ta").json()
+    assert r["source"] == "no-translation"
+    assert r["suggest_doctor"] is True
+
+
+def test_assistant_curated_verbatim_without_sarvam(client, monkeypatch):
+    # No key configured: the answer must be the curated corpus text itself,
+    # not model-generated wording. (Model rewording is prompt-constrained only
+    # and is covered by review, not by this test.)
+    from app import voice
+    assert not voice.available()
+    token = signup(client)["token"]
+    client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token))
+    r = chat(client, token, "What is the anomaly scan?").json()
+    assert r["source"].startswith("guidance:")
+    from app.guidance import CORPUS
+    corpus_texts = " ".join(c["text"] for c in CORPUS)
+    assert r["answer"] in corpus_texts
+
+
+def test_multiple_grants_all_see_question_and_answerer_is_recorded(client):
+    token = signup(client)["token"]
+    j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
+    c1 = provision(client)
+    from app.database import get_db
+    from app.models import Clinician
+    from app.security import hash_password
+    db = next(client.app.dependency_overrides[get_db]())
+    c2 = Clinician(name="Dr Second", email="doctor2@example.test", password_hash=hash_password("correct horse 123"))
+    db.add(c2); db.commit()
+    doc1 = client.post("/clinician/login", json={"email": c1.email, "password": "correct horse 123"}).json()["token"]
+    doc2 = client.post("/clinician/login", json={"email": c2.email, "password": "correct horse 123"}).json()["token"]
+    client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c1.email}, headers=auth(token))
+    client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c2.email}, headers=auth(token))
+
+    listed = client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()
+    assert {d["name"] for d in listed["linked_doctors"]} == {"Dr Test", "Dr Second"}
+
+    # Current v1 behavior: a question is visible to every granted clinician;
+    # the answerer is recorded by name. No per-doctor recipient choice yet.
+    qid = client.post(f"/journeys/{j}/doctor-questions", json={"question": "Is fasting needed before the test?"}, headers=auth(token)).json()["id"]
+    for doc in (doc1, doc2):
+        items = client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc)).json()["items"]
+        assert items and items[0]["id"] == qid
+    client.post(f"/clinician/questions/{qid}/answer", json={"answer": "Yes, 8 hours."}, headers=auth(doc2))
+    got = client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()["items"][0]
+    assert got["answerer_name"] == "Dr Second"
+    # The other clinician sees the answered state too.
+    assert client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc1)).json()["items"][0]["answered"] is True
+
+
+def test_export_and_delete_cover_chat_and_questions(client):
+    token = signup(client, phone="9000000090")["token"]
+    j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
+    c = provision(client)
+    client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(token))
+    chat(client, token, "When is my next appointment?")
+    client.post(f"/journeys/{j}/doctor-questions", json={"question": "Where is the lab?"}, headers=auth(token))
+
+    export = client.get("/me/export", headers=auth(token))
+    assert export.status_code == 200
+    import json as jsonlib
+    data = jsonlib.loads(export.content)
+    assert any(m["role"] == "user" and "appointment" in m["text"] for m in data["assistant_chat"])
+    assert data["journeys"][0]["doctor_questions"][0]["question"] == "Where is the lab?"
+
+    assert client.request("DELETE", "/me", json={"confirm": "DELETE"}, headers=auth(token)).status_code == 200
+    from app.database import get_db
+    from app.models import AssistantMessage, DoctorQuestion
+    db = next(client.app.dependency_overrides[get_db]())
+    assert db.query(AssistantMessage).count() == 0
+    assert db.query(DoctorQuestion).count() == 0

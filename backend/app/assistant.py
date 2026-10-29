@@ -145,6 +145,12 @@ def answer_chat(db: Session, journey: Journey | None, question: str, language: s
     # 2. App help is deterministic and safe even for advice-flavored phrasing.
     help_hit = _app_help(db, journey, match_q, language)
     if help_hit:
+        # App-help answers carry her own data (dates, titles) and are templated;
+        # translate for display only - this text never reaches the chat model.
+        if language != "en":
+            translated = voice.translate(help_hit["answer"], language)
+            if translated:
+                help_hit["answer"] = translated
         return {**help_hit, "urgent": False, "suggest_doctor": False, "language": language}
 
     # 3. Personal medical guidance: fixed deferral, never an answer.

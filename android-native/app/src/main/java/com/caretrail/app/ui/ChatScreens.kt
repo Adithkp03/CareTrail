@@ -70,7 +70,7 @@ fun AssistantScreen(vm: AppViewModel, nav: Nav) {
                 Text(l.tr("Before you start"), style = MaterialTheme.typography.titleSmall)
                 Spacer(gap(6))
                 Text(
-                    l.tr("This assistant answers general questions about pregnancy care and helps you use CareTrail - appointments, reminders, reports and features. It does not give medical advice, and it never decides anything about your health. Your questions are sent to CareTrail's server and processed by an AI language service with personal details removed. The conversation is stored so you can continue it later, and you can clear it any time."),
+                    l.tr("This assistant answers general questions about pregnancy care and helps you use CareTrail - appointments, reminders, reports and features. It does not give medical advice, and it never decides anything about your health. Your questions are sent to CareTrail's server, where some answers use your saved care information to respond. When the AI language service is configured, your question text (with phone numbers, emails and names removed) is sent to it; when it is not, answers come only from CareTrail's own curated content. The conversation is stored on the server so you can continue it later, you can clear it any time, and it is included in your data export and deleted with your account."),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(gap(10))
