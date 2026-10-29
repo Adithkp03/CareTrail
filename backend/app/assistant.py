@@ -7,8 +7,9 @@ Hard boundary, enforced in code before any model is involved:
   "should I...") get a fixed deferral - never an individualized answer.
 - App-help questions are answered deterministically from the mother's own data.
 - General maternal-information questions are answered from the curated
-  FOGSI/WHO-aligned guidance corpus only; Sarvam, when configured, may reword
-  that approved text but is instructed to add nothing.
+  FOGSI/WHO-aligned guidance corpus only - verbatim text, translated for
+  display when the translation service is configured. No generative rewording:
+  a chat model writing free-form health text stays off pending clinician review.
 - Anything else defers. Every deferral offers the ask-the-doctor route.
 """
 
@@ -173,20 +174,13 @@ def answer_chat(db: Session, journey: Journey | None, question: str, language: s
 
     base_en = guidance[0]["text"]
     source = f"guidance:{guidance[0]['id']}"
+    # No generative rewording in this assistant: answers are the curated corpus
+    # text verbatim, translated for display by the same translation service the
+    # rest of the app uses. A chat model writing free-form health text stays off
+    # until its output is clinician-reviewed.
     if language != "en":
         translated = voice.translate(base_en, language)
         if translated:
             return {"answer": translated, "source": source, "urgent": False, "suggest_doctor": False, "language": language}
-    if voice.available():
-        worded = voice.chat(
-            "You are CareTrail's general help assistant. Rewrite the APPROVED INFORMATION below in simple, warm words"
-            f" in {'English' if language == 'en' else language}. Rules: add no medical advice, diagnosis, treatment,"
-            " medicine or dosage suggestions; add no new facts; keep it under 80 words; end with: For personal concerns,"
-            " please ask your doctor.\n\nAPPROVED INFORMATION:\n" + base_en,
-            db=db,
-        )
-        if worded:
-            return {"answer": worded, "source": source, "urgent": False, "suggest_doctor": False, "language": language}
-    out = base_en if language == "en" else base_en
     note = None if language == "en" else "shown in English - translation needs the Sarvam key"
-    return {"answer": out, "source": source, "urgent": False, "suggest_doctor": False, "language": language, **({"note": note} if note else {})}
+    return {"answer": base_en, "source": source, "urgent": False, "suggest_doctor": False, "language": language, **({"note": note} if note else {})}

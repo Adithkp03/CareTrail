@@ -169,8 +169,8 @@ class Api(
 
     suspend fun clearAssistantHistory(): JsonElement = send("DELETE", "/assistant/history", null, serializer())
 
-    suspend fun askDoctor(journeyId: String, question: String): DoctorQuestion =
-        send("POST", "/journeys/$journeyId/doctor-questions", obj { put("question", question) }, serializer())
+    suspend fun askDoctor(journeyId: String, clinicianId: String, question: String): DoctorQuestion =
+        send("POST", "/journeys/$journeyId/doctor-questions", obj { put("clinician_id", clinicianId); put("question", question) }, serializer())
 
     suspend fun doctorQuestions(journeyId: String): DoctorQuestionList = get("/journeys/$journeyId/doctor-questions", serializer())
 

@@ -224,12 +224,14 @@ data class ChatResult(
 )
 
 @Serializable
-data class LinkedDoctor(val name: String = "")
+data class LinkedDoctor(val id: String = "", val name: String = "")
 
 @Serializable
 data class DoctorQuestion(
     val id: String = "",
     val journey_id: String = "",
+    val clinician_id: String = "",
+    val recipient_name: String = "",
     val question: String = "",
     val created_at: String = "",
     val answer: String? = null,

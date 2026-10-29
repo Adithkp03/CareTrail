@@ -1,6 +1,7 @@
 package com.caretrail.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.caretrail.app.AppViewModel
 import com.caretrail.app.data.AppJson
@@ -189,6 +191,7 @@ fun AskDoctorScreen(vm: AppViewModel, nav: Nav) {
         var input by remember { mutableStateOf("") }
         var sending by remember { mutableStateOf(false) }
         var message by remember { mutableStateOf("") }
+        var recipientId by remember { mutableStateOf("") }
 
         suspend fun load() {
             try { data = vm.api.doctorQuestions(j.journey_id); message = "" }
@@ -214,19 +217,40 @@ fun AskDoctorScreen(vm: AppViewModel, nav: Nav) {
                 Spacer(gap(12))
             }
             if (linked.isNotEmpty()) {
+                // Exactly one explicit recipient per question. One linked doctor is
+                // pre-selected; with several, the patient taps to choose - no broadcast.
+                if (recipientId.isEmpty() || linked.none { it.id == recipientId }) {
+                    if (linked.size == 1) recipientId = linked[0].id
+                }
                 CTCard {
-                    Text(l.tr("Send a question to") + " " + linked.joinToString(", ") { it.name }, style = MaterialTheme.typography.titleSmall)
+                    Text(l.tr("Send a question"), style = MaterialTheme.typography.titleSmall)
                     Spacer(gap(6))
-                    Muted(l.tr("Only your linked doctor sees this. Describe your concern in your own words; they reply through CareTrail."))
+                    Muted(l.tr("Only the doctor you choose sees this. Describe your concern in your own words; they reply through CareTrail."))
+                    Spacer(gap(8))
+                    Text(l.tr("To:"), style = MaterialTheme.typography.labelMedium, color = CT.Muted)
+                    Spacer(gap(4))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        linked.forEach { d ->
+                            val selected = d.id == recipientId
+                            Box(
+                                Modifier.background(if (selected) CT.Brand else CT.BrandSoft, RoundedCornerShape(50))
+                                    .clickable(role = Role.Button) { recipientId = d.id }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Text(d.name, color = if (selected) Color.White else CT.Brand, style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
                     Spacer(gap(8))
                     CTField(input, { input = it }, l.tr("Type your question…"), singleLine = false)
                     Spacer(gap(8))
-                    PrimaryButton(if (sending) "…" else l.tr("Send to my doctor"), enabled = !sending && input.isNotBlank()) {
+                    val recipientName = linked.firstOrNull { it.id == recipientId }?.name ?: ""
+                    PrimaryButton(if (sending) "…" else l.tr("Send to") + " " + recipientName, enabled = !sending && input.isNotBlank() && recipientId.isNotEmpty()) {
                         val q = input.trim()
                         sending = true; message = ""
                         scope.launch {
                             try {
-                                vm.api.askDoctor(j.journey_id, q)
+                                vm.api.askDoctor(j.journey_id, recipientId, q)
                                 input = ""
                                 load()
                             } catch (e: Exception) { message = e.message ?: l.tr("Could not send. Please try again.") }
@@ -244,7 +268,7 @@ fun AskDoctorScreen(vm: AppViewModel, nav: Nav) {
                 items.forEach { q ->
                     CTCard {
                         Text(q.question, style = MaterialTheme.typography.bodyMedium)
-                        Muted(q.created_at.take(10))
+                        Muted((if (q.recipient_name.isNotEmpty()) "${l.tr("To")} ${q.recipient_name} · " else "") + q.created_at.take(10))
                         Spacer(gap(8))
                         if (q.answered && q.answer != null) {
                             Column(Modifier.fillMaxWidth().background(CT.Green50, RoundedCornerShape(12.dp)).padding(12.dp)) {

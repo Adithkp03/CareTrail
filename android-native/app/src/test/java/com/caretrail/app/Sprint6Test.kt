@@ -39,11 +39,12 @@ class Sprint6Test {
 
     @Test fun doctorQuestionListParses() {
         val json = """{"items":[{"id":"q1","journey_id":"j1","question":"Can we move my scan?","created_at":"2026-10-29T04:00:00+00:00","answer":null,"answered_at":null,"answerer_name":null,"answered":false}],
-            "linked_doctors":[{"name":"Dr Test"}]}"""
+            "linked_doctors":[{"id":"c1","name":"Dr Test"}]}"""
         val list = AppJson.decodeFromString(DoctorQuestionList.serializer(), json)
         assertEquals(1, list.items.size)
         assertFalse(list.items[0].answered)
         assertEquals("Dr Test", list.linked_doctors[0].name)
+        assertEquals("c1", list.linked_doctors[0].id)
     }
 
     @Test fun assistantChatPostsAndParses() = runTest {
@@ -63,14 +64,16 @@ class Sprint6Test {
 
     @Test fun askDoctorPostsQuestion() = runTest {
         val server = MockWebServer()
-        server.enqueue(MockResponse().setBody("""{"id":"q1","journey_id":"j1","question":"Is Friday ok?","created_at":"2026-10-29T04:00:00+00:00","answer":null,"answered_at":null,"answerer_name":null,"answered":false}"""))
+        server.enqueue(MockResponse().setBody("""{"id":"q1","journey_id":"j1","clinician_id":"c1","recipient_name":"Dr Test","question":"Is Friday ok?","created_at":"2026-10-29T04:00:00+00:00","answer":null,"answered_at":null,"answerer_name":null,"answered":false}"""))
         server.start()
         val api = Api(server.url("/").toString().trimEnd('/'), { "tok" })
-        val q = api.askDoctor("j1", "Is Friday ok?")
+        val q = api.askDoctor("j1", "c1", "Is Friday ok?")
         assertEquals("q1", q.id)
         assertFalse(q.answered)
         val sent = server.takeRequest()
         assertEquals("/journeys/j1/doctor-questions", sent.path)
+        val body = AppJson.parseToJsonElement(sent.body.readUtf8()).jsonObject
+        assertEquals("c1", body["clinician_id"]!!.jsonPrimitive.content)
         server.shutdown()
     }
 }

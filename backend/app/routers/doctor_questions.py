@@ -1,9 +1,9 @@
 """Patient -> clinician questions (Sprint 6).
 
-The patient writes and sends each question explicitly. Questions go only to
-clinicians she has granted journey access to (existing grant flow); a clinician
-answers from the clinician web view. This is not an emergency channel and no
-response time is promised - the app copy says so next to the composer."""
+The patient writes each question AND picks its recipient explicitly: the chosen
+clinician must hold an active patient-granted access grant. Only that clinician
+can read or answer the question - other granted clinicians cannot. This is not
+an emergency channel and no response time is promised."""
 
 from datetime import timezone
 
@@ -22,6 +22,7 @@ MAX_OPEN = 20
 
 
 class QuestionCreate(BaseModel):
+    clinician_id: str = Field(min_length=1)
     question: str = Field(min_length=1, max_length=2000)
 
 
@@ -37,6 +38,8 @@ def _row(q: DoctorQuestion) -> dict:
     return {
         "id": q.id,
         "journey_id": q.journey_id,
+        "clinician_id": q.clinician_id,
+        "recipient_name": q.recipient_name,
         "question": q.question,
         "created_at": _ts(q.created_at),
         "answer": q.answer,
@@ -61,14 +64,18 @@ def ask_doctor(journey_id: str, body: QuestionCreate, patient: Patient = Depends
     clinicians = _granted_clinicians(db, journey_id)
     if not clinicians:
         raise HTTPException(status_code=409, detail="Link your doctor first (Doctor section) so your question has somewhere to go.")
+    recipient = next((c for c in clinicians if c.id == body.clinician_id), None)
+    if recipient is None:
+        # 404, not 403: do not reveal clinician ids outside the patient's own grants
+        raise HTTPException(status_code=404, detail="That doctor is not linked to this journey")
     open_count = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == journey_id, DoctorQuestion.answer.is_(None)).count()
     if open_count >= MAX_OPEN:
         raise HTTPException(status_code=429, detail="Too many unanswered questions. Please wait for your doctor to reply.")
     text = body.question.strip()
-    row = DoctorQuestion(journey_id=journey_id, patient_id=patient.id, question=text)
+    row = DoctorQuestion(journey_id=journey_id, patient_id=patient.id, clinician_id=recipient.id, recipient_name=recipient.name, question=text)
     db.add(row)
     db.flush()
-    audit(db, f"patient:{patient.id}", "doctor_question", "doctor_question", row.id, {"journey_id": journey_id})
+    audit(db, f"patient:{patient.id}", "doctor_question", "doctor_question", row.id, {"journey_id": journey_id, "clinician_id": recipient.id})
     db.commit()
     return _row(row)
 
@@ -79,21 +86,27 @@ def list_questions(journey_id: str, patient: Patient = Depends(get_current_patie
     rows = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == journey_id).order_by(DoctorQuestion.created_at.desc(), DoctorQuestion.id.desc()).all()
     return {
         "items": [_row(q) for q in rows],
-        "linked_doctors": [{"name": c.name} for c in _granted_clinicians(db, journey_id)],
+        "linked_doctors": [{"id": c.id, "name": c.name} for c in _granted_clinicians(db, journey_id)],
     }
 
 
 @router.get("/clinician/journeys/{journey_id}/questions")
 def clinician_questions(journey_id: str, clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
     authorized_journey(db, journey_id, clinician)
-    rows = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == journey_id).order_by(DoctorQuestion.created_at.desc(), DoctorQuestion.id.desc()).all()
+    rows = (
+        db.query(DoctorQuestion)
+        .filter(DoctorQuestion.journey_id == journey_id, DoctorQuestion.clinician_id == clinician.id)
+        .order_by(DoctorQuestion.created_at.desc(), DoctorQuestion.id.desc())
+        .all()
+    )
     return {"items": [_row(q) for q in rows]}
 
 
 @router.post("/clinician/questions/{question_id}/answer")
 def answer_question(question_id: str, body: AnswerCreate, clinician: Clinician = Depends(current_clinician), db: Session = Depends(get_db)):
     row = db.get(DoctorQuestion, question_id)
-    if row is None:
+    if row is None or row.clinician_id != clinician.id:
+        # 404, not 403: a question addressed to another clinician is invisible
         raise HTTPException(status_code=404, detail="Question not found")
     authorized_journey(db, row.journey_id, clinician)
     row.answer = body.answer.strip()

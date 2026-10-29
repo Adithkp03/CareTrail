@@ -266,6 +266,8 @@ class DoctorQuestion(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
     patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)  # the explicit, patient-chosen recipient
+    recipient_name: Mapped[str] = mapped_column(String(120), default="")
     question: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     answer: Mapped[str | None] = mapped_column(Text, nullable=True)

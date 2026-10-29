@@ -92,8 +92,8 @@ def test_assistant_history_roundtrip_and_clear(client):
 def test_doctor_question_requires_grant(client):
     token = signup(client)["token"]
     j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
-    provision(client)
-    assert client.post(f"/journeys/{j}/doctor-questions", json={"question": "Is my scan date fine?"}, headers=auth(token)).status_code == 409
+    c = provision(client)
+    assert client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c.id, "question": "Is my scan date fine?"}, headers=auth(token)).status_code == 409
 
 
 def test_doctor_question_flow_and_authorization(client):
@@ -104,8 +104,12 @@ def test_doctor_question_flow_and_authorization(client):
     doc = client.post("/clinician/login", json={"email": c.email, "password": "correct horse 123"}).json()["token"]
     client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(token))
 
-    q = client.post(f"/journeys/{j}/doctor-questions", json={"question": "Can we move my scan to Friday?"}, headers=auth(token))
+    # Recipient is required: missing, unknown and ungranted clinician ids are refused.
+    assert client.post(f"/journeys/{j}/doctor-questions", json={"question": "No recipient"}, headers=auth(token)).status_code == 422
+    assert client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": "nope", "question": "Unknown doctor"}, headers=auth(token)).status_code == 404
+    q = client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c.id, "question": "Can we move my scan to Friday?"}, headers=auth(token))
     assert q.status_code == 201
+    assert q.json()["recipient_name"] == "Dr Test"
     qid = q.json()["id"]
     assert q.json()["answered"] is False
 
@@ -114,7 +118,7 @@ def test_doctor_question_flow_and_authorization(client):
     # Patient sees it listed, with linked doctor names.
     listed = client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()
     assert listed["items"][0]["question"] == "Can we move my scan to Friday?"
-    assert listed["linked_doctors"] == [{"name": "Dr Test"}]
+    assert listed["linked_doctors"] == [{"id": c.id, "name": "Dr Test"}]
 
     # Clinician sees and answers; roster reflects the open question.
     roster = client.get("/clinician/patients", headers=auth(doc)).json()
@@ -135,7 +139,7 @@ def test_doctor_question_revocation_blocks_answer(client):
     c = provision(client)
     doc = client.post("/clinician/login", json={"email": c.email, "password": "correct horse 123"}).json()["token"]
     client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(token))
-    qid = client.post(f"/journeys/{j}/doctor-questions", json={"question": "Where do I collect my report?"}, headers=auth(token)).json()["id"]
+    qid = client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c.id, "question": "Where do I collect my report?"}, headers=auth(token)).json()["id"]
     client.delete(f"/journeys/{j}/clinicians/{c.id}", headers=auth(token))
     assert client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc)).status_code == 404
     assert client.post(f"/clinician/questions/{qid}/answer", json={"answer": "At reception."}, headers=auth(doc)).status_code == 404
@@ -178,7 +182,7 @@ def test_assistant_curated_verbatim_without_sarvam(client, monkeypatch):
     assert r["answer"] in corpus_texts
 
 
-def test_multiple_grants_all_see_question_and_answerer_is_recorded(client):
+def test_multiple_grants_require_explicit_recipient_and_enforce_it(client):
     token = signup(client)["token"]
     j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()["journey_id"]
     c1 = provision(client)
@@ -196,17 +200,39 @@ def test_multiple_grants_all_see_question_and_answerer_is_recorded(client):
     listed = client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()
     assert {d["name"] for d in listed["linked_doctors"]} == {"Dr Test", "Dr Second"}
 
-    # Current v1 behavior: a question is visible to every granted clinician;
-    # the answerer is recorded by name. No per-doctor recipient choice yet.
-    qid = client.post(f"/journeys/{j}/doctor-questions", json={"question": "Is fasting needed before the test?"}, headers=auth(token)).json()["id"]
-    for doc in (doc1, doc2):
-        items = client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc)).json()["items"]
-        assert items and items[0]["id"] == qid
+    # The question goes to the chosen recipient only - no broadcast.
+    q = client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c2.id, "question": "Is fasting needed before the test?"}, headers=auth(token))
+    assert q.status_code == 201 and q.json()["recipient_name"] == "Dr Second"
+    qid = q.json()["id"]
+
+    # The other granted clinician can review the journey but CANNOT see the question.
+    assert client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc1)).json()["items"] == []
+    # ...and cannot answer it (404, existence not revealed).
+    assert client.post(f"/clinician/questions/{qid}/answer", json={"answer": "sneaky"}, headers=auth(doc1)).status_code == 404
+    # The recipient sees and answers it.
+    assert client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc2)).json()["items"][0]["id"] == qid
     client.post(f"/clinician/questions/{qid}/answer", json={"answer": "Yes, 8 hours."}, headers=auth(doc2))
     got = client.get(f"/journeys/{j}/doctor-questions", headers=auth(token)).json()["items"][0]
-    assert got["answerer_name"] == "Dr Second"
-    # The other clinician sees the answered state too.
-    assert client.get(f"/clinician/journeys/{j}/questions", headers=auth(doc1)).json()["items"][0]["answered"] is True
+    assert got["answerer_name"] == "Dr Second" and got["recipient_name"] == "Dr Second"
+    # Roster counts only questions addressed to that clinician.
+    assert client.get("/clinician/patients", headers=auth(doc1)).json()["open_questions_total"] == 0
+    assert client.get("/clinician/patients", headers=auth(doc2)).json()["open_questions_total"] == 0  # answered now
+
+
+def test_assistant_does_not_call_generative_chat_model(client, monkeypatch):
+    # Even with a Sarvam key configured, this assistant never uses the
+    # free-form chat model: curated text verbatim + display translation only.
+    from app import voice
+    calls = []
+    monkeypatch.setattr(voice, "available", lambda: True)
+    monkeypatch.setattr(voice, "chat", lambda *a, **k: calls.append((a, k)) or "REWORDED")
+    monkeypatch.setattr(voice, "translate", lambda text, lang, source_language="en", db=None: f"[{lang}] {text}")
+    token = signup(client)["token"]
+    client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token))
+    r = chat(client, token, "What is the anomaly scan?", lang="ml").json()
+    assert r["source"].startswith("guidance:")
+    assert "REWORDED" not in r["answer"]
+    assert calls == []
 
 
 def test_export_and_delete_cover_chat_and_questions(client):
@@ -215,7 +241,7 @@ def test_export_and_delete_cover_chat_and_questions(client):
     c = provision(client)
     client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(token))
     chat(client, token, "When is my next appointment?")
-    client.post(f"/journeys/{j}/doctor-questions", json={"question": "Where is the lab?"}, headers=auth(token))
+    client.post(f"/journeys/{j}/doctor-questions", json={"clinician_id": c.id, "question": "Where is the lab?"}, headers=auth(token))
 
     export = client.get("/me/export", headers=auth(token))
     assert export.status_code == 200

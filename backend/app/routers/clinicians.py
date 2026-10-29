@@ -175,7 +175,7 @@ def clinician_patients(clinician: Clinician = Depends(current_clinician), db: Se
         flags = compute_flags(db, j.id, template)
         pending = [f for f in flags if not f.get("signed_off")]
         unread = db.query(CareInstruction).filter(CareInstruction.journey_id == j.id, CareInstruction.acknowledged_at.is_(None)).count()
-        open_q = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == j.id, DoctorQuestion.answer.is_(None)).count()
+        open_q = db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == j.id, DoctorQuestion.clinician_id == clinician.id, DoctorQuestion.answer.is_(None)).count()
         ga = journey_engine.gestational_age_days(j.lmp, j.edd, date.today())
         edd = j.edd or (journey_engine.edd_from_lmp(j.lmp) if j.lmp else None)
         out.append({"journey_id": j.id, "patient": j.patient.name, "weeks": ga // 7, "plus_days": ga % 7,
