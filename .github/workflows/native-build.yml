@@ -9,7 +9,7 @@ name: Native Android build (review)
 on:
   workflow_dispatch:
   push:
-    branches: [fix/reminder-gaps]
+    branches: [fix/reminder-gaps, fix/startup-cached-open]
 
 jobs:
   core:
