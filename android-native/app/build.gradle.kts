@@ -76,5 +76,7 @@ tasks.withType<Test>().configureEach {
     if (name == "testDebugUnitTest" && providers.gradleProperty("caretrail.skipScreenshotTest").isPresent) {
         exclude("com/caretrail/app/DoseCardScreenshotTest.class")
         exclude("com/caretrail/app/DoseCardScreenshotTest\$*")
+        exclude("com/caretrail/app/StartupStaleScreenshotTest.class")
+        exclude("com/caretrail/app/StartupStaleScreenshotTest\$*")
     }
 }

@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 sealed interface JourneyState {
     data object Loading : JourneyState
     data object Empty : JourneyState
-    data class Ready(val journey: Journey, val nextUp: NextUp?, val offline: Boolean) : JourneyState
+    data class Ready(val journey: Journey, val nextUp: NextUp?, val offline: Boolean, val stale: Boolean = false) : JourneyState
     data class Failed(val message: String) : JourneyState
 }
 
@@ -62,9 +62,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshJourney() {
         viewModelScope.launch {
             // Show the last good copy immediately while the network refresh runs,
-            // so a cold open does not block on the server waking up.
+            // so a cold open does not block on the server waking up. Marked stale (not offline): last-synced copy, device may be online.
             if (_journey.value !is JourneyState.Ready) {
-                repo.cachedJourney()?.let { _journey.value = JourneyState.Ready(it, repo.cachedNextUp(), offline = true) }
+                repo.cachedJourney()?.let { _journey.value = JourneyState.Ready(it, repo.cachedNextUp(), offline = false, stale = true) }
             }
             try {
                 val res = repo.myJourney()

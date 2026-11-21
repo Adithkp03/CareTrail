@@ -7,11 +7,14 @@ import kotlinx.serialization.serializer
 class Repo(val api: Api, val store: Store) {
     data class Loaded<T>(val value: T, val offline: Boolean)
 
+    // Cache is scoped to the session token: account switches and renewed tokens never read another session's records.
+    private fun scoped(key: String) = (store.token?.hashCode() ?: 0).toString() + ":" + key
+
     private inline fun <reified T> cached(key: String): T? =
-        store.getCache(key)?.let { try { AppJson.decodeFromString(serializer<T>(), it) } catch (_: Exception) { null } }
+        store.getCache(scoped(key))?.let { try { AppJson.decodeFromString(serializer<T>(), it) } catch (_: Exception) { null } }
 
     private inline fun <reified T> remember(key: String, v: T) {
-        store.putCache(key, AppJson.encodeToString(serializer<T>(), v))
+        store.putCache(scoped(key), AppJson.encodeToString(serializer<T>(), v))
     }
 
     fun cachedJourney(): Journey? = cached("journey")
