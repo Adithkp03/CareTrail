@@ -14,6 +14,10 @@ class Repo(val api: Api, val store: Store) {
         store.putCache(key, AppJson.encodeToString(serializer<T>(), v))
     }
 
+    fun cachedJourney(): Journey? = cached("journey")
+
+    fun cachedNextUp(): NextUp? = cached("nextup")
+
     suspend fun myJourney(): Loaded<Journey?> {
         return try {
             val list = api.journeys()
