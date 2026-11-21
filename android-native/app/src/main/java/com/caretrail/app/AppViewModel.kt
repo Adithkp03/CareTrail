@@ -61,6 +61,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshJourney() {
         viewModelScope.launch {
+            // Show the last good copy immediately while the network refresh runs,
+            // so a cold open does not block on the server waking up.
+            if (_journey.value !is JourneyState.Ready) {
+                repo.cachedJourney()?.let { _journey.value = JourneyState.Ready(it, repo.cachedNextUp(), offline = true) }
+            }
             try {
                 val res = repo.myJourney()
                 val j = res.value
