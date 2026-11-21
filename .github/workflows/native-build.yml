@@ -1,0 +1,82 @@
+# Review-branch verification for the native Android app: compiles, runs JVM unit
+# tests, builds the debug APK, and records a Roborazzi screenshot of the login
+# screen so the Google sign-in UI is pixel-checked without a physical device.
+# Branch-scoped on purpose: no deploy, no production effect. The core job signs
+# its debug APK with the repo-secret debug keystore (ANDROID_DEBUG_KEYSTORE_BASE64)
+# so CI APKs keep the same signing identity as the Nov 20 delivered debug build;
+# the secret value never appears in logs or artifacts, only its public SHA-1.
+# The screenshot harness runs in its own job so a UI-harness failure can never
+# block the core compile/unit-test/APK evidence.
+name: Native Android build (review)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/google-sign-in]
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Restore the stable debug keystore from the encrypted repo secret so this
+      # APK signs with the same identity as the delivered Nov 20 debug build.
+      # The key material never prints; the SHA-1 fingerprint is public cert
+      # metadata (visible in any signed APK) and is logged for OAuth client setup.
+      - name: Restore stable debug keystore
+        run: |
+          mkdir -p "$HOME/.android"
+          echo "${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}" | base64 -d > "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey | grep -i 'SHA1:'
+
+      - name: Unit tests (excluding screenshot harness) and debug APK
+        working-directory: android-native
+        run: gradle :app:testDebugUnitTest :app:assembleDebug -Pcaretrail.skipScreenshotTest --no-daemon --console=plain
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-core
+          path: |
+            android-native/app/build/outputs/apk/debug/app-debug.apk
+            android-native/app/build/reports/tests/
+            android-native/app/build/test-results/testDebugUnitTest/
+
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # Dummy anon key makes the Google section visible in the rendered login
+      # screen. Build-time flag only; no network calls in a static render.
+      - name: Record login-screen screenshot
+        working-directory: android-native
+        run: gradle :app:recordRoborazziDebug -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-screenshot
+          path: |
+            android-native/app/build/outputs/roborazzi/
+            android-native/app/build/reports/tests/
+            android-native/app/build/test-results/testDebugUnitTest/

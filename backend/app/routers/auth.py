@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -68,6 +69,10 @@ class SupabaseExchangeRequest(BaseModel):
     access_token: str
     consent: bool = False
     language: str = "en"
+    # Web clients omit this (default True preserves current behavior). Native
+    # sends create=False first to probe: an unknown identity must get an
+    # explicit link-or-create choice instead of silent provisioning.
+    create: bool = True
 
 
 @router.post("/supabase")
@@ -86,6 +91,8 @@ def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_d
 
     patient = db.query(Patient).filter(Patient.supabase_id == ident["sub"]).first()
     if patient is None:
+        if not body.create:
+            raise HTTPException(status_code=404, detail="no_caretrail_account")
         if not body.consent:
             raise HTTPException(status_code=422, detail="Consent is required to create an account")
         # Phone comes from a Supabase phone claim when present; otherwise a
@@ -106,4 +113,47 @@ def supabase_exchange(body: SupabaseExchangeRequest, db: Session = Depends(get_d
         )
         db.add(patient)
         db.commit()
+    return _issue_token(db, patient)
+
+
+class SupabaseLinkRequest(BaseModel):
+    access_token: str
+    phone: str
+    password: str
+
+
+@router.post("/link-supabase")
+def link_supabase(body: SupabaseLinkRequest, request: Request, db: Session = Depends(get_db)):
+    """Link a verified Supabase identity (e.g. Google) to an existing
+    phone/password account. Proof of the existing account (its password) is
+    required. Identities are never matched by email."""
+    ratelimit.check(db, request, "login_failed", body.phone)
+    try:
+        ident = verify_access_token(body.access_token)
+    except RuntimeError:
+        raise HTTPException(status_code=501, detail="Supabase auth is not configured on this server")
+    except jwt.PyJWKClientConnectionError:
+        raise HTTPException(status_code=503, detail="Identity verification is temporarily unavailable")
+    except (jwt.PyJWTError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid Supabase token")
+
+    patient = db.query(Patient).filter(Patient.phone == body.phone.strip()).first()
+    if patient is None or not verify_password(body.password, patient.password_hash):
+        ratelimit.record(db, request, "login_failed", body.phone)
+        raise HTTPException(status_code=401, detail="Wrong phone or password")
+    if patient.supabase_id and patient.supabase_id != ident["sub"]:
+        raise HTTPException(status_code=409, detail="This account is already linked to a different sign-in identity")
+    other = db.query(Patient).filter(Patient.supabase_id == ident["sub"]).first()
+    if other is not None and other.id != patient.id:
+        raise HTTPException(status_code=409, detail="This identity is already linked to a different CareTrail profile")
+    patient.supabase_id = ident["sub"]
+    if not patient.email and ident["email"]:
+        patient.email = ident["email"]
+    try:
+        db.commit()
+    except IntegrityError:
+        # Concurrent link of the same identity to another profile: the unique
+        # supabase_id column won; report the conflict instead of overwriting.
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This identity is already linked to a different CareTrail profile")
     return _issue_token(db, patient)

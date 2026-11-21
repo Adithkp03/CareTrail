@@ -11,6 +11,7 @@ import com.caretrail.app.data.NextUp
 import com.caretrail.app.data.Repo
 import com.caretrail.app.data.SessionExpired
 import com.caretrail.app.data.Store
+import com.caretrail.app.data.SupabaseAuth
 import com.caretrail.app.data.Translator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val loggedIn: StateFlow<Boolean> = _loggedIn
 
     val api = Api(BuildConfig.API_URL, { store.token }, { expireSession() })
+    val supabaseAuth = SupabaseAuth(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
     val repo = Repo(api, store)
     val translator = Translator(api, store, viewModelScope)
 
