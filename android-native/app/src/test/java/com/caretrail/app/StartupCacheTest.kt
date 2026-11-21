@@ -20,8 +20,16 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Cache-first startup (PR55): the last good copy renders while the network
  * refresh runs. These tests pin the session-safety boundaries of that cache:
- * it is scoped to the session token, so a different login, an expired session,
- * or a logout can never surface another session's records.
+ * it is scoped to a truncated SHA-256 of the session token (collision-resistant,
+ * never the raw token), so a different login, an expired session, or a logout
+ * can never surface another session's records.
+ *
+ * Intended offline privacy semantics: while a refresh is still in flight (or the
+ * device is offline), the cached copy IS visible to this session's device holder
+ * as a last-synced copy. A revoked-but-not-yet-detected session therefore behaves
+ * exactly like offline until the server answers; the cache becomes unreachable
+ * only once a 401 has cleared the token. refreshShowsSessionCacheUntilServerValidates
+ * pins both sides of that contract.
  */
 @RunWith(RobolectricTestRunner::class)
 class StartupCacheTest {
@@ -34,7 +42,13 @@ class StartupCacheTest {
 
     private val journeyJson = AppJson.encodeToString(serializer<Journey>(), Journey(journey_id = "j1"))
     private fun repo(store: Store) = Repo(Api("http://127.0.0.1:1", { store.token }, {}), store)
-    private fun seed(store: Store, token: String) = store.putCache("${token.hashCode()}:journey", journeyJson)
+    // Same derivation as Repo.scoped: truncated SHA-256 of the token, never the raw token.
+    private fun scopedKey(token: String, key: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(token.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }.take(16) + ":" + key
+    }
+    private fun seed(store: Store, token: String) = store.putCache(scopedKey(token, "journey"), journeyJson)
 
     @Test fun cachedJourneyIsEmptyBeforeFirstSync() {
         val store = newStore("a").also { it.token = "tokA" }
@@ -121,5 +135,55 @@ class StartupCacheTest {
         val res = repo(store).myJourney()
         assertTrue(res.offline)
         assertEquals("j1", res.value?.journey_id)
+    }
+
+    @Test fun cacheKeysNeverContainTheRawToken() {
+        // The scope prefix must not leak the credential into preference keys.
+        val store = newStore("j").also { it.token = "tok-secret-123" }
+        seed(store, "tok-secret-123")
+        val prefs = ApplicationProvider.getApplicationContext<Application>()
+            .getSharedPreferences("test_j", 0)
+        assertTrue(prefs.all.keys.any { it.endsWith(":journey") })
+        assertTrue(prefs.all.keys.none { it.contains("tok-secret-123") })
+        // Distinct tokens always map to distinct scopes (64-bit SHA-256 prefix).
+        assertNotEquals(scopedKey("tokA", "journey"), scopedKey("tokB", "journey"))
+        assertEquals(scopedKey("tokA", "journey"), scopedKey("tokA", "journey"))
+    }
+
+    @Test fun refreshShowsSessionCacheUntilServerValidates() = runTest {
+        // Pre-validation window: the 401 is still in flight, so the last synced
+        // copy remains readable to the session holder. Once the server rejects
+        // the session, the token is cleared and the cache is unreachable.
+        val hold = java.util.concurrent.CountDownLatch(1)
+        val server = MockWebServer()
+        server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+            override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                hold.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                return MockResponse().setResponseCode(401).setBody("{\"detail\":\"revoked\"}")
+            }
+        }
+        server.start()
+        try {
+            val store = newStore("k").also { it.token = "tokA" }
+            seed(store, "tokA")
+            val repo = Repo(Api(server.url("/").toString(), { store.token }, { store.token = null }), store)
+            val job = kotlinx.coroutines.launch(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { repo.myJourney() }
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                var waited = 0
+                while (server.requestCount == 0 && waited < 5000) { Thread.sleep(20); waited += 20 }
+            }
+            assertTrue(server.requestCount > 0)
+            // Request is at the server, answer still pending: cache still visible.
+            assertNotNull(repo.cachedJourney())
+            hold.countDown()
+            job.join()
+            // The 401 cleared the token: the same cache entry is now unreachable.
+            assertNull(repo.cachedJourney())
+        } finally {
+            hold.countDown()
+            server.shutdown()
+        }
     }
 }
