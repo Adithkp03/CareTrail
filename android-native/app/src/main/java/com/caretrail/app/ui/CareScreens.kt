@@ -91,7 +91,7 @@ fun RemindersScreen(vm: AppViewModel, nav: Nav, dailyReminders: () -> Unit = {})
         val attention = att.overdueTitles.map { "${l.t("overdueMilestone")}: ${l.tr(it)}" } +
             att.unresolved.map { "${l.t("reviewPending")}: ${l.tr(it.label)} (${Logic.fmtValue(it.value)} ${it.unit})" }
         Page(title = l.tr("Care reminders"), back = nav.home) {
-            PrimaryButton(l.tr("Medication reminders"), onClick = dailyReminders)
+            PrimaryButton(l.tr("Medication and hydration reminders"), onClick = dailyReminders)
             Spacer(gap(8))
             CTCard {
                 SectionTitle(l.t("attentionNeeded") + if (attention.isNotEmpty()) " · ${attention.size}" else "")

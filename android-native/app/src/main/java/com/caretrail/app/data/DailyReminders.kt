@@ -24,9 +24,34 @@ data class MedicationReminder(
 data class DailyReminderPlan(
     val setupDone: Boolean = false,
     val medications: List<MedicationReminder> = emptyList(),
+    val hydration: HydrationReminder = HydrationReminder(),
+)
+
+@Serializable
+data class HydrationReminder(
+    val enabled: Boolean = false,
+    val start: String = "08:00",
+    val end: String = "20:00",
+    val intervalMinutes: Int = 120,
 )
 
 object ReminderTimes {
+    fun nextHydration(h: HydrationReminder, now: LocalDateTime): LocalDateTime? {
+        if (!h.enabled || h.intervalMinutes < 30) return null
+        val start = LocalTime.parse(h.start)
+        val end = LocalTime.parse(h.end)
+        if (end <= start) return null
+        for (offset in 0L..1L) {
+            val date = now.toLocalDate().plusDays(offset)
+            var time = date.atTime(start)
+            while (time < date.atTime(end)) {
+                if (time > now) return time
+                time = time.plusMinutes(h.intervalMinutes.toLong())
+            }
+        }
+        return null
+    }
+
     fun next(m: MedicationReminder, now: LocalDateTime): LocalDateTime? {
         if (!m.enabled || m.weekdays.isEmpty()) return null
         val start = LocalDate.parse(m.start)

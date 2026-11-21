@@ -37,7 +37,9 @@ object DailyReminderScheduler {
     fun deactivate(ctx: Context) {
         prefs(ctx).edit().remove("active").apply()
         alarms(ctx).cancel(pending(ctx, "", 0))
+        alarms(ctx).cancel(hydrationPending(ctx, "", 0))
         NotificationManagerCompat.from(ctx).cancel(2001)
+        NotificationManagerCompat.from(ctx).cancel(2002)
     }
 
     private fun alarms(ctx: Context) = ctx.getSystemService(AlarmManager::class.java)
@@ -47,12 +49,18 @@ object DailyReminderScheduler {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    fun schedule(ctx: Context) {
+    fun schedule(ctx: Context, only: String? = null) {
         val owner = prefs(ctx).getString("active", null) ?: return
-        alarms(ctx).cancel(pending(ctx, owner, 0))
+        if (only != "hydration") alarms(ctx).cancel(pending(ctx, owner, 0))
+        if (only != "medication") alarms(ctx).cancel(hydrationPending(ctx, owner, 0))
         if (Store(ctx).token == null) return
         val plan = plan(ctx, owner)
         val now = LocalDateTime.now()
+        if (only != "medication") ReminderTimes.nextHydration(plan.hydration, now)?.let { next ->
+            val due = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            alarms(ctx).setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, due, hydrationPending(ctx, owner, due))
+        }
+        if (only == "hydration") return
         val candidates = plan.medications.flatMap { m ->
             listOfNotNull(ReminderTimes.next(m, now), m.refillDate.takeIf { m.enabled && it.isNotBlank() }
                 ?.let { LocalDate.parse(it).atTime(9, 0) }?.takeIf { it > now })
@@ -65,6 +73,21 @@ object DailyReminderScheduler {
     fun receive(ctx: Context, intent: Intent) {
         val owner = prefs(ctx).getString("active", null) ?: return
         if (Store(ctx).token == null) { deactivate(ctx); return }
+        if (intent.action == "com.caretrail.HYDRATION" && intent.getStringExtra("owner") == owner) {
+            val h = plan(ctx, owner).hydration
+            val time = java.time.LocalTime.now()
+            val age = System.currentTimeMillis() - intent.getLongExtra("due", 0)
+            if (h.enabled && age in 0..3_600_000 && time >= java.time.LocalTime.parse(h.start) && time < java.time.LocalTime.parse(h.end) && Notifier.granted(ctx)) {
+                val manager = ctx.getSystemService(NotificationManager::class.java)
+                manager.createNotificationChannel(NotificationChannel("hydration", "Hydration reminders", NotificationManager.IMPORTANCE_DEFAULT))
+                val open = PendingIntent.getActivity(ctx, 2002, Intent(ctx, MainActivity::class.java).putExtra("daily_reminders", true), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                val notification = NotificationCompat.Builder(ctx, "hydration")
+                    .setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("A gentle hydration reminder")
+                    .setContentText("Take a moment for some water, following your care team's guidance.")
+                    .setContentIntent(open).setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).build()
+                try { NotificationManagerCompat.from(ctx).notify(2002, notification) } catch (_: SecurityException) { }
+            }
+        }
         if (intent.action == "com.caretrail.DAILY" && intent.getStringExtra("owner") == owner) {
             val due = intent.getLongExtra("due", 0)
             // Do not deliver stale reminders after a long device shutdown or clock jump.
@@ -81,8 +104,17 @@ object DailyReminderScheduler {
                 try { NotificationManagerCompat.from(ctx).notify(2001, notification) } catch (_: SecurityException) { }
             }
         }
-        schedule(ctx)
+        schedule(ctx, when (intent.action) {
+            "com.caretrail.HYDRATION" -> "hydration"
+            "com.caretrail.DAILY" -> "medication"
+            else -> null
+        })
     }
+
+    private fun hydrationPending(ctx: Context, owner: String, due: Long) = PendingIntent.getBroadcast(
+        ctx, 2002, Intent(ctx, DailyReminderReceiver::class.java).setAction("com.caretrail.HYDRATION")
+            .putExtra("owner", owner).putExtra("due", due), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 }
 
 class DailyReminderReceiver : BroadcastReceiver() {
