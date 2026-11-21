@@ -56,7 +56,7 @@ jobs:
           APK=android-native/app/build/outputs/apk/debug/app-debug.apk
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --print-certs "$APK"
-          "$APKSIGNER" verify --print-certs "$APK" | grep -q 'E9:37:18:40:69:75:BF:0E:18:A2:C9:F0:01:CB:6F:EC:E3:E1:AE:AE:F9:A6:DD:61:08:6A:16:7F:DD:EF:08:64'
+          "$APKSIGNER" verify --print-certs "$APK" | grep -q 'e93718406975bf0e18a2c9f001cb6fece3e1aeaef9a6dd61086a167fddef0864'
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -66,4 +66,5 @@ jobs:
             android-native/app/build/outputs/apk/debug/app-debug.apk
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
+
 
