@@ -21,10 +21,20 @@ data class MedicationReminder(
 )
 
 @Serializable
+data class DoseRecord(
+    val medicationId: String,
+    val medicationName: String,
+    val scheduledAt: String,
+    val status: String,
+    val markedAt: String,
+)
+
+@Serializable
 data class DailyReminderPlan(
     val setupDone: Boolean = false,
     val medications: List<MedicationReminder> = emptyList(),
     val hydration: HydrationReminder = HydrationReminder(),
+    val doses: List<DoseRecord> = emptyList(),
 )
 
 @Serializable
@@ -63,4 +73,14 @@ object ReminderTimes {
             else m.times.map { date.atTime(LocalTime.parse(it)) }
         }.filter { it > now }.minOrNull()
     }
+
+    fun dosesOn(m: MedicationReminder, date: LocalDate): List<LocalDateTime> {
+        if (!m.enabled || m.weekdays.isEmpty()) return emptyList()
+        val start = LocalDate.parse(m.start)
+        val end = m.end.takeIf { it.isNotBlank() }?.let(LocalDate::parse)
+        if (date < start || (end != null && date > end)) return emptyList()
+        if (date.dayOfWeek.value !in m.weekdays) return emptyList()
+        return m.times.map { date.atTime(LocalTime.parse(it)) }
+    }
 }
+

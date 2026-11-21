@@ -39,12 +39,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val inbox: StateFlow<Inbox?> = _inbox
 
     private fun expireSession() {
-        DailyReminderScheduler.deactivate(getApplication())
+        // Network session expiry is not a deliberate logout: keep local reminders running.
         store.token = null
         _loggedIn.value = false
     }
 
-    fun onSignedIn(token: String) {
+    fun onSignedIn(token: String, patientId: String = "") {
+        DailyReminderScheduler.onExplicitSignIn(getApplication(), patientId)
         store.token = token
         _journey.value = JourneyState.Loading
         _loggedIn.value = true
