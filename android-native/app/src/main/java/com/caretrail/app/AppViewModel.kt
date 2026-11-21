@@ -1,3 +1,4 @@
+
 package com.caretrail.app
 
 import android.app.Application
@@ -23,12 +24,12 @@ sealed interface JourneyState {
     data class Failed(val message: String) : JourneyState
 }
 
-class AppViewModel(app: Application) : AndroidViewModel(app) {
+class AppViewModel(app: Application, apiBase: String = BuildConfig.API_URL) : AndroidViewModel(app) {
     val store = Store(app)
     private val _loggedIn = MutableStateFlow(store.token != null)
     val loggedIn: StateFlow<Boolean> = _loggedIn
 
-    val api = Api(BuildConfig.API_URL, { store.token }, { expireSession() })
+    val api = Api(apiBase, { store.token }, { expireSession() })
     val repo = Repo(api, store)
     val translator = Translator(api, store, viewModelScope)
 
@@ -62,7 +63,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshJourney() {
         viewModelScope.launch {
             // Show the last good copy immediately while the network refresh runs,
-            // so a cold open does not block on the server waking up. Marked stale (not offline): last-synced copy, device may be online.
+            // so a cold open does not block on the server waking up. Marked stale (not offline): the last-synced copy stays visible to this session's device holder until the server answers; a 401 then clears the token and the cache becomes unreachable.
             if (_journey.value !is JourneyState.Ready) {
                 repo.cachedJourney()?.let { _journey.value = JourneyState.Ready(it, repo.cachedNextUp(), offline = false, stale = true) }
             }
