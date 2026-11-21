@@ -1,44 +1,121 @@
 package com.caretrail.app
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
+import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
+import com.caretrail.app.data.AppJson
+import com.caretrail.app.data.Journey
 import com.caretrail.app.ui.CareTrailTheme
-import com.caretrail.app.ui.L
-import com.caretrail.app.ui.StaleRefreshNote
+import com.caretrail.app.ui.HomeScreen
+import com.caretrail.app.ui.JourneyGate
+import com.caretrail.app.ui.Nav
 import com.github.takahirom.roborazzi.captureRoboImage
+import kotlinx.serialization.serializer
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
-/** Pixels for the cache-first refresh state: the updating note above cached content. */
+/**
+ * Pixels and semantics for the cache-first refresh state, using the REAL home
+ * screen inside JourneyGate (not a placeholder): while the refresh is held
+ * in flight by the server, the last synced copy renders with the updating
+ * note, and the content still receives offline=false (network-backed actions
+ * keep their normal behavior; cache-only indicators stay hidden).
+ */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class StartupStaleScreenshotTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    @Test
-    fun staleRefreshStateShowsUpdatingNoteAboveContent() {
-        composeRule.setContent {
-            val vm = AppViewModel(ApplicationProvider.getApplicationContext())
-            val l = L("en", emptyMap(), vm)
-            CareTrailTheme {
-                Column(Modifier.fillMaxSize().padding(16.dp)) {
-                    StaleRefreshNote(l, Modifier.padding(bottom = 8.dp))
-                    Box(Modifier.weight(1f)) { Text("Cached timeline content") }
-                }
+    // Same derivation as Repo.scoped: truncated SHA-256 of the token.
+    private fun scopedKey(token: String, key: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(token.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }.take(16) + ":" + key
+    }
+
+    private fun fakeNav() = Nav(
+        home = {}, timeline = {}, reminders = {}, movements = {}, care = {}, prep = {},
+        doctor = {}, account = {}, dataSafety = {}, intake = {}, registration = {}, rh = {},
+        danger = {}, birth = {}, growth = {}, vaccines = {}, vault = {}, referral = {},
+        facilities = {}, wellness = {}, recovery = {}, mindCheck = {}, bpLog = {},
+        familyPlanning = {}, mindfulness = {}, chat = {}, doctorQuestions = {},
+        newJourney = {}, back = {}, milestone = {}, upload = {},
+    )
+
+    /** Server that holds every request until released: models the pre-validation window. */
+    private fun hangingServer(hold: java.util.concurrent.CountDownLatch): MockWebServer {
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                hold.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                return MockResponse().setResponseCode(500)
             }
         }
-        composeRule.onRoot().captureRoboImage()
+        server.start()
+        return server
+    }
+
+    private fun seededVm(server: MockWebServer): AppViewModel {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val vm = AppViewModel(app, server.url("/").toString().removeSuffix("/"))
+        vm.store.token = "tok-pixel"
+        val journeyJson = AppJson.encodeToString(serializer<Journey>(), Journey(journey_id = "j1"))
+        vm.store.putCache(scopedKey("tok-pixel", "journey"), journeyJson)
+        return vm
+    }
+
+    @Test
+    fun staleRefreshStateShowsUpdatingNoteAboveRealHomeContent() {
+        val hold = java.util.concurrent.CountDownLatch(1)
+        val server = hangingServer(hold)
+        try {
+            val vm = seededVm(server)
+            composeRule.setContent { CareTrailTheme { HomeScreen(vm, fakeNav()) } }
+            composeRule.waitUntil(15_000) {
+                (vm.journey.value as? JourneyState.Ready)?.stale == true
+            }
+            composeRule.waitForIdle()
+            composeRule.onRoot().captureRoboImage()
+        } finally {
+            hold.countDown()
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun staleStatePassesOfflineFalseToContentAndShowsNote() {
+        val hold = java.util.concurrent.CountDownLatch(1)
+        val server = hangingServer(hold)
+        try {
+            val vm = seededVm(server)
+            var seenOffline: Boolean? = null
+            composeRule.setContent {
+                JourneyGate(vm, onEmpty = {}) { _, _, offline ->
+                    seenOffline = offline
+                }
+            }
+            composeRule.waitUntil(15_000) {
+                (vm.journey.value as? JourneyState.Ready)?.stale == true
+            }
+            composeRule.waitForIdle()
+            // Stale is NOT offline: content actions keep their online behavior.
+            assertEquals(false, seenOffline)
+            composeRule.onNodeWithText("Showing your last synced information - updating...")
+                .assertExists()
+        } finally {
+            hold.countDown()
+            server.shutdown()
+        }
     }
 }
