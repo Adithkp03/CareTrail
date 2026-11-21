@@ -91,6 +91,15 @@ class Api(
     suspend fun signup(name: String, phone: String, password: String, language: String, consent: Boolean): TokenResponse =
         send("POST", "/auth/signup", obj { put("name", name); put("phone", phone); put("password", password); put("language", language); put("consent", consent) }, serializer(), auth = false)
 
+    /** Probe-first Google flow: create=false returns 404 "no_caretrail_account" for an
+     *  unknown identity so the UI can offer the explicit link-or-create choice. */
+    suspend fun supabaseExchange(accessToken: String, consent: Boolean, language: String, create: Boolean): TokenResponse =
+        send("POST", "/auth/supabase", obj { put("access_token", accessToken); put("consent", consent); put("language", language); put("create", create) }, serializer(), auth = false)
+
+    /** Link a verified Google identity to an existing phone/password account (password proof). */
+    suspend fun linkSupabase(accessToken: String, phone: String, password: String): TokenResponse =
+        send("POST", "/auth/link-supabase", obj { put("access_token", accessToken); put("phone", phone); put("password", password) }, serializer(), auth = false)
+
     suspend fun seedDemo() { send("POST", "/demo/seed", null, serializer<JsonElement>(), auth = false) }
 
     suspend fun me(): Me = get("/auth/me", serializer())
