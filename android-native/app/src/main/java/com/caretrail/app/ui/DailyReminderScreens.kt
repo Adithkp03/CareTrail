@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -18,6 +19,7 @@ import com.caretrail.app.AppViewModel
 import com.caretrail.app.DailyReminderScheduler
 import com.caretrail.app.data.*
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.UUID
 
@@ -60,6 +62,10 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
             }
             PrimaryButton(l.tr(if (plan.medications.isEmpty()) "Add medication" else "Add another medication")) {
                 editing = MedicationReminder(id = UUID.randomUUID().toString(), name = "")
+            }
+            Spacer(gap(12))
+            TodayDoses(plan) { rec ->
+                save(plan.copy(doses = (plan.doses.filterNot { it.medicationId == rec.medicationId && it.scheduledAt == rec.scheduledAt } + rec).takeLast(500)))
             }
             Spacer(gap(12))
             HydrationSettings(plan.hydration) { save(plan.copy(hydration = it)) }
@@ -176,6 +182,32 @@ private fun MedicationEditor(initial: MedicationReminder, error: String, cancel:
 }
 
 @Composable
+internal fun TodayDoses(plan: DailyReminderPlan, mark: (DoseRecord) -> Unit) {
+    val today = plan.medications.flatMap { m ->
+        ReminderTimes.dosesOn(m, LocalDate.now()).map { t ->
+            Triple(m, t, plan.doses.lastOrNull { it.medicationId == m.id && it.scheduledAt == t.toString() })
+        }
+    }.sortedBy { it.second }
+    if (today.isEmpty()) return
+    CTCard {
+        SectionTitle("Today's doses")
+        today.forEach { (m, t, rec) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${m.name} · ${t.toLocalTime()}")
+                    if (rec != null) Muted(if (rec.status == "taken") "Marked taken" else "Marked skipped")
+                }
+                if (rec == null) {
+                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "taken", LocalDateTime.now().toString())) }) { Text("Taken") }
+                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "skipped", LocalDateTime.now().toString())) }) { Text("Skip") }
+                }
+            }
+        }
+        Muted("This is your own record, kept on this phone (the most recent 500 marks). For any dose concerns, follow your care team's guidance.")
+    }
+}
+
+@Composable
 fun DateChoice(label: String, value: String, change: (String) -> Unit) {
     val ctx = LocalContext.current
     TextButton(onClick = {
@@ -192,3 +224,4 @@ fun TimeChoice(label: String, value: String, change: (String) -> Unit) {
         TimePickerDialog(ctx, { _, hour, minute -> change(String.format(java.util.Locale.ROOT, "%02d:%02d", hour, minute)) }, time.hour, time.minute, true).show()
     }) { Text("$label · $value") }
 }
+

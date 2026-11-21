@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("io.github.takahirom.roborazzi") version "1.41.0"
 }
 
 android {
@@ -35,7 +36,10 @@ android {
         compose = true
         buildConfig = true
     }
-    testOptions { unitTests.isReturnDefaultValues = true }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -58,4 +62,19 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.41.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.41.0")
+}
+
+// Screenshot harness isolation: the Roborazzi UI test runs only via the
+// recordRoborazziDebug task (screenshot CI job). Core unit-test/APK jobs pass
+// -Pcaretrail.skipScreenshotTest so a UI-harness failure cannot block them.
+tasks.withType<Test>().configureEach {
+    if (name == "testDebugUnitTest" && providers.gradleProperty("caretrail.skipScreenshotTest").isPresent) {
+        exclude("com/caretrail/app/DoseCardScreenshotTest.class")
+        exclude("com/caretrail/app/DoseCardScreenshotTest\$*")
+    }
 }

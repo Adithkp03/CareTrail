@@ -31,11 +31,26 @@ object DailyReminderScheduler {
 
     fun activate(ctx: Context, owner: String) {
         prefs(ctx).edit().putString("active", owner).apply()
+        prefs(ctx).getString("last_patient", null)?.let { prefs(ctx).edit().putString("owner_patient", it).apply() }
         schedule(ctx)
     }
 
+    // Explicit sign-in by a different patient stops the previous patient's reminders on this
+    // device. Session expiry is not a sign-in, so alarms survive it; logout() deactivates too.
+    fun onExplicitSignIn(ctx: Context, patientId: String) {
+        if (patientId.isBlank()) return
+        val ownerPatient = prefs(ctx).getString("owner_patient", null)
+        if (ownerPatient != null && ownerPatient != patientId) deactivate(ctx)
+        prefs(ctx).edit().putString("last_patient", patientId).apply()
+    }
+
+    fun setupDone(ctx: Context): Boolean {
+        val owner = prefs(ctx).getString("active", null) ?: return false
+        return plan(ctx, owner).setupDone
+    }
+
     fun deactivate(ctx: Context) {
-        prefs(ctx).edit().remove("active").apply()
+        prefs(ctx).edit().remove("active").remove("owner_patient").apply()
         alarms(ctx).cancel(pending(ctx, "", 0))
         alarms(ctx).cancel(hydrationPending(ctx, "", 0))
         NotificationManagerCompat.from(ctx).cancel(2001)
@@ -53,7 +68,6 @@ object DailyReminderScheduler {
         val owner = prefs(ctx).getString("active", null) ?: return
         if (only != "hydration") alarms(ctx).cancel(pending(ctx, owner, 0))
         if (only != "medication") alarms(ctx).cancel(hydrationPending(ctx, owner, 0))
-        if (Store(ctx).token == null) return
         val plan = plan(ctx, owner)
         val now = LocalDateTime.now()
         if (only != "medication") ReminderTimes.nextHydration(plan.hydration, now)?.let { next ->
@@ -72,7 +86,6 @@ object DailyReminderScheduler {
 
     fun receive(ctx: Context, intent: Intent) {
         val owner = prefs(ctx).getString("active", null) ?: return
-        if (Store(ctx).token == null) { deactivate(ctx); return }
         if (intent.action == "com.caretrail.HYDRATION" && intent.getStringExtra("owner") == owner) {
             val h = plan(ctx, owner).hydration
             val time = java.time.LocalTime.now()
@@ -122,3 +135,4 @@ class DailyReminderReceiver : BroadcastReceiver() {
         DailyReminderScheduler.receive(context, intent)
     }
 }
+

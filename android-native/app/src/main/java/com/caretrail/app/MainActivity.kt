@@ -55,13 +55,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
     val nav = rememberNavController()
+    val appCtx = androidx.compose.ui.platform.LocalContext.current
     val loggedIn by vm.loggedIn.collectAsState()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
 
     // Session changes drive navigation: sign-in lands on Home, sign-out/expiry on Login.
     LaunchedEffect(loggedIn) {
-        if (loggedIn) nav.navigate(if (openDailyReminders) "daily_reminders" else "daily_setup") { popUpTo(0) { inclusive = true } }
+        if (loggedIn) nav.navigate(
+            if (openDailyReminders) "daily_reminders"
+            else if (DailyReminderScheduler.setupDone(appCtx)) Routes.HOME
+            else "daily_setup",
+        ) { popUpTo(0) { inclusive = true } }
         else nav.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
     }
 
@@ -155,3 +160,4 @@ private fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
         }
     }
 }
+
