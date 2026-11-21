@@ -48,12 +48,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Closed-app appointment reminders: periodic local check, opt-in and generic text.
         ReminderWorker.schedule(applicationContext)
-        setContent { CareTrailTheme { CareTrailApp(vm) } }
+        setContent { CareTrailTheme { CareTrailApp(vm, intent.getBooleanExtra("daily_reminders", false)) } }
     }
 }
 
 @Composable
-fun CareTrailApp(vm: AppViewModel) {
+fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
     val nav = rememberNavController()
     val loggedIn by vm.loggedIn.collectAsState()
     val entry by nav.currentBackStackEntryAsState()
@@ -61,7 +61,7 @@ fun CareTrailApp(vm: AppViewModel) {
 
     // Session changes drive navigation: sign-in lands on Home, sign-out/expiry on Login.
     LaunchedEffect(loggedIn) {
-        if (loggedIn) nav.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
+        if (loggedIn) nav.navigate(if (openDailyReminders) "daily_reminders" else "daily_setup") { popUpTo(0) { inclusive = true } }
         else nav.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
     }
 
@@ -87,12 +87,14 @@ fun CareTrailApp(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
             NavHost(nav, startDestination = if (loggedIn) Routes.HOME else Routes.LOGIN) {
+                composable("daily_setup") { DailyRemindersScreen(vm, true) { nav.navigate(Routes.HOME) { popUpTo("daily_setup") { inclusive = true } } } }
+                composable("daily_reminders") { DailyRemindersScreen(vm, false) { if (!nav.popBackStack()) go(Routes.HOME) } }
                 composable(Routes.LOGIN) { LoginScreen(vm) { nav.navigate(Routes.SIGNUP) } }
                 composable(Routes.SIGNUP) { SignupScreen(vm) { nav.popBackStack() } }
                 composable(Routes.NEW_JOURNEY) { NewJourneyScreen(vm) { nav.navigate(Routes.HOME) { popUpTo(Routes.NEW_JOURNEY) { inclusive = true } } } }
                 composable(Routes.HOME) { HomeScreen(vm, callbacks) }
                 composable(Routes.TIMELINE) { TimelineScreen(vm, callbacks) }
-                composable(Routes.REMINDERS) { RemindersScreen(vm, callbacks) }
+                composable(Routes.REMINDERS) { RemindersScreen(vm, callbacks) { go("daily_reminders") } }
                 composable(Routes.MOVEMENTS) { MovementsScreen(vm, callbacks) }
                 composable(Routes.CARE) { CareScreen(vm, callbacks) }
                 composable(Routes.PREP) { PrepScreen(vm, callbacks) }
