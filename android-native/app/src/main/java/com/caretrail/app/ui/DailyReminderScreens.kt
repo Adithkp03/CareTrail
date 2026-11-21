@@ -38,12 +38,12 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
             catch (_: Exception) { error = "Could not save reminders. Please try again." }
         }
         if (editing != null) {
-            MedicationEditor(editing!!, cancel = { editing = null }) { medication ->
+            MedicationEditor(editing!!, error, cancel = { editing = null; error = "" }) { medication ->
                 val next = plan.copy(medications = plan.medications.filterNot { it.id == medication.id } + medication)
                 save(next)
                 if (error.isEmpty()) editing = null
             }
-        } else Page(title = l.tr(if (onboarding) "Set up your daily reminders" else "Medication reminders"), back = if (onboarding) null else done) {
+        } else Page(title = l.tr(if (onboarding) "Set up your daily reminders" else "Daily reminders"), back = if (onboarding) null else done) {
             Muted(l.tr("Add the medications you currently take. You can skip this and add them later."))
             Spacer(gap(12))
             plan.medications.forEach { m ->
@@ -62,13 +62,40 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
                 editing = MedicationReminder(id = UUID.randomUUID().toString(), name = "")
             }
             Spacer(gap(12))
+            HydrationSettings(plan.hydration) { save(plan.copy(hydration = it)) }
+            Spacer(gap(12))
             DailyNotificationPermission()
             if (error.isNotEmpty()) Note(error)
             Spacer(gap(12))
-            PrimaryButton(l.tr(if (plan.medications.isEmpty()) "Skip for now" else "Continue")) {
+            PrimaryButton(l.tr(if (plan.medications.isEmpty() && !plan.hydration.enabled) "Skip for now" else "Continue")) {
                 save(plan.copy(setupDone = true))
                 if (error.isEmpty()) done()
             }
+        }
+    }
+}
+
+@Composable
+private fun HydrationSettings(h: HydrationReminder, save: (HydrationReminder) -> Unit) {
+    CTCard {
+        SectionTitle("Hydration reminders")
+        Row {
+            Text("Gentle nudges for water", modifier = Modifier.weight(1f))
+            Switch(checked = h.enabled, onCheckedChange = { save(h.copy(enabled = it)) })
+        }
+        if (h.enabled) {
+            var start by remember(h.start) { mutableStateOf(h.start) }
+            var end by remember(h.end) { mutableStateOf(h.end) }
+            val valid = LocalTime.parse(end) > LocalTime.parse(start)
+            TimeChoice("First reminder", start) { start = it }
+            TimeChoice("Stop reminders", end) { end = it }
+            if (!valid) Note("Choose a stop time later than the first reminder.")
+            Text("Remind me every ${h.intervalMinutes} minutes")
+            listOf(30, 60, 90, 120, 180).forEach { minutes ->
+                TextButton(onClick = { save(h.copy(intervalMinutes = minutes)) }) { Text(if (minutes == h.intervalMinutes) "$minutes minutes ✓" else "$minutes minutes") }
+            }
+            if (start != h.start || end != h.end) PrimaryButton("Save hydration times", enabled = valid) { save(h.copy(start = start, end = end)) }
+            Muted("Reminders pause outside this time window. Follow any fluid limits your care team has given you.")
         }
     }
 }
@@ -86,7 +113,7 @@ fun DailyNotificationPermission() {
 }
 
 @Composable
-private fun MedicationEditor(initial: MedicationReminder, cancel: () -> Unit, save: (MedicationReminder) -> Unit) {
+private fun MedicationEditor(initial: MedicationReminder, error: String, cancel: () -> Unit, save: (MedicationReminder) -> Unit) {
     var step by rememberSaveable(initial.id) { mutableIntStateOf(0) }
     var name by rememberSaveable(initial.id) { mutableStateOf(initial.name) }
     var form by rememberSaveable(initial.id) { mutableStateOf(initial.form) }
@@ -140,6 +167,7 @@ private fun MedicationEditor(initial: MedicationReminder, cancel: () -> Unit, sa
             }
         }
         Spacer(gap(12))
+        if (error.isNotEmpty()) Note(error)
         PrimaryButton(if (step == 2) "Save medication reminder" else "Continue",
             enabled = name.isNotBlank() && (step != 1 || (dose.isNotBlank() && validDates && days.isNotEmpty() && times.distinct().size == times.size))) {
             if (step < 2) step++ else save(initial.copy(name = name.trim(), form = form, dose = dose.trim(), times = times.sorted(), start = start, end = end, weekdays = days.sorted(), instructions = instructions.trim(), refillDate = refill))

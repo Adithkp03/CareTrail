@@ -1,6 +1,7 @@
 package com.caretrail.app
 
 import com.caretrail.app.data.MedicationReminder
+import com.caretrail.app.data.HydrationReminder
 import com.caretrail.app.data.ReminderTimes
 import java.time.LocalDateTime
 import org.junit.Assert.*
@@ -24,5 +25,16 @@ class ReminderTimesTest {
     }
     @Test fun pausedMedicationHasNoAlarm() {
         assertNull(ReminderTimes.next(medication.copy(enabled = false), LocalDateTime.parse("2026-11-21T07:00")))
+    }
+    @Test fun hydrationWaitsUntilMorning() {
+        assertEquals(LocalDateTime.parse("2026-11-22T08:00"), ReminderTimes.nextHydration(HydrationReminder(enabled = true), LocalDateTime.parse("2026-11-21T20:00")))
+    }
+    @Test fun hydrationUsesIntervalFromStart() {
+        assertEquals(LocalDateTime.parse("2026-11-21T10:00"), ReminderTimes.nextHydration(HydrationReminder(enabled = true), LocalDateTime.parse("2026-11-21T08:01")))
+    }
+    @Test fun hydrationRejectsDisabledAndInvalidWindows() {
+        val now = LocalDateTime.parse("2026-11-21T08:01")
+        assertNull(ReminderTimes.nextHydration(HydrationReminder(), now))
+        assertNull(ReminderTimes.nextHydration(HydrationReminder(enabled = true, start = "20:00", end = "08:00"), now))
     }
 }
