@@ -8,6 +8,7 @@ import com.caretrail.app.data.Journey
 import com.caretrail.app.data.Repo
 import com.caretrail.app.data.Store
 import com.caretrail.app.data.SessionExpired
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.serializer
 import okhttp3.mockwebserver.MockResponse
@@ -167,7 +168,7 @@ class StartupCacheTest {
             val store = newStore("k").also { it.token = "tokA" }
             seed(store, "tokA")
             val repo = Repo(Api(server.url("/").toString(), { store.token }, { store.token = null }), store)
-            val job = kotlinx.coroutines.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 runCatching { repo.myJourney() }
             }
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
