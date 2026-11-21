@@ -86,7 +86,7 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
 
     suspend fun doLogin(p: String, pw: String) {
         val res = vm.api.login(p, pw)
-        vm.onSignedIn(res.token)
+        vm.onSignedIn(res.token, res.patient_id)
     }
 
     Page {
@@ -231,7 +231,7 @@ fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
             scope.launch {
                 try {
                     val res = vm.api.signup(name.trim(), phone.trim(), password, l.lang, consent)
-                    vm.onSignedIn(res.token)
+                    vm.onSignedIn(res.token, res.patient_id)
                 } catch (e: ApiException) {
                     error = if (e.message?.startsWith("An account") == true) l.t("phoneExists") else l.t("signupFailed"); busy = false
                 } catch (e: Exception) { error = l.t("signupFailed"); busy = false }

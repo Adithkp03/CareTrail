@@ -12,7 +12,7 @@ name: Native Android build (review)
 on:
   workflow_dispatch:
   push:
-    branches: [feat/google-sign-in]
+    branches: [fix/reminder-gaps, feat/google-sign-in]
 
 jobs:
   core:
