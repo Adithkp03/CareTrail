@@ -39,6 +39,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val inbox: StateFlow<Inbox?> = _inbox
 
     private fun expireSession() {
+        DailyReminderScheduler.deactivate(getApplication())
         store.token = null
         _loggedIn.value = false
     }
@@ -50,6 +51,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun logout() {
+        DailyReminderScheduler.deactivate(getApplication())
         store.clearAccount()
         _journey.value = JourneyState.Loading
         _inbox.value = null

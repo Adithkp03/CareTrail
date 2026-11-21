@@ -75,7 +75,7 @@ fun DoctorInstructions(vm: AppViewModel, journeyId: String, l: L) {
 private val Color_slate = androidx.compose.ui.graphics.Color(0xFFF8FAFC)
 
 @Composable
-fun RemindersScreen(vm: AppViewModel, nav: Nav) {
+fun RemindersScreen(vm: AppViewModel, nav: Nav, dailyReminders: () -> Unit = {}) {
     val l = rememberL(vm)
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -91,6 +91,7 @@ fun RemindersScreen(vm: AppViewModel, nav: Nav) {
         val attention = att.overdueTitles.map { "${l.t("overdueMilestone")}: ${l.tr(it)}" } +
             att.unresolved.map { "${l.t("reviewPending")}: ${l.tr(it.label)} (${Logic.fmtValue(it.value)} ${it.unit})" }
         Page(title = l.tr("Care reminders"), back = nav.home) {
+            PrimaryButton(l.tr("Medication reminders"), onClick = dailyReminders)
             Spacer(gap(8))
             CTCard {
                 SectionTitle(l.t("attentionNeeded") + if (attention.isNotEmpty()) " · ${attention.size}" else "")
