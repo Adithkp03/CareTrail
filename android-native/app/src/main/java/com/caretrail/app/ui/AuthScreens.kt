@@ -111,6 +111,7 @@ fun LoginScreen(vm: AppViewModel, onGoogleSuccess: () -> Unit = {}, onSignup: ()
             Column(Modifier.offset(y = (-20).dp)) {
                 AuthDivider(l)
                 GoogleEntry(vm, google, busy)
+                Spacer(gap(12))
             }
         }
         Column(Modifier.offset(y = (-20).dp)) {
