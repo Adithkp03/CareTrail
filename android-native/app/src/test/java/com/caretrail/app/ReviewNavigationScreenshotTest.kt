@@ -91,11 +91,33 @@ class ReviewNavigationScreenshotTest {
             .putString("active", journey.journey_id)
             .putString(journey.journey_id, """{"setupDone":true}""").commit()
         val vm = AppViewModel(app)
-        Api::class.java.getDeclaredField("baseUrl").apply { isAccessible = true }
-            .set(vm.api, server.url("/").toString())
+        val endpoint = server.url("/").toString()
+        val endpointField = Api::class.java.getDeclaredField("baseUrl").apply { isAccessible = true }
+        endpointField.set(vm.api, endpoint)
+        assertEquals("Synthetic API endpoint must be installed before app composition", endpoint, endpointField.get(vm.api))
+        assertTrue("Synthetic session must start signed in", vm.loggedIn.value)
+        assertTrue("The existing reminder setup state must be seeded", DailyReminderScheduler.setupDone(app))
+        fun readinessEvidence(): String = "state=${vm.journey.value}; signedIn=${vm.loggedIn.value}; endpoint=${endpointField.get(vm.api)}; requests=${requests.map { it.path }}; unexpected=$unexpected"
+        fun recordReadinessFailure() {
+            println("NATIVE_READINESS_DIAGNOSTIC ${readinessEvidence()}")
+            runCatching { println(compose.onRoot().printToString()) }
+                .onFailure { println("NATIVE_DIAGNOSTIC_SEMANTICS_FAILED ${it.javaClass.simpleName}") }
+            runCatching { capture(days, "readiness_failed") }
+                .onFailure { println("NATIVE_DIAGNOSTIC_CAPTURE_FAILED ${it.javaClass.simpleName}") }
+        }
         try {
             compose.setContent { CareTrailTheme { CareTrailApp(vm) } }
-            compose.waitUntil(15_000) { vm.journey.value is JourneyState.Ready }
+            try {
+                compose.waitUntil(15_000) {
+                    val state = vm.journey.value
+                    state is JourneyState.Ready || state is JourneyState.Failed || state is JourneyState.Empty || !vm.loggedIn.value
+                }
+            } catch (error: Throwable) {
+                recordReadinessFailure()
+                throw error
+            }
+            if (vm.journey.value !is JourneyState.Ready) recordReadinessFailure()
+            assertTrue(readinessEvidence(), vm.journey.value is JourneyState.Ready)
             compose.onNodeWithText("Synthetic native QA").assertIsDisplayed()
             assertEquals(days, (vm.journey.value as JourneyState.Ready).journey.gestational_age.days)
             capture(days, "home")
