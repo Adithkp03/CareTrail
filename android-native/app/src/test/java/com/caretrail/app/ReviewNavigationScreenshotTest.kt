@@ -2,6 +2,7 @@ package com.caretrail.app
 
 import android.app.Application
 import android.content.Context
+import android.os.Looper
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -21,6 +22,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -109,6 +111,10 @@ class ReviewNavigationScreenshotTest {
             compose.setContent { CareTrailTheme { CareTrailApp(vm) } }
             try {
                 compose.waitUntil(15_000) {
+                    // Compose 1.7 waitUntil advances its frame clock, not Robolectric's
+                    // paused Android queue. Drain only due main-loop work so the real
+                    // Api callback can resume the ViewModel. Do not skip or seed Ready.
+                    shadowOf(Looper.getMainLooper()).idle()
                     val state = vm.journey.value
                     state is JourneyState.Ready || state is JourneyState.Failed || state is JourneyState.Empty || !vm.loggedIn.value
                 }
