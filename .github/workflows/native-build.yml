@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble pinned review-only sources
+        run: bash .github/scripts/assemble-review.sh
 
       - uses: actions/setup-java@v4
         with:
@@ -71,11 +75,17 @@ jobs:
             android-native/app/build/outputs/apk/debug/app-debug.apk
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
+            review-source-manifest.txt
+            review-source.zip
 
   screenshot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble pinned review-only sources
+        run: bash .github/scripts/assemble-review.sh
 
       - uses: actions/setup-java@v4
         with:
@@ -100,5 +110,6 @@ jobs:
             android-native/app/build/outputs/roborazzi/
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
-
+            review-source-manifest.txt
+            review-source.zip
 
