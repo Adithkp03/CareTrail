@@ -31,6 +31,10 @@ def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[Si
     status, overdue = journey_engine.milestone_status(
         ga_days, start, end, m.completed_at, m.scheduled_date, today
     )
+    if current.get("clinician_plan"):
+        # History-dependent, doctor-planned steps never flag overdue: a skipped
+        # dose can be correct (booster-only course or Tdap substitution).
+        overdue = False
     return {
         "id": m.id,
         "key": m.key,
