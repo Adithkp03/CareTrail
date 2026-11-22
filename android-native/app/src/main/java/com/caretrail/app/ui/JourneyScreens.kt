@@ -441,6 +441,11 @@ fun TimelineScreen(vm: AppViewModel, nav: Nav) {
                                 Spacer(gap(4))
                                 Chip("● ${l.t("youAreHere")} · $week ${l.t("weeks")}", CT.BrandSoft, CT.Brand)
                             }
+                            if (i == 1) j.vaccination_guidance?.let { guidance ->
+                                Spacer(gap(8))
+                                VaccinationGuidanceCard(guidance, l)
+                                Spacer(gap(8))
+                            }
                             shown.forEach { MilestoneRow(it, l) { nav.milestone(it.id) } }
                             if (rest.isNotEmpty()) {
                                 Text("${l.t("showAllMilestones")} · ${items.size}", color = CT.Brand, style = MaterialTheme.typography.labelMedium,
