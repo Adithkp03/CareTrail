@@ -3,6 +3,16 @@
   "version": "v1",
   "name": "Normal antenatal pathway (FOGSI/WHO-aligned)",
   "note": "Prototype antenatal pathway. Clinical thresholds and wording need a clinician review; the rules engine compares configured values, not diagnoses.",
+  "vaccination_guidance": {
+    "kind": "clinician_discussion",
+    "title": "Td vaccination: confirm your plan",
+    "timing": "Doctor's suggested timing: around 16 and 20 weeks.",
+    "summary": "Information to discuss, not a dose due or vaccination record.",
+    "course": "If a two-dose Td course is needed, the second dose is given at least 4 weeks after the first. Your doctor should confirm your dates.",
+    "booster": "A single Td booster may be used when you received two Td/TT doses in a previous pregnancy within the last 3 years. Ask your doctor to check your vaccination history; the app does not decide eligibility.",
+    "tdap": "Tdap is a different vaccine that also protects against whooping cough. Your doctor should confirm how it fits with Td, including whether it replaces the second Td dose. Separate Td and Tdap entries do not mean automatic extra doses.",
+    "records": "Keep your existing vaccination records. This guidance does not change them or mark any dose as received."
+  },
   "thresholds": {
     "hb": {
       "min": 11.0,
