@@ -103,7 +103,7 @@ fun MilestoneRow(m: Milestone, l: L, onClick: () -> Unit) {
                 m.completion_level?.let { append(" · ${l.tr(Logic.LEVEL_TEXT[it])}") }
                 if (m.status == "upcoming" && m.scheduled_date != null) append("📅 ${m.scheduled_date}")
                 if (m.status == "now") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
-                if (m.status == "next") append("${m.windowLabel} ${l.t("weeks")}")
+                if (m.status == "next") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
             }
             if (sub.isNotBlank()) Muted(sub)
             m.signoff?.let { Text("✅ ${l.t("signedOffBy")} ${it.doctor_name}", style = MaterialTheme.typography.labelSmall, color = CT.Green800) }
