@@ -22,6 +22,7 @@ def test_new_antenatal_guidance_is_metadata_not_a_dose(client, days):
     assert guide["kind"] == "clinician_discussion"
     assert "16 and 20" in guide["timing"]
     assert "two Td/TT doses" in guide["booster"] and "last 3 years" in guide["booster"]
+    assert "instead of a two-dose Td course" in guide["booster"]
     assert "second Td dose" in guide["tdap"] and "not mean automatic extra doses" in guide["tdap"]
     assert not ({"status", "overdue", "completed_at", "scheduled_date", "eligible"} & guide.keys())
     assert len(j["milestones"]) == 14
