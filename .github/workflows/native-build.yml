@@ -20,6 +20,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Record exact clinical review source
+        run: |
+          {
+            printf 'review_only=true\nclinical_pr61=true\nsource_commit='
+            git rev-parse HEAD
+            printf 'source_tree='
+            git rev-parse HEAD^{tree}
+          } > clinical-review-source-manifest.txt
+          git archive --format=zip HEAD -o clinical-review-source.zip
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -71,11 +81,23 @@ jobs:
             android-native/app/build/outputs/apk/debug/app-debug.apk
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
+            clinical-review-source-manifest.txt
+            clinical-review-source.zip
 
   screenshot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Record exact clinical review source
+        run: |
+          {
+            printf 'review_only=true\nclinical_pr61=true\nsource_commit='
+            git rev-parse HEAD
+            printf 'source_tree='
+            git rev-parse HEAD^{tree}
+          } > clinical-review-source-manifest.txt
+          git archive --format=zip HEAD -o clinical-review-source.zip
 
       - uses: actions/setup-java@v4
         with:
@@ -100,5 +122,6 @@ jobs:
             android-native/app/build/outputs/roborazzi/
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
-
+            clinical-review-source-manifest.txt
+            clinical-review-source.zip
 
