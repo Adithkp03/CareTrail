@@ -43,6 +43,7 @@ def milestone_payload(m: Milestone, ga_days: int, today: date, signoffs: list[Si
         "window_weeks": [start, end],
         "required_tests": m.required_tests,
         "prep_notes": current.get("prep_notes", m.prep_notes),
+        "clinician_plan": bool(current.get("clinician_plan")),
         "status": status,
         "overdue": overdue,
         "completed_at": m.completed_at.isoformat() if m.completed_at else None,
