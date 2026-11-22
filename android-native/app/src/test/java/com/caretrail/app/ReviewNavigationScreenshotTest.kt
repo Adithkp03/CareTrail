@@ -138,16 +138,18 @@ class ReviewNavigationScreenshotTest {
                 // The title also exists on Timeline, including during navigation.
                 // Require a loaded detail-only control before asserting this screen.
                 compose.onAllNodesWithText(target.title).fetchSemanticsNodes().isNotEmpty() &&
-                    compose.onAllNodesWithText("Listen").fetchSemanticsNodes().size == 1
+                    compose.onAllNodesWithText("🔊 Listen").fetchSemanticsNodes().size == 1
             }
             compose.onNodeWithText(target.title).assertIsDisplayed()
-            compose.onNodeWithText("Listen").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText("🔊 Listen").performScrollTo().assertIsDisplayed()
             capture(days, "milestone")
 
             compose.onNodeWithText("← CareTrail").performScrollTo().performClick()
             compose.onNodeWithText("Your timeline").performScrollTo().assertIsDisplayed()
+            capture(days, "timeline_after_back")
             tab("Home").performClick()
             compose.onNodeWithText("Synthetic native QA").assertIsDisplayed()
+            capture(days, "home_after_back")
             assertTrue(requests.any { it.path == "/milestones/${target.id}" })
             assertTrue(requests.all { it.method == "GET" && it.getHeader("Authorization") == "Bearer synthetic-native-session" })
             assertEquals("Every requested endpoint must be explicitly modeled", emptyList<String>(), unexpected.toList())
