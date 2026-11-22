@@ -138,7 +138,7 @@ class LoginScreenshotTest {
                 val host = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
                 androidx.compose.runtime.LaunchedEffect(Unit) { host.showSnackbar("Google sign-in successful", duration = androidx.compose.material3.SnackbarDuration.Indefinite) }
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
-                    androidx.compose.material3.SnackbarHost(host, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                    GoogleAuthNotice(host, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                 }
             }
         }
