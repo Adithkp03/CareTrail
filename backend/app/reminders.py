@@ -23,7 +23,7 @@ def reminder_items(db, journey, today=None):
             elif m.scheduled_date <= today + timedelta(days=3):
                 kind = 'appointment'
             # Future bookings replace overdue-window reminders.
-        elif ga / 7 > window[1]:
+        elif ga / 7 > window[1] and not definitions.get(m.key, {}).get('clinician_plan'):
             kind = 'overdue'
         if kind:
             anchor = m.scheduled_date.isoformat() if m.scheduled_date else str(window[1])
