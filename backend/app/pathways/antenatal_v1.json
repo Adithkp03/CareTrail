@@ -118,6 +118,18 @@
       "prep_notes": "NT scan strictly within 11 to 13+6 weeks. Discuss first-trimester screening with your clinician: beta-hCG and PAPP-A help screen for common chromosomal aneuploidies; they do not rule them out. PlGF may be discussed for pre-eclampsia screening, but it can be costly. A moderately full bladder may help if your scan provider advises it."
     },
     {
+      "key": "td_dose_1",
+      "title": "Td vaccine - dose 1 (if your doctor advises)",
+      "type": "vaccination",
+      "window": [
+        16,
+        18
+      ],
+      "required_tests": [],
+      "clinician_plan": true,
+      "prep_notes": "The first tetanus-diphtheria (Td) dose is usually given around 16 weeks. Your doctor will plan this based on your vaccination history. If you received two Td or TT doses in a pregnancy within the last 3 years, you need only one booster dose this time instead of the two-dose course. If you are not sure about your past doses, tell your doctor."
+    },
+    {
       "key": "second_trimester_review",
       "title": "Second-trimester review",
       "type": "visit",
@@ -142,6 +154,18 @@
       ],
       "required_tests": [],
       "prep_notes": "Detailed scan of the baby's organs, usually 18-22 weeks. No fasting needed."
+    },
+    {
+      "key": "td_dose_2",
+      "title": "Td vaccine - dose 2 (if your doctor advises)",
+      "type": "vaccination",
+      "window": [
+        20,
+        22
+      ],
+      "required_tests": [],
+      "clinician_plan": true,
+      "prep_notes": "The second Td dose is given about 4 weeks after the first, around 20 weeks, and at least 4 weeks before your due date. This dose is not needed if your doctor gave you a single booster this pregnancy, or if your doctor plans a Tdap injection at 27-36 weeks instead. Your doctor will tell you which applies to you."
     },
     {
       "key": "consultation_24w",
@@ -174,14 +198,14 @@
     },
     {
       "key": "tdap_vaccine",
-      "title": "Tdap/TT vaccination",
+      "title": "Tdap vaccine (whooping cough protection)",
       "type": "vaccination",
       "window": [
         27,
         36
       ],
       "required_tests": [],
-      "prep_notes": "Protects the baby from whooping cough and tetanus."
+      "prep_notes": "A single Tdap injection at 27-36 weeks is recommended in every pregnancy to protect your newborn from whooping cough, even if you received Td doses earlier. Your doctor may use Tdap as the second tetanus-containing dose of this pregnancy instead of Td dose 2 - follow your doctor's plan."
     },
     {
       "key": "third_trimester_review",
@@ -249,7 +273,7 @@
         "bp_sys",
         "bp_dia"
       ],
-      "prep_notes": "Know when to go to the hospital: regular pains, leaking, bleeding."
+      "prep_notes": "At this visit your doctor may suggest an internal (vaginal) examination for a specific reason, such as planning an induction. They will explain why and ask your consent first. Know when to go to the hospital: regular pains, leaking, bleeding."
     },
     {
       "key": "birth_plan",
