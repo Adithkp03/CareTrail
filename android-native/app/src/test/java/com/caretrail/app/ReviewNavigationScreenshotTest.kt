@@ -134,19 +134,30 @@ class ReviewNavigationScreenshotTest {
             capture(days, "timeline")
             compose.onNodeWithText(target.title).performClick()
             compose.waitUntil(10_000) {
-                compose.onAllNodesWithText(target.title).fetchSemanticsNodes().isNotEmpty()
+                shadowOf(Looper.getMainLooper()).idle()
+                // The title also exists on Timeline, including during navigation.
+                // Require a loaded detail-only control before asserting this screen.
+                compose.onAllNodesWithText(target.title).fetchSemanticsNodes().isNotEmpty() &&
+                    compose.onAllNodesWithText("Listen").fetchSemanticsNodes().size == 1
             }
             compose.onNodeWithText(target.title).assertIsDisplayed()
             compose.onNodeWithText("Listen").performScrollTo().assertIsDisplayed()
             capture(days, "milestone")
 
             compose.onNodeWithText("← CareTrail").performScrollTo().performClick()
-            compose.onNodeWithText("Your timeline").assertIsDisplayed()
+            compose.onNodeWithText("Your timeline").performScrollTo().assertIsDisplayed()
             tab("Home").performClick()
             compose.onNodeWithText("Synthetic native QA").assertIsDisplayed()
             assertTrue(requests.any { it.path == "/milestones/${target.id}" })
             assertTrue(requests.all { it.method == "GET" && it.getHeader("Authorization") == "Bearer synthetic-native-session" })
             assertEquals("Every requested endpoint must be explicitly modeled", emptyList<String>(), unexpected.toList())
+        } catch (error: Throwable) {
+            println("NATIVE_NAVIGATION_DIAGNOSTIC ${readinessEvidence()}")
+            runCatching { println(compose.onRoot().printToString()) }
+                .onFailure { println("NATIVE_DIAGNOSTIC_SEMANTICS_FAILED ${it.javaClass.simpleName}") }
+            runCatching { capture(days, "navigation_failed") }
+                .onFailure { println("NATIVE_DIAGNOSTIC_CAPTURE_FAILED ${it.javaClass.simpleName}") }
+            throw error
         } finally {
             vm.api.client.dispatcher.cancelAll()
             server.shutdown()
