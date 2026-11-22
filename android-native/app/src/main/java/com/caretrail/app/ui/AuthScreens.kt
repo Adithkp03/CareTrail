@@ -27,7 +27,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -35,7 +34,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.caretrail.app.AppViewModel
-import com.caretrail.app.BuildConfig
 import com.caretrail.app.data.ApiException
 import com.caretrail.app.data.Langs
 import com.caretrail.app.data.Logic
@@ -71,18 +69,15 @@ private fun LoginArt(l: L) {
 }
 
 @Composable
-fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
+fun LoginScreen(vm: AppViewModel, onGoogleSuccess: () -> Unit = {}, onSignup: () -> Unit) {
     val l = rememberL(vm)
     val scope = rememberCoroutineScope()
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var pendingGoogleToken by remember { mutableStateOf<String?>(null) }
-    var linkPhone by remember { mutableStateOf("") }
-    var linkPassword by remember { mutableStateOf("") }
-    var newConsent by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    val google = rememberGoogleUi(vm, onGoogleSuccess)
+    if (google.pending) { GooglePendingScreen(vm, google); return }
 
     suspend fun doLogin(p: String, pw: String) {
         val res = vm.api.login(p, pw)
@@ -101,7 +96,7 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
             CTField(password, { password = it }, l.t("password"), password = true)
             if (error.isNotEmpty()) { Spacer(gap(8)); Text(error, color = CT.Red700, style = MaterialTheme.typography.bodySmall) }
             Spacer(gap(16))
-            PrimaryButton(l.t("login"), enabled = !busy && phone.isNotBlank() && password.isNotEmpty()) {
+            PrimaryButton(l.t("login"), enabled = !busy && !google.busy && phone.isNotBlank() && password.isNotEmpty()) {
                 busy = true; error = ""
                 scope.launch {
                     try { doLogin(phone.trim(), password) }
@@ -113,68 +108,13 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
             }
         }
         if (vm.supabaseAuth.configured) {
-            Row(Modifier.offset(y = (-26).dp).fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f).height(1.dp).background(CT.CardBorder))
-                Text(l.t("orDivider"), color = CT.Muted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 12.dp))
-                Box(Modifier.weight(1f).height(1.dp).background(CT.CardBorder))
-            }
-            OutlineButton(l.t("continueGoogle"), enabled = !busy, modifier = Modifier.offset(y = (-18).dp)) {
-                busy = true; error = ""
-                scope.launch {
-                    try {
-                        val nonce = java.util.UUID.randomUUID().toString()
-                        val idToken = requestGoogleIdToken(context, BuildConfig.GOOGLE_SERVER_CLIENT_ID, nonce)
-                        val sbToken = vm.supabaseAuth.signInWithGoogleIdToken(idToken, nonce)
-                        try {
-                            val res = vm.api.supabaseExchange(sbToken, consent = false, language = l.lang, create = false)
-                            vm.onSignedIn(res.token)
-                        } catch (e: ApiException) {
-                            if (e.code == 404 && e.message == "no_caretrail_account") {
-                                pendingGoogleToken = sbToken; busy = false
-                            } else { error = l.t("googleFailed"); busy = false }
-                        }
-                    } catch (e: GoogleSignInCancelled) { busy = false }
-                    catch (e: Exception) { error = l.t("googleFailed"); busy = false }
-                }
-            }
-            pendingGoogleToken?.let { sbToken ->
-                CTCard(Modifier.offset(y = (-10).dp)) {
-                    Text(l.t("googleChoiceTitle"), style = MaterialTheme.typography.titleMedium)
-                    Spacer(gap(6))
-                    Text(l.t("googleChoiceBody"), style = MaterialTheme.typography.bodySmall, color = CT.Muted)
-                    Spacer(gap(12))
-                    CTField(linkPhone, { linkPhone = it }, l.t("phone"), keyboard = KeyboardType.Phone)
-                    Spacer(gap(8))
-                    CTField(linkPassword, { linkPassword = it }, l.t("password"), password = true)
-                    Spacer(gap(10))
-                    PrimaryButton(l.t("linkExisting"), enabled = !busy && linkPhone.length >= 6 && linkPassword.isNotEmpty()) {
-                        busy = true; error = ""
-                        scope.launch {
-                            try { val res = vm.api.linkSupabase(sbToken, linkPhone.trim(), linkPassword); vm.onSignedIn(res.token) }
-                            catch (e: ApiException) {
-                                error = when { e.code == 401 -> l.t("wrongLogin"); e.code == 409 -> e.message ?: l.t("linkFailed"); else -> l.t("linkFailed") }
-                                busy = false
-                            } catch (e: Exception) { error = l.t("linkFailed"); busy = false }
-                        }
-                    }
-                    Spacer(gap(16))
-                    Row(Modifier.clickable { newConsent = !newConsent }, verticalAlignment = Alignment.Top) {
-                        Checkbox(newConsent, { newConsent = it })
-                        Text(l.t("consent"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
-                    }
-                    Spacer(gap(10))
-                    OutlineButton(l.t("createNewAccount"), enabled = !busy && newConsent) {
-                        busy = true; error = ""
-                        scope.launch {
-                            try { val res = vm.api.supabaseExchange(sbToken, consent = true, language = l.lang, create = true); vm.onSignedIn(res.token) }
-                            catch (e: Exception) { error = l.t("googleFailed"); busy = false }
-                        }
-                    }
-                }
+            Column(Modifier.offset(y = (-20).dp)) {
+                AuthDivider(l)
+                GoogleEntry(vm, google, busy)
             }
         }
         Column(Modifier.offset(y = (-20).dp)) {
-            OutlineButton(l.t("tryDemo"), enabled = !busy) {
+            OutlineButton(l.t("tryDemo"), enabled = !busy && !google.busy) {
                 busy = true; error = ""
                 scope.launch {
                     try {
@@ -196,7 +136,7 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
 }
 
 @Composable
-fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
+fun SignupScreen(vm: AppViewModel, onGoogleSuccess: () -> Unit = {}, onBack: () -> Unit) {
     val l = rememberL(vm)
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -205,7 +145,14 @@ fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
     var consent by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    val google = rememberGoogleUi(vm, onGoogleSuccess)
+    if (google.pending) { GooglePendingScreen(vm, google); return }
     Page(title = l.t("signup"), back = onBack) {
+        if (vm.supabaseAuth.configured) {
+            Spacer(gap(16))
+            GoogleEntry(vm, google, busy)
+            AuthDivider(l)
+        }
         Spacer(gap(16))
         CTField(name, { name = it }, l.t("yourName"))
         Spacer(gap(12))
@@ -226,7 +173,7 @@ fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
         }
         if (error.isNotEmpty()) { Spacer(gap(8)); Text(error, color = CT.Red700, style = MaterialTheme.typography.bodySmall) }
         Spacer(gap(16))
-        PrimaryButton(l.t("signup"), enabled = !busy && consent && name.isNotBlank() && phone.length >= 6 && password.length >= 8) {
+        PrimaryButton(l.t("signup"), enabled = !busy && !google.busy && consent && name.isNotBlank() && phone.length >= 6 && password.length >= 8) {
             busy = true; error = ""
             scope.launch {
                 try {
@@ -272,4 +219,3 @@ fun NewJourneyScreen(vm: AppViewModel, onDone: () -> Unit) {
         }
     }
 }
-
