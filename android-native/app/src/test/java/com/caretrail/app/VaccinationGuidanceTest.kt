@@ -19,6 +19,14 @@ class VaccinationGuidanceTest {
         assertEquals(14, Logic.zones(old).values.sumOf { it.size })
     }
 
+    @Test fun approvedExamNoteAndExistingHospitalWarningParseExactly() {
+        val journey = AppJson.decodeFromString<Journey>(payload())
+        assertEquals(
+            "At the 38–39-week review, your doctor may recommend an internal examination if needed. They will explain the reason and ask for your consent. Know when to go to the hospital: regular pains, leaking, bleeding.",
+            journey.milestones.single { it.key == "review_38w" }.prep_notes
+        )
+    }
+
     @Test fun discussionMetadataCannotChangeStoredHistoryOrStatusZones() {
         val original = AppJson.decodeFromString<Journey>(payload())
         val historical = original.copy(milestones = original.milestones.map {
