@@ -18,6 +18,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,6 +64,13 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
     val loggedIn by vm.loggedIn.collectAsState()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
+    val authNotice = remember { SnackbarHostState() }
+    val noticeScope = rememberCoroutineScope()
+    val l = rememberL(vm)
+    val googleSuccess: () -> Unit = {
+        noticeScope.launch { authNotice.showSnackbar(l.tr("Google sign-in successful")) }
+        Unit
+    }
 
     // Session changes drive navigation: sign-in lands on Home, sign-out/expiry on Login.
     LaunchedEffect(loggedIn) {
@@ -89,13 +101,14 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
     )
     val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral", "chat", "doctorq")
 
-    Column(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
+    Box(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
             NavHost(nav, startDestination = if (loggedIn) Routes.HOME else Routes.LOGIN) {
                 composable("daily_setup") { DailyRemindersScreen(vm, true) { nav.navigate(Routes.HOME) { popUpTo("daily_setup") { inclusive = true } } } }
                 composable("daily_reminders") { DailyRemindersScreen(vm, false) { if (!nav.popBackStack()) go(Routes.HOME) } }
-                composable(Routes.LOGIN) { LoginScreen(vm) { nav.navigate(Routes.SIGNUP) } }
-                composable(Routes.SIGNUP) { SignupScreen(vm) { nav.popBackStack() } }
+                composable(Routes.LOGIN) { LoginScreen(vm, onGoogleSuccess = googleSuccess) { nav.navigate(Routes.SIGNUP) } }
+                composable(Routes.SIGNUP) { SignupScreen(vm, onGoogleSuccess = googleSuccess) { nav.popBackStack() } }
                 composable(Routes.NEW_JOURNEY) { NewJourneyScreen(vm) { nav.navigate(Routes.HOME) { popUpTo(Routes.NEW_JOURNEY) { inclusive = true } } } }
                 composable(Routes.HOME) { HomeScreen(vm, callbacks) }
                 composable(Routes.TIMELINE) { TimelineScreen(vm, callbacks) }
@@ -134,6 +147,8 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
         }
         if (showBar && loggedIn) BottomBar(vm, route, callbacks)
     }
+    SnackbarHost(authNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp))
+    }
 }
 
 @Composable
@@ -160,4 +175,3 @@ private fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
         }
     }
 }
-
