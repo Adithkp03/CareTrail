@@ -37,6 +37,7 @@ def test_existing_records_survive_guidance_read_without_database_writes(client, 
     current = deepcopy(load_template())
     previous = deepcopy(current)
     previous.pop("vaccination_guidance")
+    next(m for m in previous["milestones"] if m["key"] == "review_38w")["prep_notes"] = 'Know when to go to the hospital: regular pains, leaking, bleeding.'
     monkeypatch.setattr(routes, "load_template", lambda *args, **kwargs: previous)
     headers = auth(signup(client)["token"])
     created = client.post("/journeys", json={"lmp": (date.today() - timedelta(days=210)).isoformat()}, headers=headers).json()
@@ -64,7 +65,11 @@ def test_existing_records_survive_guidance_read_without_database_writes(client, 
         after = client.get(f"/journey/{jid}", headers=headers).json()
         repeated = client.get(f"/journey/{jid}", headers=headers).json()
         assert after["vaccination_guidance"] == current["vaccination_guidance"]
-        assert after["milestones"] == before["milestones"] == repeated["milestones"]
+        expected = deepcopy(before["milestones"])
+        next(m for m in expected if m["key"] == "review_38w")["prep_notes"] = next(
+            m for m in current["milestones"] if m["key"] == "review_38w"
+        )["prep_notes"]
+        assert after["milestones"] == expected == repeated["milestones"]
         assert after["summary"] == before["summary"]
         assert after["next_appointment"] == before["next_appointment"]
         assert snapshot() == stored_before
@@ -77,9 +82,12 @@ def test_existing_records_survive_guidance_read_without_database_writes(client, 
             pass
 
 
-def test_optional_guidance_does_not_change_exam_notes_or_hospital_warning():
+def test_approved_exam_note_keeps_exact_wording_and_hospital_warning():
     template = load_template()
     exam = next(m for m in template["milestones"] if m["key"] == "review_38w")
+    approved_note = 'At the 38–39-week review, your doctor may recommend an internal examination if needed. They will explain the reason and ask for your consent.'
+    hospital_warning = 'Know when to go to the hospital: regular pains, leaking, bleeding.'
+    assert exam["prep_notes"] == approved_note + " " + hospital_warning
     assert "induction" not in exam["prep_notes"].lower()
-    assert "consent" not in exam["prep_notes"].lower()
-    assert "regular pains, leaking, bleeding" in exam["prep_notes"]
+    assert exam["window"] == [38, 40]
+    assert exam["required_tests"] == ["bp_sys", "bp_dia"]
