@@ -32,7 +32,7 @@ def test_patient_creates_own_journey_from_template(client):
     body = r.json()
     assert body["template_id"] == "antenatal"
     assert body["gestational_age"]["weeks"] == 14
-    assert len(body["milestones"]) == 14
+    assert len(body["milestones"]) == 16
     # nothing completed yet: opened windows are "now" (early ones overdue), the rest "next"
     assert {m["status"] for m in body["milestones"]} == {"now", "next"}
     first = next(m for m in body["milestones"] if m["key"] == "first_consultation")
@@ -245,3 +245,28 @@ def test_short_password_rejected_and_headers(client):
     assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "DENY"
     pre = client.options("/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
     assert "access-control-allow-origin" not in pre.headers
+
+
+def test_clinician_plan_td_doses_never_overdue(client):
+    token = signup(client, phone="9000000020")["token"]
+    lmp = (date.today() - timedelta(days=30 * 7)).isoformat()  # 30 weeks: both Td windows closed
+    r = client.post("/journeys", json={"lmp": lmp}, headers=auth(token))
+    assert r.status_code == 201, r.text
+    by_key = {m["key"]: m for m in r.json()["milestones"]}
+    for key in ("td_dose_1", "td_dose_2"):
+        assert by_key[key]["status"] == "now"
+        assert by_key[key]["overdue"] is False
+    # A regular visit past its window still flags overdue.
+    assert by_key["second_trimester_review"]["overdue"] is True
+
+
+def test_clinician_plan_td_doses_raise_no_overdue_reminder(client):
+    token = signup(client, phone="9000000021")["token"]
+    lmp = (date.today() - timedelta(days=30 * 7)).isoformat()
+    journey_id = client.post("/journeys", json={"lmp": lmp}, headers=auth(token)).json()["journey_id"]
+    r = client.get(f"/journey/{journey_id}/reminders", headers=auth(token))
+    assert r.status_code == 200, r.text
+    overdue_titles = [i["title"] for i in r.json()["items"] if i["kind"] == "overdue"]
+    assert not any(t.startswith("Td vaccine") for t in overdue_titles)
+    # Regular overdue reminders for other milestones still fire.
+    assert "Second-trimester review" in overdue_titles
