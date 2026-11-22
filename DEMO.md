@@ -2,7 +2,7 @@
 
 ## 3-minute synthetic patient story
 
-1. Start with Anjali, a synthetic patient at 22 weeks. The journey-first home shows 3/14 milestones done, "You are here" in the second trimester, and the next step. CareTrail is a multilingual pregnancy companion, not a product for one region.
+1. Start with Anjali, a synthetic patient at 22 weeks. The journey-first home shows 3/16 milestones done, "You are here" in the second trimester, and the next step. CareTrail is a multilingual pregnancy companion, not a product for one region.
 2. Follow the ordered journey from completed first consultation, baseline blood tests and NT scan to the current review, scheduled anomaly scan and later OGTT. Open "Why now?" on a milestone to see its time window and preparation.
 3. Upload the **synthetic** low-haemoglobin CBC from `backend/app/sample_reports/cbc_malayalam_low_hb.txt`. Link it to the second-trimester review. Review the proposed 10.2 g/dL value before confirming; the rules engine flags it for follow-up. The upload does not mark the milestone complete.
 4. Open the prototype clinician review flow. Show the pre-consult brief and the flag. A named sign-off in this build is entered within the patient session, **not** separately authenticated clinician verification. Use a clearly labelled synthetic doctor name in the demo, not a real clinician endorsement.
