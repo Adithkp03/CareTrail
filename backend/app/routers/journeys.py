@@ -104,6 +104,8 @@ def journey_payload(db: Session, journey: Journey, today: date | None = None) ->
         "milestones": milestones,
         "flags": compute_flags(db, journey.id, template),
         "danger_signs": template.get("danger_signs", []),
+        # Optional, read-only template metadata. Never creates or relabels a stored dose.
+        "vaccination_guidance": template.get("vaccination_guidance"),
     }
 
 
