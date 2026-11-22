@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -147,7 +148,7 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
         }
         if (showBar && loggedIn) BottomBar(vm, route, callbacks)
     }
-    SnackbarHost(authNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp))
+    GoogleAuthNotice(authNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp))
     }
 }
 
@@ -172,6 +173,17 @@ private fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
                 CareIcon(iconLabel.first, 19.dp, tint = if (selected) Color.White else CT.Ink.copy(alpha = 0.75f))
                 Text(iconLabel.second, style = MaterialTheme.typography.labelSmall, color = if (selected) Color.White else CT.Ink.copy(alpha = 0.75f), maxLines = 1)
             }
+        }
+    }
+}
+
+
+/** Explicit colors keep the app typography from darkening snackbar text. */
+@Composable
+fun GoogleAuthNotice(host: SnackbarHostState, modifier: Modifier = Modifier) {
+    SnackbarHost(host, modifier) { data ->
+        Snackbar(containerColor = CT.Navy, contentColor = Color.White) {
+            Text(data.visuals.message, color = Color.White)
         }
     }
 }
