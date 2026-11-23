@@ -274,3 +274,17 @@ class DoctorQuestion(Base):
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     answered_by: Mapped[str | None] = mapped_column(ForeignKey("clinicians.id"), nullable=True)
     answerer_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class LocalRecordBackup(Base):
+    """One versioned structured module per owned journey; deleted rows are tombstones."""
+    __tablename__ = "local_record_backups"
+    id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    journey_id: Mapped[str] = mapped_column(ForeignKey("journeys.id"), index=True)
+    module: Mapped[str] = mapped_column(String(32))
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
+    payload: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    operation_id: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
