@@ -3,11 +3,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine
+from .database import ensure_tables
 from .migrate import apply as apply_migrations
 from .routers import account, assistant, auth, clinicians, demo, doctor_questions, documents, flags, i18n, journeys, milestones, prep, reminders, signoffs, trust, voice
 
-Base.metadata.create_all(engine)
+ensure_tables()
 apply_migrations()
 
 _PROD = os.getenv("VERCEL_ENV") == "production" or os.getenv("APP_ENV") == "production"

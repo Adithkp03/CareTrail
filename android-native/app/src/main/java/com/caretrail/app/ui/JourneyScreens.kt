@@ -57,12 +57,7 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
     val l = rememberL(vm)
     LaunchedEffect(Unit) { vm.refreshJourney() }
     when (val s = state) {
-        is JourneyState.Loading -> Box(Modifier.fillMaxWidth().padding(top = 96.dp), contentAlignment = Alignment.TopCenter) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = CT.Brand)
-                Spacer(gap(12)); Muted(l.t("loading"))
-            }
-        }
+        is JourneyState.Loading -> JourneyLoading(s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
         is JourneyState.Empty -> LaunchedEffect(Unit) { onEmpty() }
         is JourneyState.Failed -> Page {
             Spacer(gap(48))
@@ -71,6 +66,22 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
             OutlineButton("Retry") { vm.refreshJourney() }
         }
         is JourneyState.Ready -> content(s.journey, s.nextUp, s.offline)
+    }
+}
+
+@Composable
+internal fun JourneyLoading(takingLonger: Boolean, loading: String, retry: () -> Unit) {
+    Page {
+        Spacer(gap(48))
+        CircularProgressIndicator(color = CT.Brand)
+        Spacer(gap(12))
+        Text(if (takingLonger) "Still loading your care timeline" else loading, style = MaterialTheme.typography.titleMedium)
+        if (takingLonger) {
+            Spacer(gap(12))
+            Note("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet.")
+            Spacer(gap(12))
+            OutlineButton("Try again") { retry() }
+        }
     }
 }
 
@@ -92,7 +103,7 @@ fun MilestoneRow(m: Milestone, l: L, onClick: () -> Unit) {
                 m.completion_level?.let { append(" · ${l.tr(Logic.LEVEL_TEXT[it])}") }
                 if (m.status == "upcoming" && m.scheduled_date != null) append("📅 ${m.scheduled_date}")
                 if (m.status == "now") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
-                if (m.status == "next") append("${m.windowLabel} ${l.t("weeks")}")
+                if (m.status == "next") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
             }
             if (sub.isNotBlank()) Muted(sub)
             m.signoff?.let { Text("✅ ${l.t("signedOffBy")} ${it.doctor_name}", style = MaterialTheme.typography.labelSmall, color = CT.Green800) }

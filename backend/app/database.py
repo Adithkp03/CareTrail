@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import DATABASE_URL
@@ -22,3 +22,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_tables():
+    """Create missing tables without one remote existence query per existing table.
+
+    This is only the table-creation check. Privacy and column migrations still
+    run on every process startup, unchanged. Missing tables retain SQLAlchemy's
+    normal checkfirst behavior for concurrent application starts.
+    """
+    existing = set(inspect(engine).get_table_names())
+    missing = [table for table in Base.metadata.sorted_tables if table.name not in existing]
+    if missing:
+        Base.metadata.create_all(engine, tables=missing)
