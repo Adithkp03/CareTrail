@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import audit, get_current_patient
 from ..models import (AiCallTrace, AssistantMessage, AuditLog, AuthToken, CareInstruction, Clinician, Document, DocumentBlob,
-                      DoctorQuestion, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
+                      DoctorQuestion, LocalRecordBackup, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
 
 router = APIRouter(tags=["account"])
 
@@ -26,6 +26,10 @@ def export_my_data(patient: Patient = Depends(get_current_patient), db: Session 
         doctor_names = {c.id: c.name for c in db.query(Clinician).filter(
             Clinician.id.in_([i.clinician_id for i in db.query(CareInstruction).filter(CareInstruction.journey_id == j.id)] or [""]))}
         journeys.append({
+            "local_record_backup": [{"module": row.module, "revision": row.revision, "schema_version": row.schema_version,
+                                    "deleted": row.deleted, "data": row.payload if not row.deleted else None,
+                                    "updated_at": _iso(row.updated_at)}
+                                   for row in db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id == j.id)],
             "id": j.id, "template": j.template_id, "lmp": _iso(j.lmp), "edd": _iso(j.edd), "created_at": _iso(j.created_at),
             "milestones": [{"key": m.key, "title": m.title, "completed_at": _iso(m.completed_at), "scheduled_date": _iso(m.scheduled_date)}
                            for m in db.query(Milestone).filter(Milestone.journey_id == j.id).order_by(Milestone.sort_order)],
@@ -82,6 +86,7 @@ def delete_my_account(body: DeleteAccountRequest, patient: Patient = Depends(get
         db.query(Milestone).filter(Milestone.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(AuditLog).filter(AuditLog.entity == "journey", AuditLog.entity_id.in_(jids)).delete(synchronize_session=False)
         db.query(DoctorQuestion).filter(DoctorQuestion.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(Journey).filter(Journey.patient_id == pid).delete(synchronize_session=False)
     db.query(AssistantMessage).filter(AssistantMessage.patient_id == pid).delete(synchronize_session=False)
     db.query(ReminderState).filter(ReminderState.patient_id == pid).delete(synchronize_session=False)

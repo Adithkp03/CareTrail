@@ -174,13 +174,14 @@ fun DataSafetyScreen(vm: AppViewModel, nav: Nav) {
         Spacer(gap(8))
         listOf(
             l.t("medicalReviewNote"),
-            l.tr("Local records are not cloud-synced: health profile, first-visit checklist, Rh details, danger logs, birth details, growth, vaccine ticks, mood, BP, sugar and follow-ups stay on this phone. Birth-form drafts also stay here. Logout, uninstall, clearing app data or changing phones can lose them. No full backup or restore is available."),
-            l.tr("Download my data contains server records, not these local entries or unfinished drafts. Referral export carries selected local records for review; it excludes mood and original files and cannot restore your account. Review before sharing."),
+            l.tr("Local records are not cloud-synced: health profile, first-visit checklist, Rh details, danger logs, birth details, growth, vaccine ticks, mood, BP, sugar and follow-ups stay on this phone. Birth-form drafts also stay here. Logout, uninstall, clearing app data or changing phones can lose them. Optional manual structured-record backup is available below; it is off by default and is not a full backup."),
+            l.tr("Download my data contains server records and any structured modules you explicitly backed up, not unbacked-up local entries or unfinished drafts. Referral export carries selected local records for review; it excludes mood and original files and cannot restore your account. Review before sharing."),
             l.tr("CareTrail is a prototype, not a clinical record or emergency service. It keeps pregnancy dates, reports, extracted results, and account details to build your timeline. Reports are stored on the service; recent timeline data may also be cached on this device for offline viewing."),
             l.tr("Cloud AI services may process report text, images, and questions. Phone numbers, email addresses and some name lines are masked in text before a cloud model call, but that masking is not complete protection, especially in images or unusual report formats. Do not upload a real patient report you are not allowed to share."),
             l.tr("AI trace records now keep provider metadata rather than prompts and outputs, and the trace view is scoped to your patient account."),
             l.tr("New uploaded files are stored in the app database with their report record. You can download your data or delete your account from the link below; this is not a backup. Ask the team before entering real health information."),
         ).forEach { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 6.dp)) }
+        StructuredBackupPanel(vm)
         var cryptoStatus by remember { mutableStateOf("") }
         Note(l.tr("ABDM is not connected. ABHA entries are unverified references. Referral files are patient-controlled copies, not signed clinical records. There is no end-to-end encryption or compliance certification."))
         Spacer(gap(8))

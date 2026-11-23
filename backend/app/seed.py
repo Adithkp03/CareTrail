@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from . import engine as journey_engine
-from .models import (AssistantMessage, DoctorQuestion, Document, DocumentBlob, Journey,
+from .models import (AssistantMessage, DoctorQuestion, Document, DocumentBlob, LocalRecordBackup, Journey,
                      JourneyClinicianGrant, Milestone, Observation, Patient, SignOff)
 from .security import hash_password
 from .template_loader import load_template
@@ -61,6 +61,7 @@ def seed_anjali(db: Session, today: date | None = None) -> dict:
             db.query(DoctorQuestion).filter(DoctorQuestion.journey_id.in_(journey_ids)).delete(synchronize_session=False)
             # Grants belong to this journey, not to a future reset demo journey.
             db.query(JourneyClinicianGrant).filter(JourneyClinicianGrant.journey_id.in_(journey_ids)).delete(synchronize_session=False)
+            db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id.in_(journey_ids)).delete(synchronize_session=False)
             db.query(Journey).filter(Journey.id.in_(journey_ids)).delete(synchronize_session=False)
         db.query(AssistantMessage).filter(AssistantMessage.patient_id == patient.id).delete(synchronize_session=False)
         db.flush()
