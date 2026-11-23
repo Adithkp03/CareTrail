@@ -358,18 +358,33 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             // Doctor instructions
             if (!offline) DoctorInstructions(vm, j.journey_id, l)
             Spacer(gap(16))
+            CTCard {
+                SectionTitle(l.tr(if (postpartum) "After birth: mother and baby" else "Your pregnancy journey"))
+                Spacer(gap(8))
+                if (postpartum) {
+                    OutlineButton(l.tr("Mother: recovery and wellbeing"), onClick = nav.wellness)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Baby: growth chart"), onClick = nav.growth)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Baby: vaccination record"), onClick = nav.vaccines)
+                } else {
+                    OutlineButton(l.tr("Pregnancy timeline"), onClick = nav.timeline)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Birth details or unfinished draft"), onClick = nav.birth)
+                }
+            }
+            Spacer(gap(12))
             // Quick access
             CTCard {
                 SectionTitle(l.tr("Quick access"))
                 Spacer(gap(12))
                 val items = if (postpartum) listOf(
-                    Triple("vaccination", l.tr("Vaccines"), nav.vaccines), Triple("pregnancy", l.tr("Growth chart"), nav.growth),
                     Triple("review", l.tr("Report vault"), nav.vault), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
-                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral), Triple("pregnancy", l.tr("Wellbeing"), nav.wellness),
+                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral),
                 ) else listOf(
-                    Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
+                    Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("pregnancy", l.tr("Care guidance"), nav.care),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
@@ -401,7 +416,15 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             Spacer(gap(16))
             OutlineButton(l.tr("Your data"), onClick = nav.account)
             Spacer(gap(8))
-            OutlineButton(l.t("logout")) { vm.logout() }
+            var showLogoutWarning by remember { mutableStateOf(false) }
+            OutlineButton(l.t("logout")) { showLogoutWarning = true }
+            if (showLogoutWarning) androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showLogoutWarning = false },
+                title = { Text(l.tr("Before you log out")) },
+                text = { Text(l.tr("Logout removes this phone's local records and unfinished drafts. Birth, growth, vaccine, mood, BP and sugar entries are not backed up to the server. Download my data includes server records only. A referral file includes selected records, not a restorable backup.")) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false; vm.logout() }) { Text(l.tr("Remove local records and log out")) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false }) { Text(l.tr("Stay signed in")) } },
+            )
         }
     }
 }
