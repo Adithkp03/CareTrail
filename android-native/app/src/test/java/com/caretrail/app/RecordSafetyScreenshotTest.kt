@@ -32,9 +32,11 @@ class RecordSafetyScreenshotTest {
         if (postpartum) vm.store.saveBirthRecord(journey.journey_id, BirthRecord(confirmed = true, date = LocalDate.now().minusDays(60).toString(), gender = "girl"))
         else vm.store.saveBirthDraft(journey.journey_id, BirthDraft(date = LocalDate.now().toString(), weight = "2.", gender = "girl"))
         // No HTTP: direct screen contract with a Ready flow and deliberately offline Repo refresh.
-        val field = AppViewModel::class.java.getDeclaredField("_journey").apply { isAccessible = true }
+        val loaderField = AppViewModel::class.java.getDeclaredField("journeyLoader").apply { isAccessible = true }
+        val loader = loaderField.get(vm)
+        val field = JourneyLoader::class.java.getDeclaredField("mutable").apply { isAccessible = true }
         @Suppress("UNCHECKED_CAST")
-        val flow = field.get(vm) as kotlinx.coroutines.flow.MutableStateFlow<JourneyState>
+        val flow = field.get(loader) as kotlinx.coroutines.flow.MutableStateFlow<JourneyState>
         val ready = JourneyState.Ready(journey, null, true)
         flow.value = ready
         vm.store.putCache("journey", AppJson.encodeToString(Journey.serializer(), journey))
