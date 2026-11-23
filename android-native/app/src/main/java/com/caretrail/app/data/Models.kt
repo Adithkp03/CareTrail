@@ -64,6 +64,19 @@ data class Flag(
 @Serializable
 data class NextAppt(val key: String = "", val title: String = "", val scheduled_date: String = "")
 
+/** Discussion-only template content, deliberately not a Milestone or a dose record. */
+@Serializable
+data class VaccinationGuidance(
+    val kind: String = "clinician_discussion",
+    val title: String = "",
+    val timing: String = "",
+    val summary: String = "",
+    val course: String = "",
+    val booster: String = "",
+    val tdap: String = "",
+    val records: String = "",
+)
+
 @Serializable
 data class Journey(
     val journey_id: String,
@@ -78,6 +91,7 @@ data class Journey(
     val milestones: List<Milestone> = emptyList(),
     val flags: List<Flag> = emptyList(),
     val danger_signs: List<String> = emptyList(),
+    val vaccination_guidance: VaccinationGuidance? = null,
 )
 
 @Serializable
