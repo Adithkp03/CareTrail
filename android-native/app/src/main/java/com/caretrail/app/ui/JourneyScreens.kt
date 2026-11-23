@@ -374,6 +374,10 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             Spacer(gap(12))
+            OfficialSupportPanel()
+            Spacer(gap(8))
+            ParentingListeningPanel()
+            Spacer(gap(12))
             // Quick access
             CTCard {
                 SectionTitle(l.tr("Quick access"))
