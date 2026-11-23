@@ -83,6 +83,18 @@ class Store(private val prefs: SharedPreferences) {
     fun getCache(key: String): String? = prefs.getString("cache:$key", null)?.let { StoreCrypto.decrypt(it) }
     fun putCache(key: String, json: String) { prefs.edit().putString("cache:$key", (if (encryptedRecordsEnabled()) StoreCrypto.encrypt(json) else json)).apply() }
 
+    /** Commit a related group together. No success is reported before disk acknowledgement.
+     * Encryption is prepared before editing, so a key failure leaves existing values intact. */
+    fun putCachesDurable(values: Map<String, String>, remove: Set<String> = emptySet()) {
+        val encoded = values.mapValues { (_, value) ->
+            if (encryptedRecordsEnabled()) StoreCrypto.encrypt(value) else value
+        }
+        val edits = prefs.edit()
+        remove.forEach { edits.remove("cache:$it") }
+        encoded.forEach { (key, value) -> edits.putString("cache:$key", value) }
+        check(edits.commit()) { "Could not save on this phone. Keep this screen open and retry." }
+    }
+
     /** One-time upgrade: rewrite any plaintext cache rows as Keystore-encrypted rows. */
     fun migrateCacheToEncrypted() {
         val edits = prefs.edit()
