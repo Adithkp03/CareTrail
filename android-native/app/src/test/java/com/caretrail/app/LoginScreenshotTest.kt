@@ -1,7 +1,13 @@
 package com.caretrail.app
 
 import android.app.Application
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -33,7 +39,7 @@ class LoginScreenshotTest {
 
     private fun showLogin() {
         val vm = AppViewModel(RuntimeEnvironment.getApplication() as Application)
-        composeRule.setContent { LoginScreen(vm) {} }
+        composeRule.setContent { com.caretrail.app.ui.CareTrailTheme { LoginScreen(vm) {} } }
     }
 
     @Test
@@ -61,6 +67,82 @@ class LoginScreenshotTest {
         composeRule.onNodeWithText("Continue with Google", useUnmergedTree = true).assertExists()
         composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Continue with Google"))
         composeRule.onNodeWithText("Continue with Google", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h820dp-port")
+    fun signupOffersGoogleAbovePhoneForm() {
+        val vm = AppViewModel(RuntimeEnvironment.getApplication() as Application)
+        composeRule.setContent { com.caretrail.app.ui.CareTrailTheme { com.caretrail.app.ui.SignupScreen(vm) {} } }
+        composeRule.onNodeWithText("Continue with Google", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage()
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp-port")
+    fun signupGoogleVisibleOnSmallPhone() {
+        val vm = AppViewModel(RuntimeEnvironment.getApplication() as Application)
+        composeRule.setContent { com.caretrail.app.ui.CareTrailTheme { com.caretrail.app.ui.SignupScreen(vm) {} } }
+        composeRule.onNodeWithText("Continue with Google", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage()
+    }
+
+    private fun showAccountPanel(error: String = "") {
+        val vm = AppViewModel(RuntimeEnvironment.getApplication() as Application)
+        composeRule.setContent {
+            com.caretrail.app.ui.CareTrailTheme {
+                com.caretrail.app.ui.GoogleAccountPanel(com.caretrail.app.ui.rememberL(vm), false, error,
+                    onLanguage = {}, onCreate = {}, onLink = { _, _ -> }, onBack = {})
+            }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h820dp-port")
+    fun googleCreationRequiresConsentAndSeparatesLinking() {
+        showAccountPanel()
+        composeRule.onNodeWithText("Create account with Google").assertIsNotEnabled()
+        composeRule.onAllNodesWithText("Phone number").assertCountEquals(0)
+        composeRule.onRoot().captureRoboImage()
+        composeRule.onNodeWithText("I understand CareTrail", substring = true).performClick()
+        composeRule.onNodeWithText("Create account with Google").assertIsEnabled()
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp-port")
+    fun googleCreationSmallPhoneScrollsToLink() {
+        showAccountPanel()
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Link my existing account"))
+        composeRule.onNodeWithText("Link my existing account").assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h820dp-port")
+    fun googleLinkFormRequiresPasswordProof() {
+        showAccountPanel()
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Link my existing account"))
+        composeRule.onNodeWithText("Link my existing account").performClick()
+        composeRule.onNodeWithText("Link my existing account").assertIsNotEnabled()
+        composeRule.onNodeWithText("Phone number").assertIsDisplayed()
+        composeRule.onNodeWithText("Password").assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage()
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h820dp-port")
+    fun successSnackbarUsesInAppHost() {
+        composeRule.setContent {
+            com.caretrail.app.ui.CareTrailTheme {
+                val host = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
+                androidx.compose.runtime.LaunchedEffect(Unit) { host.showSnackbar("Google sign-in successful", duration = androidx.compose.material3.SnackbarDuration.Indefinite) }
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                    GoogleAuthNotice(host, androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
+                }
+            }
+        }
+        composeRule.onNodeWithText("Google sign-in successful").assertIsDisplayed()
         composeRule.onRoot().captureRoboImage()
     }
 }
