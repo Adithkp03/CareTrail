@@ -89,10 +89,14 @@ tasks.withType<Test>().configureEach {
     if (name == "testDebugUnitTest" && providers.gradleProperty("caretrail.skipScreenshotTest").isPresent) {
         exclude("com/caretrail/app/VaccinationGuidanceScreenshotTest.class")
         exclude("com/caretrail/app/VaccinationGuidanceScreenshotTest\$*")
+        exclude("com/caretrail/app/RecordSafetyScreenshotTest.class")
+        exclude("com/caretrail/app/RecordSafetyScreenshotTest\$*")
         exclude("com/caretrail/app/LoginScreenshotTest.class")
         exclude("com/caretrail/app/LoginScreenshotTest\$*")
         exclude("com/caretrail/app/HomeLoadingScreenshotTest.class")
         exclude("com/caretrail/app/HomeLoadingScreenshotTest\$*")
+        exclude("com/caretrail/app/AudioScreenScreenshotTest.class")
+        exclude("com/caretrail/app/AudioScreenScreenshotTest\$*")
         exclude("com/caretrail/app/DoseCardScreenshotTest.class")
         exclude("com/caretrail/app/DoseCardScreenshotTest\$*")
     }
