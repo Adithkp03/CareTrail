@@ -87,10 +87,11 @@ dependencies {
 // -Pcaretrail.skipScreenshotTest so a UI-harness failure cannot block them.
 tasks.withType<Test>().configureEach {
     if (name == "testDebugUnitTest" && providers.gradleProperty("caretrail.skipScreenshotTest").isPresent) {
+        exclude("com/caretrail/app/RecordSafetyScreenshotTest.class")
+        exclude("com/caretrail/app/RecordSafetyScreenshotTest\$*")
         exclude("com/caretrail/app/LoginScreenshotTest.class")
         exclude("com/caretrail/app/LoginScreenshotTest\$*")
         exclude("com/caretrail/app/DoseCardScreenshotTest.class")
         exclude("com/caretrail/app/DoseCardScreenshotTest\$*")
     }
 }
-
