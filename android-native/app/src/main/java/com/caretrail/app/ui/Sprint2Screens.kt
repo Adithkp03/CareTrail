@@ -158,7 +158,7 @@ fun BirthEntryScreen(vm: AppViewModel, nav: Nav) {
                     .onFailure { draftError = "Could not confirm the birth on this phone. Keep this screen open and retry." }
             }
             Spacer(gap(8))
-            Note(l.tr("Birth details and drafts are stored only on this phone. No cloud sync or new-phone restore is available. Logout, uninstall or clearing app data removes them."), tone = Tone.Blue)
+            Note(l.tr("Birth details and drafts are stored only on this phone. There is no automatic cloud sync. Optional manual backup and restore is in Data safety; include unfinished forms separately. Logout, uninstall or clearing app data removes unbacked-up changes."), tone = Tone.Blue)
             if (draftStored) Muted(l.tr("Draft saved on this phone. Birth is not confirmed until you tap Confirm birth."))
             if (draftError.isNotEmpty()) {
                 Note(l.tr(draftError), tone = Tone.Amber)
@@ -410,7 +410,7 @@ fun VaultScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             Spacer(gap(12))
-            if (pending > 0) Note(l.tr("$pending records are stored only on this phone. Cloud sync is not available. Logout, uninstall, clearing app data or changing phones can lose these records. A referral file includes only selected records and is not a restorable backup."), tone = Tone.Amber)
+            if (pending > 0) Note(l.tr("$pending records are stored only on this phone. Automatic cloud sync is not available. Optional manual structured-record backup is in Data safety; only explicitly uploaded copies are backed up. Logout, uninstall, clearing app data or changing phones can lose later or unbacked-up records. A referral file includes only selected records and is not a restorable backup."), tone = Tone.Amber)
             else Muted(l.tr("Reports are stored on the CareTrail server; the vault view is cached on this phone for offline reading. See Data safety for what that means."))
             Spacer(gap(8))
             Text(l.tr("Data safety"), color = CT.Brand, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable(onClick = nav.dataSafety).padding(vertical = 8.dp))
