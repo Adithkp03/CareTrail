@@ -421,7 +421,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             if (showLogoutWarning) androidx.compose.material3.AlertDialog(
                 onDismissRequest = { showLogoutWarning = false },
                 title = { Text(l.tr("Before you log out")) },
-                text = { Text(l.tr("Logout removes this phone's local records and unfinished drafts. Birth, growth, vaccine, mood, BP and sugar entries are not backed up to the server. Download my data includes server records only. A referral file includes selected records, not a restorable backup.")) },
+                text = { Text(l.tr("Logout removes this phone's local records and unfinished drafts. Only structured modules you explicitly backed up have a server copy. Later edits and unfinished drafts are not automatically uploaded. Check Optional cloud backup before logging out. Download my data includes server records and backed-up modules only. A referral file includes selected records, not a restorable backup.")) },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false; vm.logout() }) { Text(l.tr("Remove local records and log out")) } },
                 dismissButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false }) { Text(l.tr("Stay signed in")) } },
             )
