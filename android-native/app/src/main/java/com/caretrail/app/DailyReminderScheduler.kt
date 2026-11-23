@@ -110,10 +110,9 @@ object DailyReminderScheduler {
                 val open = PendingIntent.getActivity(ctx, 2001,
                     Intent(ctx, MainActivity::class.java).putExtra("daily_reminders", true),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-                val notification = NotificationCompat.Builder(ctx, "medications")
-                    .setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("Medication reminder")
-                    .setContentText("Open CareTrail to check your medication or refill schedule.")
-                    .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(open).setAutoCancel(true).build()
+                val scheduledAt = java.time.Instant.ofEpochMilli(due).atZone(ZoneId.systemDefault()).toLocalDateTime()
+                val details = MedicationNotificationText.forDue(plan(ctx, owner), scheduledAt)
+                val notification = medicationNotification(ctx, details, open)
                 try { NotificationManagerCompat.from(ctx).notify(2001, notification) } catch (_: SecurityException) { }
             }
         }
@@ -122,6 +121,19 @@ object DailyReminderScheduler {
             "com.caretrail.DAILY" -> "medication"
             else -> null
         })
+    }
+
+    internal fun medicationNotification(ctx: Context, details: String, open: PendingIntent): android.app.Notification {
+        val hidden = NotificationCompat.Builder(ctx, "medications")
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("Medication reminder")
+            .setContentText("Unlock your phone to view your reminder.")
+            .setContentIntent(open).setAutoCancel(true).build()
+        return NotificationCompat.Builder(ctx, "medications")
+            .setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle("Medication reminder")
+            .setContentText(details).setStyle(NotificationCompat.BigTextStyle().bigText(details))
+            .setPublicVersion(hidden).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setContentIntent(open).setAutoCancel(true).build()
     }
 
     private fun hydrationPending(ctx: Context, owner: String, due: Long) = PendingIntent.getBroadcast(
@@ -135,4 +147,3 @@ class DailyReminderReceiver : BroadcastReceiver() {
         DailyReminderScheduler.receive(context, intent)
     }
 }
-
