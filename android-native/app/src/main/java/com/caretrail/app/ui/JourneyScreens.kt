@@ -65,9 +65,21 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
             Spacer(gap(12))
             OutlineButton("Retry") { vm.refreshJourney() }
         }
-        is JourneyState.Ready -> content(s.journey, s.nextUp, s.offline)
+        is JourneyState.Ready -> if (s.stale && !s.offline) {
+            Column {
+                StaleRefreshNote(l, Modifier.padding(bottom = 8.dp))
+                Box(Modifier.weight(1f)) { content(s.journey, s.nextUp, s.offline) }
+            }
+        } else {
+            content(s.journey, s.nextUp, s.offline)
+        }
     }
 }
+
+/** Cached content while a network refresh runs: last synced copy, NOT confirmed current, NOT an offline indicator. */
+@Composable
+fun StaleRefreshNote(l: L, modifier: Modifier = Modifier) =
+    Note(l.tr("Showing your last synced information - updating..."), modifier, tone = Tone.Blue)
 
 @Composable
 internal fun JourneyLoading(takingLonger: Boolean, loading: String, retry: () -> Unit) {
