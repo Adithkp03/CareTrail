@@ -1,7 +1,10 @@
 # Review-branch verification for the native Android app: compiles, runs JVM unit
-# tests, builds the debug APK, and records a Roborazzi screenshot of the
-# Today-doses card so UI changes are pixel-checked without a physical device.
-# Branch-scoped on purpose: no deploy, no secrets, no production effect.
+# tests, builds the debug APK, and records a Roborazzi screenshot of the login
+# screen so the Google sign-in UI is pixel-checked without a physical device.
+# Branch-scoped on purpose: no deploy, no production effect. The core job signs
+# its debug APK with the repo-secret debug keystore (ANDROID_DEBUG_KEYSTORE_BASE64)
+# so CI APKs keep the same signing identity as the Nov 20 delivered debug build;
+# the secret value never appears in logs or artifacts, only its public SHA-1.
 # The screenshot harness runs in its own job so a UI-harness failure can never
 # block the core compile/unit-test/APK evidence.
 name: Native Android build (review)
@@ -9,13 +12,23 @@ name: Native Android build (review)
 on:
   workflow_dispatch:
   push:
-    branches: [fix/reminder-gaps, fix/startup-cached-open]
+    branches: [fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open]
 
 jobs:
   core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Record exact clinical review source
+        run: |
+          {
+            printf 'review_only=true\nclinical_pr61=true\nsource_commit='
+            git rev-parse HEAD
+            printf 'source_tree='
+            git rev-parse HEAD^{tree}
+          } > clinical-review-source-manifest.txt
+          git archive --format=zip HEAD -o clinical-review-source.zip
 
       - uses: actions/setup-java@v4
         with:
@@ -26,9 +39,39 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # Restore the stable debug keystore from the encrypted repo secret so this
+      # APK signs with the same identity as the delivered Nov 20 debug build.
+      # The key material never prints; the SHA-1 fingerprint is public cert
+      # metadata (visible in any signed APK) and is logged for OAuth client setup.
+      - name: Restore stable debug keystore
+        run: |
+          mkdir -p "$HOME/.android"
+          echo "${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}" | base64 -d > "$HOME/.android/debug.keystore"
+          ls -l "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey
+
       - name: Unit tests (excluding screenshot harness) and debug APK
         working-directory: android-native
-        run: gradle :app:testDebugUnitTest :app:assembleDebug -Pcaretrail.skipScreenshotTest --no-daemon --console=plain
+        # Injected signing properties make the debug APK use the restored stable
+        # keystore deterministically (the AGP default path did not take in CI).
+        # The Supabase anon key is Supabase's PUBLIC publishable key (safe in
+        # clients); passing it makes the Google button visible in the built APK.
+        run: |
+          gradle :app:testDebugUnitTest :app:assembleDebug -Pcaretrail.skipScreenshotTest --no-daemon --console=plain \
+            -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android \
+            -PcaretrailSupabaseAnonKey="${{ secrets.SUPABASE_ANON_KEY }}"
+
+      # Fail the build if the APK is not signed with the stable Nov-20 identity
+      # (SHA-256 of a signing cert is public metadata, printed in CI logs).
+      - name: Verify APK signing identity
+        run: |
+          APK=android-native/app/build/outputs/apk/debug/app-debug.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK"
+          "$APKSIGNER" verify --print-certs "$APK" | grep -q 'e93718406975bf0e18a2c9f001cb6fece3e1aeaef9a6dd61086a167fddef0864'
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -38,11 +81,23 @@ jobs:
             android-native/app/build/outputs/apk/debug/app-debug.apk
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
+            clinical-review-source-manifest.txt
+            clinical-review-source.zip
 
   screenshot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Record exact clinical review source
+        run: |
+          {
+            printf 'review_only=true\nclinical_pr61=true\nsource_commit='
+            git rev-parse HEAD
+            printf 'source_tree='
+            git rev-parse HEAD^{tree}
+          } > clinical-review-source-manifest.txt
+          git archive --format=zip HEAD -o clinical-review-source.zip
 
       - uses: actions/setup-java@v4
         with:
@@ -53,9 +108,11 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Record Today-doses card screenshot
+      # Dummy anon key makes the Google section visible in the rendered login
+      # screen. Build-time flag only; no network calls in a static render.
+      - name: Record login-screen screenshot
         working-directory: android-native
-        run: gradle :app:recordRoborazziDebug --no-daemon --console=plain
+        run: gradle :app:recordRoborazziDebug -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -65,5 +122,6 @@ jobs:
             android-native/app/build/outputs/roborazzi/
             android-native/app/build/reports/tests/
             android-native/app/build/test-results/testDebugUnitTest/
-            android-native/app/build/intermediates/merged_manifests/debugUnitTest/
-            android-native/app/build/intermediates/merged_manifest/debugUnitTest/
+            clinical-review-source-manifest.txt
+            clinical-review-source.zip
+

@@ -57,12 +57,7 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
     val l = rememberL(vm)
     LaunchedEffect(Unit) { vm.refreshJourney() }
     when (val s = state) {
-        is JourneyState.Loading -> Box(Modifier.fillMaxWidth().padding(top = 96.dp), contentAlignment = Alignment.TopCenter) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = CT.Brand)
-                Spacer(gap(12)); Muted(l.t("loading"))
-            }
-        }
+        is JourneyState.Loading -> JourneyLoading(s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
         is JourneyState.Empty -> LaunchedEffect(Unit) { onEmpty() }
         is JourneyState.Failed -> Page {
             Spacer(gap(48))
@@ -87,6 +82,22 @@ fun StaleRefreshNote(l: L, modifier: Modifier = Modifier) =
     Note(l.tr("Showing your last synced information - updating..."), modifier, tone = Tone.Blue)
 
 @Composable
+internal fun JourneyLoading(takingLonger: Boolean, loading: String, retry: () -> Unit) {
+    Page {
+        Spacer(gap(48))
+        CircularProgressIndicator(color = CT.Brand)
+        Spacer(gap(12))
+        Text(if (takingLonger) "Still loading your care timeline" else loading, style = MaterialTheme.typography.titleMedium)
+        if (takingLonger) {
+            Spacer(gap(12))
+            Note("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet.")
+            Spacer(gap(12))
+            OutlineButton("Try again") { retry() }
+        }
+    }
+}
+
+@Composable
 private fun StatusDot(status: String): String = when (status) { "done" -> "✓"; "next", "upcoming" -> "○"; else -> "●" }
 
 @Composable
@@ -104,7 +115,7 @@ fun MilestoneRow(m: Milestone, l: L, onClick: () -> Unit) {
                 m.completion_level?.let { append(" · ${l.tr(Logic.LEVEL_TEXT[it])}") }
                 if (m.status == "upcoming" && m.scheduled_date != null) append("📅 ${m.scheduled_date}")
                 if (m.status == "now") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
-                if (m.status == "next") append("${m.windowLabel} ${l.t("weeks")}")
+                if (m.status == "next") append("${l.t("window")}: ${m.windowLabel} ${l.t("weeks")}")
             }
             if (sub.isNotBlank()) Muted(sub)
             m.signoff?.let { Text("✅ ${l.t("signedOffBy")} ${it.doctor_name}", style = MaterialTheme.typography.labelSmall, color = CT.Green800) }
@@ -359,18 +370,33 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             // Doctor instructions
             if (!offline) DoctorInstructions(vm, j.journey_id, l)
             Spacer(gap(16))
+            CTCard {
+                SectionTitle(l.tr(if (postpartum) "After birth: mother and baby" else "Your pregnancy journey"))
+                Spacer(gap(8))
+                if (postpartum) {
+                    OutlineButton(l.tr("Mother: recovery and wellbeing"), onClick = nav.wellness)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Baby: growth chart"), onClick = nav.growth)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Baby: vaccination record"), onClick = nav.vaccines)
+                } else {
+                    OutlineButton(l.tr("Pregnancy timeline"), onClick = nav.timeline)
+                    Spacer(gap(8))
+                    OutlineButton(l.tr("Birth details or unfinished draft"), onClick = nav.birth)
+                }
+            }
+            Spacer(gap(12))
             // Quick access
             CTCard {
                 SectionTitle(l.tr("Quick access"))
                 Spacer(gap(12))
                 val items = if (postpartum) listOf(
-                    Triple("vaccination", l.tr("Vaccines"), nav.vaccines), Triple("pregnancy", l.tr("Growth chart"), nav.growth),
                     Triple("review", l.tr("Report vault"), nav.vault), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
-                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral), Triple("pregnancy", l.tr("Wellbeing"), nav.wellness),
+                    Triple("hospital", l.tr("Facilities"), nav.facilities), Triple("review", l.tr("Referral transfer"), nav.referral),
                 ) else listOf(
-                    Triple("review", l.tr("Timeline"), nav.timeline), Triple("bell", l.tr("Reminders"), nav.reminders),
+                    Triple("bell", l.tr("Reminders"), nav.reminders),
                     Triple("movement", l.tr("Movements"), nav.movements), Triple("upload", l.t("uploadReport"), { nav.upload(null) }),
                     Triple("visit", l.t("doctorView"), nav.doctor), Triple("pregnancy", l.tr("Care guidance"), nav.care),
                     Triple("test", l.tr("Health profile"), nav.intake), Triple("hospital", l.tr("First-visit checklist"), nav.registration),
@@ -402,7 +428,15 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             Spacer(gap(16))
             OutlineButton(l.tr("Your data"), onClick = nav.account)
             Spacer(gap(8))
-            OutlineButton(l.t("logout")) { vm.logout() }
+            var showLogoutWarning by remember { mutableStateOf(false) }
+            OutlineButton(l.t("logout")) { showLogoutWarning = true }
+            if (showLogoutWarning) androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showLogoutWarning = false },
+                title = { Text(l.tr("Before you log out")) },
+                text = { Text(l.tr("Logout removes this phone's local records and unfinished drafts. Only structured modules you explicitly backed up have a server copy. Later edits and unfinished drafts are not automatically uploaded. Check Optional cloud backup before logging out. Download my data includes server records and backed-up modules only. A referral file includes selected records, not a restorable backup.")) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false; vm.logout() }) { Text(l.tr("Remove local records and log out")) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false }) { Text(l.tr("Stay signed in")) } },
+            )
         }
     }
 }
@@ -441,6 +475,11 @@ fun TimelineScreen(vm: AppViewModel, nav: Nav) {
                             if (i == current) {
                                 Spacer(gap(4))
                                 Chip("● ${l.t("youAreHere")} · $week ${l.t("weeks")}", CT.BrandSoft, CT.Brand)
+                            }
+                            if (i == 1) j.vaccination_guidance?.let { guidance ->
+                                Spacer(gap(8))
+                                VaccinationGuidanceCard(guidance, l)
+                                Spacer(gap(8))
                             }
                             shown.forEach { MilestoneRow(it, l) { nav.milestone(it.id) } }
                             if (rest.isNotEmpty()) {

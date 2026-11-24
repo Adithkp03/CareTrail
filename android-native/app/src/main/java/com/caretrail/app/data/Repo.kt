@@ -1,5 +1,6 @@
 package com.caretrail.app.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
 
@@ -39,7 +40,7 @@ class Repo(val api: Api, val store: Store) {
 
     suspend fun nextUp(journeyId: String): NextUp? = try {
         api.nextUp(journeyId).also { remember("nextup", it) }
-    } catch (e: SessionExpired) { throw e } catch (_: Exception) { cached<NextUp>("nextup") }
+    } catch (e: SessionExpired) { throw e } catch (e: CancellationException) { throw e } catch (_: Exception) { cached<NextUp>("nextup") }
 
     suspend fun milestone(id: String): Loaded<Milestone> = try {
         Loaded(api.milestone(id).also { remember("ms:$id", it) }, false)

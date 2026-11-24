@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.caretrail.app.AppViewModel
 import com.caretrail.app.data.ApiException
 import com.caretrail.app.data.Langs
@@ -39,11 +41,19 @@ import kotlinx.coroutines.launch
 
 @Composable
 private fun LoginArt(l: L) {
-    Box(
+    BoxWithConstraints(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp))
             .background(Brush.linearGradient(listOf(Color(0xFF152A54), Color(0xFF3B5AAB), Color(0xFF95ADF0))))
             .padding(start = 28.dp, end = 28.dp, top = 32.dp, bottom = 64.dp)
     ) {
+        // On the narrowest phones (320dp class, header content < ~260dp) "Welcome"
+        // alone overflows at 28sp and breaks mid-word; step down only there so
+        // 360dp+ phones keep the original 28sp design.
+        val welcomeStyle = if (maxWidth < 270.dp) {
+            MaterialTheme.typography.displayLarge.copy(fontSize = 23.sp)
+        } else {
+            MaterialTheme.typography.displayLarge
+        }
         Box(
             Modifier.align(Alignment.TopEnd).size(80.dp).clip(CircleShape)
                 .background(Brush.radialGradient(listOf(Color(0xFFE8EFFF), Color(0xFF839EE8), Color(0xFF24487F))))
@@ -51,7 +61,7 @@ private fun LoginArt(l: L) {
         Column {
             Text("CARETRAIL", color = Color.White, style = MaterialTheme.typography.labelMedium)
             Spacer(gap(48))
-            Text("Welcome back.", color = Color.White, style = MaterialTheme.typography.displayLarge)
+            Text("Welcome back.", color = Color.White, style = welcomeStyle)
             Spacer(gap(10))
             Text(l.t("tagline"), color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
         }
@@ -59,13 +69,15 @@ private fun LoginArt(l: L) {
 }
 
 @Composable
-fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
+fun LoginScreen(vm: AppViewModel, onGoogleSuccess: () -> Unit = {}, onSignup: () -> Unit) {
     val l = rememberL(vm)
     val scope = rememberCoroutineScope()
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    val google = rememberGoogleUi(vm, onGoogleSuccess)
+    if (google.pending) { GooglePendingScreen(vm, google); return }
 
     suspend fun doLogin(p: String, pw: String) {
         val res = vm.api.login(p, pw)
@@ -84,7 +96,7 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
             CTField(password, { password = it }, l.t("password"), password = true)
             if (error.isNotEmpty()) { Spacer(gap(8)); Text(error, color = CT.Red700, style = MaterialTheme.typography.bodySmall) }
             Spacer(gap(16))
-            PrimaryButton(l.t("login"), enabled = !busy && phone.isNotBlank() && password.isNotEmpty()) {
+            PrimaryButton(l.t("login"), enabled = !busy && !google.busy && phone.isNotBlank() && password.isNotEmpty()) {
                 busy = true; error = ""
                 scope.launch {
                     try { doLogin(phone.trim(), password) }
@@ -95,8 +107,15 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
                 }
             }
         }
+        if (vm.supabaseAuth.configured) {
+            Column(Modifier.offset(y = (-20).dp)) {
+                AuthDivider(l)
+                GoogleEntry(vm, google, busy)
+                Spacer(gap(12))
+            }
+        }
         Column(Modifier.offset(y = (-20).dp)) {
-            OutlineButton(l.t("tryDemo"), enabled = !busy) {
+            OutlineButton(l.t("tryDemo"), enabled = !busy && !google.busy) {
                 busy = true; error = ""
                 scope.launch {
                     try {
@@ -118,7 +137,7 @@ fun LoginScreen(vm: AppViewModel, onSignup: () -> Unit) {
 }
 
 @Composable
-fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
+fun SignupScreen(vm: AppViewModel, onGoogleSuccess: () -> Unit = {}, onBack: () -> Unit) {
     val l = rememberL(vm)
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -127,7 +146,14 @@ fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
     var consent by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    val google = rememberGoogleUi(vm, onGoogleSuccess)
+    if (google.pending) { GooglePendingScreen(vm, google); return }
     Page(title = l.t("signup"), back = onBack) {
+        if (vm.supabaseAuth.configured) {
+            Spacer(gap(16))
+            GoogleEntry(vm, google, busy)
+            AuthDivider(l)
+        }
         Spacer(gap(16))
         CTField(name, { name = it }, l.t("yourName"))
         Spacer(gap(12))
@@ -148,7 +174,7 @@ fun SignupScreen(vm: AppViewModel, onBack: () -> Unit) {
         }
         if (error.isNotEmpty()) { Spacer(gap(8)); Text(error, color = CT.Red700, style = MaterialTheme.typography.bodySmall) }
         Spacer(gap(16))
-        PrimaryButton(l.t("signup"), enabled = !busy && consent && name.isNotBlank() && phone.length >= 6 && password.length >= 8) {
+        PrimaryButton(l.t("signup"), enabled = !busy && !google.busy && consent && name.isNotBlank() && phone.length >= 6 && password.length >= 8) {
             busy = true; error = ""
             scope.launch {
                 try {
@@ -194,4 +220,3 @@ fun NewJourneyScreen(vm: AppViewModel, onDone: () -> Unit) {
         }
     }
 }
-

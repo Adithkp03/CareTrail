@@ -1,0 +1,335 @@
+{
+  "journey_id": "synthetic-clinical-journey",
+  "template_id": "antenatal",
+  "template_version": "v1",
+  "patient": {
+    "name": "Synthetic clinician-guidance QA",
+    "language": "en"
+  },
+  "gestational_age": {
+    "days": 140,
+    "weeks": 20,
+    "plus_days": 0,
+    "as_of": "2026-11-22"
+  },
+  "lmp": "2026-07-05",
+  "edd": "2027-04-11",
+  "summary": {
+    "done": 0,
+    "now": 5,
+    "upcoming": 0,
+    "next": 9
+  },
+  "next_appointment": null,
+  "milestones": [
+    {
+      "id": "synthetic-first_consultation",
+      "key": "first_consultation",
+      "title": "First consultation (booking visit)",
+      "type": "visit",
+      "window_weeks": [
+        6,
+        10
+      ],
+      "required_tests": [],
+      "prep_notes": "After a positive urine pregnancy test, get an ultrasound to confirm the site of pregnancy. Inform a local government health facility or a village area nurse so your pregnancy can be registered. Tell the doctor about any known comorbidities.",
+      "status": "now",
+      "overdue": true,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-baseline_bloods",
+      "key": "baseline_bloods",
+      "title": "Baseline blood tests",
+      "type": "test",
+      "window_weeks": [
+        6,
+        12
+      ],
+      "required_tests": [
+        "hb",
+        "bp_sys",
+        "bp_dia",
+        "blood_group",
+        "hiv",
+        "hbsag",
+        "vdrl",
+        "urine_routine",
+        "glucose_fasting"
+      ],
+      "prep_notes": "Ask about first-visit investigations: hemoglobin, platelets, blood group, HIV/VDRL/HBsAg, TFT (fasting), fasting/post-prandial sugars, urine routine microscopy and culture. Discuss test preparation with your doctor.",
+      "status": "now",
+      "overdue": true,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-nt_scan",
+      "key": "nt_scan",
+      "title": "NT scan (first trimester ultrasound)",
+      "type": "scan",
+      "window_weeks": [
+        11,
+        13.857142857142858
+      ],
+      "required_tests": [],
+      "prep_notes": "NT scan strictly within 11 to 13+6 weeks. Discuss first-trimester screening with your clinician: beta-hCG and PAPP-A help screen for common chromosomal aneuploidies; they do not rule them out. PlGF may be discussed for pre-eclampsia screening, but it can be costly. A moderately full bladder may help if your scan provider advises it.",
+      "status": "now",
+      "overdue": true,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-second_trimester_review",
+      "key": "second_trimester_review",
+      "title": "Second-trimester review",
+      "type": "visit",
+      "window_weeks": [
+        18,
+        24
+      ],
+      "required_tests": [
+        "hb",
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "Weight, blood pressure and growth check. List any new symptoms. Seek prompt medical attention for severe headache, blurry vision, severe nausea or vomiting, right-sided upper abdominal pain, reduced urine or sudden swelling of the whole body.",
+      "status": "now",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-anomaly_scan",
+      "key": "anomaly_scan",
+      "title": "Anomaly scan (TIFFA)",
+      "type": "scan",
+      "window_weeks": [
+        18,
+        23
+      ],
+      "required_tests": [],
+      "prep_notes": "Detailed scan of the baby's organs, usually 18-22 weeks. No fasting needed.",
+      "status": "now",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-consultation_24w",
+      "key": "consultation_24w",
+      "title": "Antenatal consultation (24 weeks)",
+      "type": "visit",
+      "window_weeks": [
+        24,
+        26
+      ],
+      "required_tests": [
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "Bring the anomaly scan report.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-ogtt",
+      "key": "ogtt",
+      "title": "Glucose tolerance test (OGTT)",
+      "type": "test",
+      "window_weeks": [
+        24,
+        28
+      ],
+      "required_tests": [
+        "glucose_fasting",
+        "glucose_ogtt_1h",
+        "glucose_ogtt_2h"
+      ],
+      "prep_notes": "Come fasting (8-10 hours, water allowed). The test takes about 2 hours.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-tdap_vaccine",
+      "key": "tdap_vaccine",
+      "title": "Tdap/TT vaccination",
+      "type": "vaccination",
+      "window_weeks": [
+        27,
+        36
+      ],
+      "required_tests": [],
+      "prep_notes": "Protects the baby from whooping cough and tetanus.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-third_trimester_review",
+      "key": "third_trimester_review",
+      "title": "Third-trimester review",
+      "type": "visit",
+      "window_weeks": [
+        28,
+        32
+      ],
+      "required_tests": [
+        "hb",
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "Repeat haemoglobin. Mention any swelling, headache or reduced movements.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-growth_scan",
+      "key": "growth_scan",
+      "title": "Growth scan",
+      "type": "scan",
+      "window_weeks": [
+        28,
+        32
+      ],
+      "required_tests": [],
+      "prep_notes": "Checks the baby's growth and fluid levels.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-review_34w",
+      "key": "review_34w",
+      "title": "Antenatal review (34 weeks)",
+      "type": "visit",
+      "window_weeks": [
+        34,
+        36
+      ],
+      "required_tests": [
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "Track baby movements daily from now on.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-review_36w",
+      "key": "review_36w",
+      "title": "Antenatal review (36 weeks)",
+      "type": "visit",
+      "window_weeks": [
+        36,
+        38
+      ],
+      "required_tests": [
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "Discuss birth plan and warning signs.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-review_38w",
+      "key": "review_38w",
+      "title": "Antenatal review (38 weeks)",
+      "type": "visit",
+      "window_weeks": [
+        38,
+        40
+      ],
+      "required_tests": [
+        "bp_sys",
+        "bp_dia"
+      ],
+      "prep_notes": "At the 38–39-week review, your doctor may recommend an internal examination if needed. They will explain the reason and ask for your consent. Know when to go to the hospital: regular pains, leaking, bleeding.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    },
+    {
+      "id": "synthetic-birth_plan",
+      "key": "birth_plan",
+      "title": "Birth plan review",
+      "type": "review",
+      "window_weeks": [
+        36,
+        40
+      ],
+      "required_tests": [],
+      "prep_notes": "Confirm hospital, transport, and who accompanies you. Consider keeping a birth kit ready: medical records, comfortable clothes, towel, wipes, sanitary napkins, tissues, baby clothes, snacks, juice, water and toiletries.",
+      "status": "next",
+      "overdue": false,
+      "completed_at": null,
+      "completion_level": null,
+      "scheduled_date": null,
+      "signoff": null
+    }
+  ],
+  "flags": [],
+  "danger_signs": [
+    "Bleeding or leaking fluid",
+    "Severe headache or blurred vision",
+    "Reduced or absent baby movements",
+    "Severe abdominal pain",
+    "High fever",
+    "Swelling of face and hands with headache",
+    "Severe nausea or vomiting",
+    "Right-sided upper abdominal pain",
+    "Reduced urine",
+    "Sudden swelling of the whole body"
+  ],
+  "vaccination_guidance": {
+    "kind": "clinician_discussion",
+    "title": "Td vaccination: confirm your plan",
+    "timing": "Doctor's suggested timing: around 16 and 20 weeks.",
+    "summary": "Information to discuss, not a dose due or vaccination record.",
+    "course": "If a two-dose Td course is needed, the second dose is given at least 4 weeks after the first. Your doctor should confirm your dates.",
+    "booster": "A single Td booster may be used instead of a two-dose Td course when you received two Td/TT doses in a previous pregnancy within the last 3 years. Ask your doctor to check your vaccination history; the app does not decide eligibility.",
+    "tdap": "Tdap is a different vaccine that also protects against whooping cough. Your doctor should confirm how it fits with Td, including whether it replaces the second Td dose. Separate Td and Tdap entries do not mean automatic extra doses.",
+    "records": "Keep your existing vaccination records. This guidance does not change them or mark any dose as received."
+  }
+}

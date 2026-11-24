@@ -3,15 +3,12 @@
     <!-- Debug builds only: makes androidx.activity.ComponentActivity resolvable
          so Compose UI tests (Roborazzi screenshots under Robolectric) can launch
          it. Merged into the debug manifest that unit tests see when
-         unitTests.isIncludeAndroidResources is on. Not in release builds. -->
+         unitTests.isIncludeAndroidResources is on. Not in release builds.
+         No LAUNCHER intent-filter here: a launcher entry ships a second
+         "CareTrail" home-screen icon in installed debug builds. -->
     <application>
         <activity
             android:name="androidx.activity.ComponentActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="true" />
     </application>
 </manifest>

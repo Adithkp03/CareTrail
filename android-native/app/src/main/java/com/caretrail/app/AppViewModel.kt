@@ -12,13 +12,20 @@ import com.caretrail.app.data.NextUp
 import com.caretrail.app.data.Repo
 import com.caretrail.app.data.SessionExpired
 import com.caretrail.app.data.Store
+import com.caretrail.app.data.SupabaseAuth
 import com.caretrail.app.data.Translator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 
 sealed interface JourneyState {
-    data object Loading : JourneyState
+    data class Loading(val takingLonger: Boolean = false) : JourneyState
     data object Empty : JourneyState
     data class Ready(val journey: Journey, val nextUp: NextUp?, val offline: Boolean, val stale: Boolean = false) : JourneyState
     data class Failed(val message: String) : JourneyState
@@ -30,64 +37,130 @@ class AppViewModel(app: Application, apiBase: String = BuildConfig.API_URL) : An
     val loggedIn: StateFlow<Boolean> = _loggedIn
 
     val api = Api(apiBase, { store.token }, { expireSession() })
+    val supabaseAuth = SupabaseAuth(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
     val repo = Repo(api, store)
     val translator = Translator(api, store, viewModelScope)
 
-    private val _journey = MutableStateFlow<JourneyState>(JourneyState.Loading)
-    val journey: StateFlow<JourneyState> = _journey
+    private val journeyLoader = JourneyLoader(
+        viewModelScope, { store.token }, { repo.myJourney() }, { repo.nextUp(it) },
+        cached = { repo.cachedJourney() }, cachedNextUp = { repo.cachedNextUp() },
+        onReady = { j ->
+            if (!store.langChosen && Langs_valid(j.patient.language)) translator.setLang(j.patient.language, explicit = false)
+        },
+    )
+    val journey: StateFlow<JourneyState> = journeyLoader.state
 
     private val _inbox = MutableStateFlow<Inbox?>(null)
     val inbox: StateFlow<Inbox?> = _inbox
 
     private fun expireSession() {
         // Network session expiry is not a deliberate logout: keep local reminders running.
+        journeyLoader.reset()
         store.token = null
         _loggedIn.value = false
     }
 
     fun onSignedIn(token: String, patientId: String = "") {
+        journeyLoader.reset()
         DailyReminderScheduler.onExplicitSignIn(getApplication(), patientId)
         store.token = token
-        _journey.value = JourneyState.Loading
         _loggedIn.value = true
     }
 
     fun logout() {
+        journeyLoader.reset()
         DailyReminderScheduler.deactivate(getApplication())
         store.clearAccount()
-        _journey.value = JourneyState.Loading
         _inbox.value = null
         _loggedIn.value = false
     }
 
-    fun refreshJourney() {
-        viewModelScope.launch {
-            // Show the last good copy immediately while the network refresh runs,
-            // so a cold open does not block on the server waking up. Marked stale (not offline): the last-synced copy stays visible to this session's device holder until the server answers; a 401 then clears the token and the cache becomes unreachable.
-            if (_journey.value !is JourneyState.Ready) {
-                repo.cachedJourney()?.let { _journey.value = JourneyState.Ready(it, repo.cachedNextUp(), offline = false, stale = true) }
-            }
-            try {
-                val res = repo.myJourney()
-                val j = res.value
-                if (j == null) { _journey.value = JourneyState.Empty; return@launch }
-                // Show the timeline immediately; next-up fills in after.
-                _journey.value = JourneyState.Ready(j, (_journey.value as? JourneyState.Ready)?.nextUp, res.offline)
-                if (!store.langChosen && Langs_valid(j.patient.language)) translator.setLang(j.patient.language, explicit = false)
-                val nu = repo.nextUp(j.journey_id)
-                _journey.value = JourneyState.Ready(j, nu, res.offline)
-            } catch (e: SessionExpired) {
-                // handled by expireSession
-            } catch (e: ApiException) {
-                _journey.value = JourneyState.Failed(e.message ?: "Failed to load")
-            } catch (e: Exception) {
-                _journey.value = JourneyState.Failed(e.message ?: "Failed to load")
-            }
-        }
-    }
+    fun refreshJourney(force: Boolean = false) { journeyLoader.refresh(force) }
 
     fun setInbox(i: Inbox?) { _inbox.value = i }
 
     @Suppress("FunctionName")
     private fun Langs_valid(code: String) = com.caretrail.app.data.Langs.valid(code)
+}
+
+/** Single in-flight Home load, including fresh installs without a cached journey. */
+internal class JourneyLoader(
+    private val scope: CoroutineScope,
+    private val token: () -> String?,
+    private val load: suspend () -> Repo.Loaded<Journey?>,
+    private val nextUp: suspend (String) -> NextUp?,
+    private val cached: () -> Journey? = { null },
+    private val cachedNextUp: () -> NextUp? = { null },
+    private val onReady: (Journey) -> Unit = {},
+) {
+    private val mutable = MutableStateFlow<JourneyState>(JourneyState.Loading())
+    val state: StateFlow<JourneyState> = mutable
+    private var job: Job? = null
+    private var generation = 0
+    private var activeToken: String? = null
+
+    fun reset() {
+        generation++
+        job?.cancel()
+        job = null
+        activeToken = null
+        mutable.value = JourneyState.Loading()
+    }
+
+    fun refresh(force: Boolean = false) {
+        val session = token() ?: return
+        if (!force && job?.isActive == true && activeToken == session) return
+        val previousSession = activeToken
+        job?.cancel()
+        val version = ++generation
+        activeToken = session
+        if (previousSession != session || mutable.value !is JourneyState.Ready) {
+            // Show the last good copy immediately while the network refresh runs, so a cold
+            // open does not block on the server waking up. Marked stale (not offline): the
+            // last-synced copy stays visible to this session's device holder until the server
+            // answers; a 401 then clears the token and the cache becomes unreachable.
+            val lastSynced = cached()
+            mutable.value = if (lastSynced != null) {
+                JourneyState.Ready(lastSynced, cachedNextUp(), offline = false, stale = true)
+            } else {
+                JourneyState.Loading()
+            }
+        }
+        fun current() = version == generation && token() == session
+        job = scope.launch {
+            val slowNotice = launch {
+                delay(8_000)
+                if (current() && mutable.value is JourneyState.Loading) mutable.value = JourneyState.Loading(takingLonger = true)
+            }
+            try {
+                // One budget for BOTH required requests, not 90 seconds per read.
+                val result = withTimeout(45_000) { load() }
+                if (!current()) return@launch
+                val journey = result.value
+                if (journey == null) {
+                    mutable.value = JourneyState.Empty
+                    return@launch
+                }
+                mutable.value = JourneyState.Ready(journey, null, result.offline)
+                onReady(journey)
+                slowNotice.cancel()
+                // Optional next-up cannot hide an already loaded Home screen.
+                val upcoming = try { withTimeout(15_000) { nextUp(journey.journey_id) } }
+                catch (_: TimeoutCancellationException) { null }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { null }
+                if (current()) mutable.value = JourneyState.Ready(journey, upcoming, result.offline)
+            } catch (_: TimeoutCancellationException) {
+                if (current()) mutable.value = JourneyState.Failed("Your care timeline is taking too long to load. Check your connection and try again.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: SessionExpired) {
+                if (current()) mutable.value = JourneyState.Failed("Your session expired. Please sign in again.")
+            } catch (e: Exception) {
+                if (current()) mutable.value = JourneyState.Failed(e.message ?: "Failed to load")
+            } finally {
+                slowNotice.cancel()
+            }
+        }
+    }
 }

@@ -2,7 +2,6 @@ package com.caretrail.app.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.MediaPlayer
 import android.media.MediaRecorder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,8 +35,13 @@ import com.caretrail.app.data.Explanation
 import com.caretrail.app.data.Langs
 import com.caretrail.app.data.Logic
 import com.caretrail.app.data.Milestone
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.io.File
 
 @Composable
@@ -55,6 +59,18 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
     var answer by remember { mutableStateOf<AskAnswer?>(null) }
     var asking by remember { mutableStateOf(false) }
     var scheduleDate by remember { mutableStateOf("") }
+    var recordingJob by remember { mutableStateOf<Job?>(null) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val (audio, audioState) = rememberScreenAudio {
+        listenMsg = l.tr("Audio is not available right now. Please try again.")
+    }
+    androidx.compose.runtime.DisposableEffect(id, l.lang, lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) recordingJob?.cancel()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer); recordingJob?.cancel(); audio.stop() }
+    }
 
     suspend fun load() {
         try { val r = vm.repo.milestone(id); m = r.value; offline = r.offline } catch (e: Exception) { error = e.message ?: "Failed" }
@@ -62,12 +78,11 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
     }
     LaunchedEffect(id, l.lang) { load() }
 
-    fun play(bytes: ByteArray, ext: String) {
-        val f = File.createTempFile("ct_audio", ".$ext", ctx.cacheDir); f.writeBytes(bytes)
-        MediaPlayer().apply { setDataSource(f.path); prepare(); setOnCompletionListener { release(); f.delete() }; start() }
-    }
-
     suspend fun recordAndAsk() {
+        if (asking) return
+        asking = true
+        audio.stop()
+        val voiceGeneration = audio.revision
         listenMsg = l.tr("Listening… speak your question now")
         val f = File.createTempFile("ct_q", ".m4a", ctx.cacheDir)
         @Suppress("DEPRECATION") val rec = MediaRecorder()
@@ -77,15 +92,18 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
             delay(4000); rec.stop(); rec.release()
             asking = true
             val res = vm.api.askVoice(f.readBytes(), "question.m4a", "audio/mp4", l.lang)
+            if (!audio.isCurrent(voiceGeneration)) return
             question = res.transcript; answer = AskAnswer(res.answer, res.urgent)
-            res.audio_base64?.let { play(android.util.Base64.decode(it, android.util.Base64.DEFAULT), "wav") }
+            res.audio_base64?.let { encoded ->
+                audio.play { android.util.Base64.decode(encoded, android.util.Base64.DEFAULT) }
+            }
             listenMsg = ""
+        } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
-            runCatching { rec.release() }
             listenMsg = l.tr("Voice questions are not available right now. You can type your question instead.")
-        } finally { asking = false; f.delete() }
+        } finally { runCatching { rec.release() }; asking = false; f.delete() }
     }
-    val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) scope.launch { recordAndAsk() } else listenMsg = l.tr("Voice questions are not available right now. You can type your question instead.") }
+    val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) { recordingJob = scope.launch { recordAndAsk() } } else listenMsg = l.tr("Voice questions are not available right now. You can type your question instead.") }
 
     val ms = m
     Page(back = nav.back, backLabel = l.t("appName")) {
@@ -148,15 +166,13 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
         Spacer(gap(12))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f)) {
-                OutlineButton("🔊 ${l.t("listen")}") {
+                ListenControl(audio, audioState, l.t("listen"), l.tr("Preparing audio..."), l.tr("Stop audio")) {
+                    recordingJob?.cancel()
                     listenMsg = ""
-                    scope.launch {
-                        try { play(vm.api.explanationAudio(id, l.lang), "wav") }
-                        catch (e: Exception) { listenMsg = l.tr("Audio is not available right now. Please try again.") }
-                    }
+                    vm.api.explanationAudio(id, l.lang)
                 }
             }
-            Column(Modifier.weight(1f)) { OutlineButton("🎙️ ${l.t("ask")}") { askOpen = !askOpen } }
+            Column(Modifier.weight(1f)) { OutlineButton("🎙️ ${l.t("ask")}") { audio.stop(); askOpen = !askOpen } }
         }
         if (listenMsg.isNotEmpty()) Muted(listenMsg, Modifier.padding(top = 4.dp))
         if (askOpen) {
@@ -177,7 +193,7 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
                     }
                     Column(Modifier.weight(1f)) {
                         OutlineButton("🎙️ ${l.tr("Ask by voice")}", enabled = !asking) {
-                            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) scope.launch { recordAndAsk() }
+                            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { recordingJob = scope.launch { recordAndAsk() } }
                             else micLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         }
                     }

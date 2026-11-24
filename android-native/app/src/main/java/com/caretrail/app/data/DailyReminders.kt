@@ -84,3 +84,22 @@ object ReminderTimes {
     }
 }
 
+
+/** Names from the saved schedule, never dose advice or an inference that a dose was taken. */
+object MedicationNotificationText {
+    fun forDue(plan: DailyReminderPlan, due: LocalDateTime): String {
+        val reminders = plan.medications.filter { it.enabled }.mapNotNull { m ->
+            val name = m.name.replace(Regex("[\\r\\n\\t]+"), " ").trim().take(100).ifBlank { "Medication" }
+            val doseDue = ReminderTimes.dosesOn(m, due.toLocalDate()).any { it == due }
+            val refillDue = m.refillDate == due.toLocalDate().toString() && due.toLocalTime() == LocalTime.of(9, 0)
+            when {
+                doseDue && refillDue -> "$name (scheduled reminder and refill)"
+                doseDue -> "$name (scheduled reminder)"
+                refillDue -> "$name (refill reminder)"
+                else -> null
+            }
+        }.distinct()
+        return if (reminders.isEmpty()) "Open CareTrail to check your medication or refill schedule."
+        else reminders.take(5).joinToString("; ") + (if (reminders.size > 5) "; and ${reminders.size - 5} more" else "") + ". Open CareTrail to review."
+    }
+}

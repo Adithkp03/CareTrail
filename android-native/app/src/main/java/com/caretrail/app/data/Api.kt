@@ -1,7 +1,9 @@
 package com.caretrail.app.data
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -57,17 +59,33 @@ class Api(
         } catch (_: Exception) { fallback }
     }
 
-    suspend fun raw(req: Request.Builder, auth: Boolean = true): ByteArray = withContext(Dispatchers.IO) {
-        try {
-            client.newCall(req.build()).execute().use { res ->
-                val bytes = res.body?.bytes() ?: ByteArray(0)
-                if (res.code == 401 && auth) { onUnauthorized(); throw SessionExpired() }
-                if (!res.isSuccessful) throw ApiException(res.code, detailOf(String(bytes), res.message.ifBlank { "HTTP ${res.code}" }))
-                bytes
+    suspend fun raw(req: Request.Builder, auth: Boolean = true): ByteArray = suspendCancellableCoroutine { continuation ->
+        val request = req.build()
+        val call = client.newCall(request)
+        // Cancelling a screen load must stop its socket, not leave a 90-second
+        // blocking request running behind a retry or a different account.
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                continuation.resumeWith(Result.failure(ApiException(0, "Network error: ${e.message ?: "offline"}")))
             }
-        } catch (e: IOException) {
-            throw ApiException(0, "Network error: ${e.message ?: "offline"}")
-        }
+
+            override fun onResponse(call: Call, response: Response) {
+                val result = runCatching {
+                    response.use { res ->
+                        val bytes = res.body?.bytes() ?: ByteArray(0)
+                        if (res.code == 401 && auth) {
+                            // An old request must not sign out a newly selected account.
+                            if (request.header("Authorization") == tokenProvider()?.let { "Bearer $it" }) onUnauthorized()
+                            throw SessionExpired()
+                        }
+                        if (!res.isSuccessful) throw ApiException(res.code, detailOf(String(bytes), res.message.ifBlank { "HTTP ${res.code}" }))
+                        bytes
+                    }
+                }
+                continuation.resumeWith(result)
+            }
+        })
     }
 
     suspend fun <T> get(path: String, ser: KSerializer<T>, auth: Boolean = true): T =
@@ -90,6 +108,15 @@ class Api(
 
     suspend fun signup(name: String, phone: String, password: String, language: String, consent: Boolean): TokenResponse =
         send("POST", "/auth/signup", obj { put("name", name); put("phone", phone); put("password", password); put("language", language); put("consent", consent) }, serializer(), auth = false)
+
+    /** Probe-first Google flow: create=false returns 404 "no_caretrail_account" for an
+     *  unknown identity so the UI can offer the explicit link-or-create choice. */
+    suspend fun supabaseExchange(accessToken: String, consent: Boolean, language: String, create: Boolean): TokenResponse =
+        send("POST", "/auth/supabase", obj { put("access_token", accessToken); put("consent", consent); put("language", language); put("create", create) }, serializer(), auth = false)
+
+    /** Link a verified Google identity to an existing phone/password account (password proof). */
+    suspend fun linkSupabase(accessToken: String, phone: String, password: String): TokenResponse =
+        send("POST", "/auth/link-supabase", obj { put("access_token", accessToken); put("phone", phone); put("password", password) }, serializer(), auth = false)
 
     suspend fun seedDemo() { send("POST", "/demo/seed", null, serializer<JsonElement>(), auth = false) }
 

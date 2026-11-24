@@ -32,6 +32,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.caretrail.app.AppViewModel
+import com.caretrail.app.data.BirthDraft
+import com.caretrail.app.data.birthDraft
+import com.caretrail.app.data.saveBirthDraft
+import com.caretrail.app.data.confirmBirthDraft
+import com.caretrail.app.data.discardBirthDraft
 import com.caretrail.app.data.BirthRecord
 import com.caretrail.app.data.GrowthEntry
 import com.caretrail.app.data.Logic
@@ -95,13 +100,19 @@ fun BirthEntryScreen(vm: AppViewModel, nav: Nav) {
     val l = rememberL(vm)
     JourneyGate(vm, onEmpty = nav.newJourney) { j, _, _ ->
         var data by remember(j.journey_id) { mutableStateOf(vm.store.birthRecord(j.journey_id)) }
-        var gaW by remember(j.journey_id) { mutableStateOf(if (data.ga_weeks > 0) data.ga_weeks.toString() else "") }
-        var gaD by remember(j.journey_id) { mutableStateOf(data.ga_days.toString().takeIf { data.ga_weeks > 0 } ?: "") }
-        var wt by remember(j.journey_id) { mutableStateOf(if (data.weight_kg > 0) data.weight_kg.toString() else "") }
-        var head by remember(j.journey_id) { mutableStateOf(if (data.head_cm > 0) data.head_cm.toString() else "") }
-        var len by remember(j.journey_id) { mutableStateOf(if (data.length_cm > 0) data.length_cm.toString() else "") }
-        var saved by remember { mutableStateOf(false) }
-        fun valid() = data.date.isNotEmpty() && data.gender.isNotEmpty()
+        val initialDraft = remember(j.journey_id) { runCatching { vm.store.birthDraft(j.journey_id) } }
+        var draftError by remember(j.journey_id) { mutableStateOf(if (initialDraft.isFailure) "Could not read this phone's draft. Do not clear app data; retry on this device." else "") }
+        var draft by remember(j.journey_id) { mutableStateOf(initialDraft.getOrNull() ?: BirthDraft.from(data)) }
+        var draftStored by remember(j.journey_id) { mutableStateOf(initialDraft.getOrNull() != null) }
+        var saved by remember(j.journey_id) { mutableStateOf(false) }
+        fun update(value: BirthDraft) {
+            if (initialDraft.isFailure) return
+            draft = value; saved = false; draftStored = false
+            runCatching { vm.store.saveBirthDraft(j.journey_id, value) }
+                .onSuccess { draftStored = true; draftError = "" }
+                .onFailure { draftError = "Draft could not be saved on this phone. Keep this screen open and retry." }
+        }
+        fun valid() = draftError.isEmpty() && runCatching { LocalDate.parse(draft.date) }.isSuccess && draft.gender in listOf("boy", "girl")
         Page(title = l.tr(if (data.confirmed) "Birth details" else "Record the birth"), back = nav.home) {
             Spacer(gap(8))
             if (data.confirmed) Note(l.tr("Birth recorded - CareTrail is in postpartum mode. You can correct these details any time."), tone = Tone.Green)
@@ -110,48 +121,48 @@ fun BirthEntryScreen(vm: AppViewModel, nav: Nav) {
             CTCard {
                 SectionTitle(l.tr("About the delivery"))
                 Spacer(gap(8))
-                DateField(data.date, { data = data.copy(date = it); saved = false }, l.tr("Date of delivery"))
+                DateField(draft.date, { update(draft.copy(date = it)) }, l.tr("Date of delivery"))
                 Spacer(gap(8))
-                CTField(data.time, { data = data.copy(time = it); saved = false }, l.tr("Time of birth (e.g. 14:35)"))
+                CTField(draft.time, { update(draft.copy(time = it)) }, l.tr("Time of birth (e.g. 14:35)"))
                 Spacer(gap(12))
                 Text(l.tr("Gestational age at delivery"), style = MaterialTheme.typography.labelMedium, color = CT.Muted)
                 Spacer(gap(6))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.weight(1f)) { CTField(gaW, { gaW = it.filter { c -> c.isDigit() }; saved = false }, l.tr("Weeks"), keyboard = KeyboardType.Number) }
-                    Box(Modifier.weight(1f)) { CTField(gaD, { gaD = it.filter { c -> c.isDigit() }; saved = false }, l.tr("+ Days"), keyboard = KeyboardType.Number) }
+                    Box(Modifier.weight(1f)) { CTField(draft.weeks, { update(draft.copy(weeks = it.filter { c -> c.isDigit() })) }, l.tr("Weeks"), keyboard = KeyboardType.Number) }
+                    Box(Modifier.weight(1f)) { CTField(draft.days, { update(draft.copy(days = it.filter { c -> c.isDigit() })) }, l.tr("+ Days"), keyboard = KeyboardType.Number) }
                 }
                 Spacer(gap(12))
                 Text(l.tr("Baby"), style = MaterialTheme.typography.labelMedium, color = CT.Muted)
                 Spacer(gap(6))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PickChip2(l.tr("Boy"), data.gender == "boy") { data = data.copy(gender = "boy"); saved = false }
-                    PickChip2(l.tr("Girl"), data.gender == "girl") { data = data.copy(gender = "girl"); saved = false }
+                    PickChip2(l.tr("Boy"), draft.gender == "boy") { update(draft.copy(gender = "boy")) }
+                    PickChip2(l.tr("Girl"), draft.gender == "girl") { update(draft.copy(gender = "girl")) }
                 }
                 Spacer(gap(12))
-                CTField(wt, { wt = it; saved = false }, l.tr("Birth weight (kg)"), keyboard = KeyboardType.Decimal)
+                CTField(draft.weight, { update(draft.copy(weight = it)) }, l.tr("Birth weight (kg)"), keyboard = KeyboardType.Decimal)
                 Spacer(gap(8))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.weight(1f)) { CTField(head, { head = it; saved = false }, l.tr("Head (cm)"), keyboard = KeyboardType.Decimal) }
-                    Box(Modifier.weight(1f)) { CTField(len, { len = it; saved = false }, l.tr("Length (cm)"), keyboard = KeyboardType.Decimal) }
+                    Box(Modifier.weight(1f)) { CTField(draft.head, { update(draft.copy(head = it)) }, l.tr("Head (cm)"), keyboard = KeyboardType.Decimal) }
+                    Box(Modifier.weight(1f)) { CTField(draft.length, { update(draft.copy(length = it)) }, l.tr("Length (cm)"), keyboard = KeyboardType.Decimal) }
                 }
             }
             Spacer(gap(16))
             PrimaryButton(l.tr(if (data.confirmed) "Update birth details" else "Confirm birth"), enabled = valid()) {
                 val rec = data.copy(
-                    confirmed = true,
-                    ga_weeks = gaW.toIntOrNull() ?: 0, ga_days = gaD.toIntOrNull() ?: 0,
-                    weight_kg = wt.toDoubleOrNull() ?: 0.0, head_cm = head.toDoubleOrNull() ?: 0.0, length_cm = len.toDoubleOrNull() ?: 0.0,
+                    confirmed = true, date = draft.date, time = draft.time, gender = draft.gender,
+                    ga_weeks = draft.weeks.toIntOrNull() ?: 0, ga_days = draft.days.toIntOrNull() ?: 0,
+                    weight_kg = draft.weight.toDoubleOrNull() ?: 0.0, head_cm = draft.head.toDoubleOrNull() ?: 0.0, length_cm = draft.length.toDoubleOrNull() ?: 0.0,
                 )
-                data = rec
-                vm.store.saveBirthRecord(j.journey_id, rec)
-                // Seed the growth chart with the birth measurements.
-                if (rec.weight_kg > 0 || rec.length_cm > 0 || rec.head_cm > 0) {
-                    val entries = vm.store.growthEntries(j.journey_id)
-                    if (entries.none { it.age_months == 0.0 }) {
-                        vm.store.saveGrowthEntries(j.journey_id, entries + GrowthEntry(date = rec.date, age_months = 0.0, weight_kg = rec.weight_kg, length_cm = rec.length_cm, head_cm = rec.head_cm))
-                    }
-                }
-                saved = true
+                runCatching { vm.store.confirmBirthDraft(j.journey_id, rec) }
+                    .onSuccess { data = rec; saved = true; draftStored = false; draftError = "" }
+                    .onFailure { draftError = "Could not confirm the birth on this phone. Keep this screen open and retry." }
+            }
+            Spacer(gap(8))
+            Note(l.tr("Birth details and drafts are stored only on this phone. There is no automatic cloud sync. Optional manual backup and restore is in Data safety; include unfinished forms separately. Logout, uninstall or clearing app data removes unbacked-up changes."), tone = Tone.Blue)
+            if (draftStored) Muted(l.tr("Draft saved on this phone. Birth is not confirmed until you tap Confirm birth."))
+            if (draftError.isNotEmpty()) {
+                Note(l.tr(draftError), tone = Tone.Amber)
+                OutlineButton(l.tr("Retry saving draft")) { update(draft) }
             }
             if (saved) { Spacer(gap(8)); Note(l.tr("Saved. Postpartum mode is on - see the vaccination schedule and growth chart from Home."), tone = Tone.Green) }
             Spacer(gap(8))
@@ -399,7 +410,7 @@ fun VaultScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             Spacer(gap(12))
-            if (pending > 0) Note(l.tr("$pending records on this phone are waiting to sync to the CareTrail server. Sync arrives with the backend update; your data is safe on this phone."), tone = Tone.Amber)
+            if (pending > 0) Note(l.tr("$pending records are stored only on this phone. Automatic cloud sync is not available. Optional manual structured-record backup is in Data safety; only explicitly uploaded copies are backed up. Logout, uninstall, clearing app data or changing phones can lose later or unbacked-up records. A referral file includes only selected records and is not a restorable backup."), tone = Tone.Amber)
             else Muted(l.tr("Reports are stored on the CareTrail server; the vault view is cached on this phone for offline reading. See Data safety for what that means."))
             Spacer(gap(8))
             Text(l.tr("Data safety"), color = CT.Brand, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable(onClick = nav.dataSafety).padding(vertical = 8.dp))
