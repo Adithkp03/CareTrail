@@ -8,12 +8,19 @@ import kotlinx.serialization.serializer
 class Repo(val api: Api, val store: Store) {
     data class Loaded<T>(val value: T, val offline: Boolean)
 
+    // Cache is scoped via a truncated SHA-256 of the session token (collision-resistant, raw token never stored in keys): a different login or renewed token can never read another session's records.
+    private fun scoped(key: String): String = java.security.MessageDigest.getInstance("SHA-256").digest((store.token ?: "").toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(16) + ":" + key
+
     private inline fun <reified T> cached(key: String): T? =
-        store.getCache(key)?.let { try { AppJson.decodeFromString(serializer<T>(), it) } catch (_: Exception) { null } }
+        store.getCache(scoped(key))?.let { try { AppJson.decodeFromString(serializer<T>(), it) } catch (_: Exception) { null } }
 
     private inline fun <reified T> remember(key: String, v: T) {
-        store.putCache(key, AppJson.encodeToString(serializer<T>(), v))
+        store.putCache(scoped(key), AppJson.encodeToString(serializer<T>(), v))
     }
+
+    fun cachedJourney(): Journey? = cached("journey")
+
+    fun cachedNextUp(): NextUp? = cached("nextup")
 
     suspend fun myJourney(): Loaded<Journey?> {
         return try {

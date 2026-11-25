@@ -103,5 +103,7 @@ tasks.withType<Test>().configureEach {
         exclude("com/caretrail/app/AudioScreenScreenshotTest\$*")
         exclude("com/caretrail/app/DoseCardScreenshotTest.class")
         exclude("com/caretrail/app/DoseCardScreenshotTest\$*")
+        exclude("com/caretrail/app/StartupStaleScreenshotTest.class")
+        exclude("com/caretrail/app/StartupStaleScreenshotTest\$*")
     }
 }

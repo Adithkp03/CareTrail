@@ -34,3 +34,12 @@ Use synthetic/demo data only.
 3. Health profile: ABHA is optional and labelled unverified; short number triggers a warning.
 4. Data safety: enable device-key encryption, restart app, check existing timeline/cache/token still read. In debug app storage, cache/token should have enc1 prefix and no visible clinical plaintext. Disable network and read saved data. Simulate Keystore failure to confirm migration leaves existing data intact. Key-loss behavior needs careful recovery testing.
 5. Pick Assamese and Marathi; verify consent and static labels wrap/read correctly. Check that medical-review warning still appears. Have native-speaker clinicians review translations before marking either reviewed.
+
+
+## Sprint 4 SOS clarification
+
+Selecting the self-harm item shows help contacts immediately. Tapping a contact opens the phone dialer; the user must place the call. No call or message is sent automatically. This is tap-to-dial routing, not zero-click contact with a helpline.
+
+## Emulator attempt, 2026-10-27
+
+Installed Android Emulator 37.2.12 and Android 28 x86_64 image using the free Android SDK. This environment has no /dev/kvm, so the emulator used software CPU emulation. Android booted and the APK installed and launched, but further UI operations were unstable: ADB dropped offline, package installs took long enough to time out, and actual screenshot inspection showed a System UI not responding dialog. No referral picker or Keystore migration pass is claimed. A synthetic instrumentation harness was prepared locally but did not return a completed result. Device validation remains outstanding. This is an environment blocker, not evidence that the app itself passed or failed those checks.
