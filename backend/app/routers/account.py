@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import audit, get_current_patient
-from ..models import (AiCallTrace, AssistantMessage, AuditLog, AuthToken, CareInstruction, Clinician, Document, DocumentBlob,
+from ..models import (AiCallTrace, AssistantMessage, AuditLog, AuthToken, CareInstruction, Clinician, CommunityBlock, CommunityMember,
+                      CommunityMessage, CommunityReport, Document, DocumentBlob,
                       DoctorQuestion, LocalRecordBackup, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
 
 router = APIRouter(tags=["account"])
@@ -54,6 +55,9 @@ def export_my_data(patient: Patient = Depends(get_current_patient), db: Session 
         "journeys": journeys,
         "assistant_chat": [{"role": m.role, "text": m.text, "language": m.language, "created_at": _iso(m.created_at)}
                            for m in db.query(AssistantMessage).filter(AssistantMessage.patient_id == patient.id).order_by(AssistantMessage.created_at)],
+        "community": {"nickname": (db.get(CommunityMember, patient.id).nickname if db.get(CommunityMember, patient.id) else None),
+                      "messages": [{"body": m.body, "created_at": _iso(m.created_at), "removed": m.removed}
+                                   for m in db.query(CommunityMessage).filter(CommunityMessage.patient_id == patient.id).order_by(CommunityMessage.created_at)]},
         "note": "Original report files are not included in this download. Open them from the report on your timeline.",
     }
     audit(db, f"patient:{patient.id}", "export_data", "patient", patient.id, {})
@@ -88,6 +92,15 @@ def delete_my_account(body: DeleteAccountRequest, patient: Patient = Depends(get
         db.query(DoctorQuestion).filter(DoctorQuestion.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(Journey).filter(Journey.patient_id == pid).delete(synchronize_session=False)
+    # Community: anonymize posted messages, drop membership, blocks and reports made.
+    for msg in db.query(CommunityMessage).filter(CommunityMessage.patient_id == pid):
+        msg.body = ""
+        msg.nickname = ""
+        msg.removed = True
+        msg.removed_by = "account deletion"
+    db.query(CommunityReport).filter(CommunityReport.reporter_patient_id == pid).delete(synchronize_session=False)
+    db.query(CommunityBlock).filter((CommunityBlock.blocker_patient_id == pid) | (CommunityBlock.blocked_patient_id == pid)).delete(synchronize_session=False)
+    db.query(CommunityMember).filter(CommunityMember.patient_id == pid).delete(synchronize_session=False)
     db.query(AssistantMessage).filter(AssistantMessage.patient_id == pid).delete(synchronize_session=False)
     db.query(ReminderState).filter(ReminderState.patient_id == pid).delete(synchronize_session=False)
     db.query(AiCallTrace).filter(AiCallTrace.patient_id == pid).delete(synchronize_session=False)
