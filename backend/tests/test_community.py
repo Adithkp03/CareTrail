@@ -167,3 +167,11 @@ def test_post_rate_limit(client):
     for i in range(10):
         assert post(client, h1, f"message {i}").status_code == 201
     assert post(client, h1, "one too many").status_code == 429
+
+
+def test_moderation_page_carries_working_csp(client):
+    r = client.get("/moderation/app")
+    assert r.status_code == 200 and "CareTrail community review queue" in r.text
+    csp = r.headers.get("content-security-policy", "")
+    assert "script-src 'unsafe-inline'" in csp and "style-src 'unsafe-inline'" in csp
+    assert "connect-src 'self'" in csp and "default-src 'none'" in csp
