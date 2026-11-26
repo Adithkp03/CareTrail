@@ -15,16 +15,31 @@ from ..models import AuditLog, CommunityMember, CommunityMessage, CommunityModer
 
 router = APIRouter(tags=["community-moderation"])
 
-# How long a closed report (and the moderation audit rows for its message) is kept
-# after the team finishes reviewing it. Open reports are never purged.
+# A report stays in the review queue at most REPORT_REVIEW_DAYS without a decision,
+# then auto-expires unactioned (the message stays visible - expiry is not a judgment).
+# A closed report (actioned, dismissed or expired) is purged REPORT_RETENTION_DAYS
+# after it closed. Nothing is kept indefinitely.
+REPORT_REVIEW_DAYS = 30
 REPORT_RETENTION_DAYS = 30
 
 
 def purge_expired_reports(db: Session) -> int:
-    """Permanently delete closed reports older than REPORT_RETENTION_DAYS, plus the
-    community moderation audit rows for messages that no longer have any report.
-    Open reports are never touched. Returns the number of reports deleted."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=REPORT_RETENTION_DAYS)
+    """Expire unreviewed open reports older than REPORT_REVIEW_DAYS, then permanently
+    delete reports closed longer than REPORT_RETENTION_DAYS, plus the community
+    moderation audit rows for messages that no longer have any report.
+    Returns the number of reports deleted."""
+    now = datetime.now(timezone.utc)
+    review_cutoff = now - timedelta(days=REPORT_REVIEW_DAYS)
+    stale = db.query(CommunityReport).filter(CommunityReport.status == "open",
+                                             CommunityReport.created_at < review_cutoff).all()
+    for row in stale:
+        row.status = "expired"
+        row.action = "none"
+        row.handled_by = "auto-expire"
+        row.handled_at = now
+    if stale:
+        db.commit()
+    cutoff = now - timedelta(days=REPORT_RETENTION_DAYS)
     old = db.query(CommunityReport).filter(CommunityReport.status != "open",
                                            CommunityReport.handled_at.isnot(None),
                                            CommunityReport.handled_at < cutoff).all()
@@ -75,7 +90,7 @@ def report_view(db: Session, rep: CommunityReport):
 def queue(status: str = "open", response: Response = None,
           mod: CommunityModerator = Depends(get_moderator), db: Session = Depends(get_db)):
     response.headers["Cache-Control"] = "no-store"
-    if status not in {"open", "actioned", "dismissed", "all"}:
+    if status not in {"open", "actioned", "dismissed", "expired", "all"}:
         raise HTTPException(422, "Unknown status filter")
     purge_expired_reports(db)
     query = db.query(CommunityReport)
