@@ -49,7 +49,7 @@ class StartupStaleScreenshotTest {
         doctor = {}, account = {}, dataSafety = {}, intake = {}, registration = {}, rh = {},
         danger = {}, birth = {}, growth = {}, vaccines = {}, vault = {}, referral = {},
         facilities = {}, wellness = {}, recovery = {}, mindCheck = {}, bpLog = {},
-        familyPlanning = {}, mindfulness = {}, chat = {}, doctorQuestions = {},
+        familyPlanning = {}, mindfulness = {}, chat = {}, community = {}, doctorQuestions = {},
         newJourney = {}, back = {}, milestone = {}, upload = {},
     )
 

@@ -389,6 +389,12 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             OfficialSupportPanel()
             Spacer(gap(8))
             ParentingListeningPanel()
+            Spacer(gap(8))
+            CTCard(onClick = nav.community) {
+                SectionTitle(l.tr("Community room"))
+                Spacer(gap(4))
+                Muted(l.tr("Talk with other mothers under a nickname. Text only, nothing from your health records is shown."))
+            }
             Spacer(gap(12))
             // Quick access
             CTCard {

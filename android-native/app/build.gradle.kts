@@ -91,6 +91,8 @@ tasks.withType<Test>().configureEach {
         exclude("com/caretrail/app/VaccinationGuidanceScreenshotTest\$*")
         exclude("com/caretrail/app/OfficialSupportScreenshotTest.class")
         exclude("com/caretrail/app/OfficialSupportScreenshotTest\$*")
+        exclude("com/caretrail/app/CommunityScreenshotTest.class")
+        exclude("com/caretrail/app/CommunityScreenshotTest\$*")
         exclude("com/caretrail/app/BackupScreenshotTest.class")
         exclude("com/caretrail/app/BackupScreenshotTest\$*")
         exclude("com/caretrail/app/RecordSafetyScreenshotTest.class")
