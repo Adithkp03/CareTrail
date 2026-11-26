@@ -46,3 +46,19 @@ Serverless notes:
 
 Once the API URL is stable: set the `APK_API_URL` repo variable and re-run the Android APK
 workflow - the APK then talks to the hosted backend from any phone.
+
+## Isolated test backend (community testing, no production data)
+
+A separate Vercel project `caretrail-test-backend` (same repo import, framework preset "Other")
+hosts a test copy of the API at https://caretrail-test-backend-adith-k-ps-projects.vercel.app .
+
+- Database: free Neon Postgres via the Vercel marketplace (free plan, no card), connected ONLY
+  to this project as `DATABASE_URL` / `DATABASE_URL_UNPOOLED` (plus `PG*` vars). It shares no
+  data, keys, or accounts with production.
+- `COMMUNITY_LAUNCH=1` is set here so community endpoints can be exercised; production keeps
+  the community room off until launch is decided.
+- Test users sign up fresh; nothing is copied from production.
+- Auto-deploy: every push to `main` redeploys this project and production (same repo import).
+  When a test phase ends, pause auto-deploy (Settings -> Git) or delete the project so old test
+  deployments stop consuming function storage. To pin a test build, stop merging to `main` or
+  use the preview deployment of a parked branch.
