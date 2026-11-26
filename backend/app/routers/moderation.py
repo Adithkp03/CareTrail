@@ -135,4 +135,10 @@ async function load(){try{const d=await api('/moderation/reports?status=open');
 
 @router.get("/moderation/app", response_class=HTMLResponse)
 def moderation_page(response: Response):
-    return HTMLResponse(content=_PAGE, headers={"Cache-Control": "no-store"})
+    # The app-wide CSP (main.py uses setdefault) denies inline script/style and
+    # would leave this page dead and unstyled. This route is a self-contained
+    # team tool, so it carries its own policy: inline script/style and same-origin
+    # fetch only, everything else denied.
+    csp = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+           "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+    return HTMLResponse(content=_PAGE, headers={"Cache-Control": "no-store", "Content-Security-Policy": csp})
