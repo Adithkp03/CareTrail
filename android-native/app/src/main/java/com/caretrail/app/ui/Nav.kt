@@ -28,6 +28,7 @@ class Nav(
     val familyPlanning: () -> Unit,
     val mindfulness: () -> Unit,
     val chat: () -> Unit,
+    val community: () -> Unit,
     val doctorQuestions: () -> Unit,
     val newJourney: () -> Unit,
     val back: () -> Unit,
@@ -65,6 +66,7 @@ object Routes {
     const val FAMILYPLAN = "familyplan"
     const val MINDFUL = "mindful"
     const val CHAT = "chat"
+    const val COMMUNITY = "community"
     const val DOCTORQ = "doctorq"
     const val MILESTONE = "milestone/{id}"
     const val UPLOAD = "upload?milestone={milestone}"
