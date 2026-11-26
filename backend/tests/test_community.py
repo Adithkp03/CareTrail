@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -110,6 +111,10 @@ def test_report_flow_and_moderation_remove_and_suspend(client):
     assert queue["moderator"] == "Reviewer" and len(queue["reports"]) == 1
     rep = queue["reports"][0]
     assert rep["message"]["body"].startswith("You should skip") and rep["reason"] == "medical-advice"
+    # Open reports carry a visible auto-expiry date for the review queue
+    exp = datetime.fromisoformat(rep["expires_at"])
+    assert exp - datetime.fromisoformat(rep["created_at"]) >= timedelta(days=29)
+    assert rep["status"] == "open"
     done = client.post(f"/moderation/reports/{rep['id']}/resolve", headers=mod, json={"action": "remove_and_suspend", "note": "dangerous advice"})
     assert done.status_code == 200 and done.json()["reports_closed"] == 1
     assert client.post(f"/moderation/reports/{rep['id']}/resolve", headers=mod, json={"action": "dismiss"}).status_code == 409
