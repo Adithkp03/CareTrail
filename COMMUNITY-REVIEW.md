@@ -21,7 +21,8 @@ Scope agreed with Adith (26 November 2026): one opt-in community room, nicknames
 
 - Tables: community_members, community_messages, community_reports, community_blocks, community_moderators (auto-created by ensure_tables; migration 0002 documents the manual provisioning path).
 - Messages are served Cache-Control: no-store and are not cached on device.
-- Account export includes community membership, messages, reports made and blocks. Account deletion anonymizes posted messages (body and nickname blanked) and deletes membership, reports made and blocks.
+- Account export includes community membership, messages, reports made and blocks. Account deletion anonymizes posted messages (body and nickname blanked, marked removed, removed_by "account deletion") and deletes membership, reports made and blocks. There is no separate "leave room" action; deletion is the only exit, and the join copy says exactly that.
+- Retention: a removed message keeps its body in the database until the author deletes their account (needed for dispute/review context); reports stay after resolution as the moderation record; audit rows written by a patient are erased with their account, but the reporter's rows and every moderator action row survive author deletion (verified), so the moderation trail cannot be erased by the person moderated.
 - Moderator tokens are separate server-issued credentials (`python -m app.moderation_cli create <name>`), shown once, ctmod- prefixed. No patient or clinician account gets moderation powers.
 
 ## Limits
@@ -31,8 +32,9 @@ Scope agreed with Adith (26 November 2026): one opt-in community room, nicknames
 - Nickname privacy is pseudonymity, not anonymity: the server links messages to accounts for moderation and deletion; members should still not share identifying details.
 - The review queue page is a minimal operational tool, not a staffed moderation service.
 - Real-patient launch stays off until chat and moderation tests are verified.
+- Hard launch gate: every /community/* endpoint 404s for everyone until COMMUNITY_LAUNCH is set in the deployed environment. Verified live 26 Nov: production returns 404 on all community routes (direct API calls included) while /moderation/app serves and /moderation/reports rejects tokenless calls.
 
 ## Tests
 
-- Backend: backend/tests/test_community.py (8 tests): join validation, membership and link rules, demo refusal, full report-to-removal-and-suspension flow, dismiss keeps message, block/unblock, own-delete plus export and account-deletion anonymization, post rate limit.
+- Backend: backend/tests/test_community.py (10 tests): join validation, membership and link rules, demo refusal, full report-to-removal-and-suspension flow, dismiss keeps message, block/unblock, own-delete plus export and account-deletion anonymization, post rate limit.
 - Android: CommunityTest (nickname/body rules, pinned safety copy, payload parsing), CommunityScreenshotTest (join card, chat with blocked masking, report sheet, suspended read-only view).
