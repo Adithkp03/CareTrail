@@ -94,13 +94,13 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
         referral = { go(Routes.REFERRAL) },
         wellness = { go(Routes.WELLNESS) }, recovery = { go(Routes.RECOVERY) }, mindCheck = { go(Routes.MINDCHECK) },
         bpLog = { go(Routes.BPLOG) }, familyPlanning = { go(Routes.FAMILYPLAN) }, mindfulness = { go(Routes.MINDFUL) },
-        chat = { go(Routes.CHAT) }, doctorQuestions = { go(Routes.DOCTORQ) },
+        chat = { go(Routes.CHAT) }, community = { go(Routes.COMMUNITY) }, doctorQuestions = { go(Routes.DOCTORQ) },
         newJourney = { nav.navigate(Routes.NEW_JOURNEY) { popUpTo(Routes.HOME) { inclusive = true } } },
         back = { if (!nav.popBackStack()) tab(Routes.HOME) },
         milestone = { go("milestone/$it") },
         upload = { go(if (it == null) "upload" else "upload?milestone=$it") },
     )
-    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral", "chat", "doctorq")
+    val showBar = route != null && route.substringBefore('?').substringBefore('/') in setOf("home", "timeline", "reminders", "movements", "care", "prep", "doctor", "account", "datasafety", "milestone", "upload", "intake", "registration", "rh", "danger", "birth", "growth", "vaccines", "vault", "facilities", "wellness", "recovery", "mindcheck", "bplog", "familyplan", "mindful", "referral", "chat", "community", "doctorq")
 
     Box(Modifier.fillMaxSize().background(CT.Bg).statusBarsPadding()) {
     Column(Modifier.fillMaxSize()) {
@@ -137,6 +137,7 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
                 composable(Routes.FAMILYPLAN) { FamilyPlanningScreen(vm, callbacks) }
                 composable(Routes.MINDFUL) { MindfulnessScreen(vm, callbacks) }
                 composable(Routes.CHAT) { AssistantScreen(vm, callbacks) }
+                composable(Routes.COMMUNITY) { CommunityScreen(vm, callbacks) }
                 composable(Routes.DOCTORQ) { AskDoctorScreen(vm, callbacks) }
                 composable(Routes.MILESTONE, listOf(navArgument("id") { type = NavType.StringType })) {
                     MilestoneScreen(vm, it.arguments?.getString("id") ?: "", callbacks)
