@@ -132,3 +132,30 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+
+// Offline android-all for Robolectric: resolve the preinstrumented SDK jar
+// through Gradle (cached and retried by Gradle/setup-gradle) instead of
+// Robolectric's runtime Maven fetch, which intermittently fails in CI with
+// MavenArtifactFetcher AssertionError caused by IOException (e.g.
+// native-build run 45818280563, where every Robolectric test class failed at
+// classMethod on the network fetch). Coordinates come from Robolectric
+// 4.16.1's DefaultSdkProvider for SDK 34 (the app's targetSdk):
+// "14" + "10818077" + "i" + PREINSTRUMENTED_VERSION(7).
+// Robolectric picks LocalDependencyResolver when robolectric.offline=true and
+// reads the jar flat from robolectric.dependency.dir.
+val robolectricOffline = configurations.create("robolectricOffline")
+
+dependencies {
+    robolectricOffline("org.robolectric:android-all-instrumented:14-robolectric-10818077-i7")
+}
+
+tasks.withType<Test>().configureEach {
+    val offlineDir = layout.buildDirectory.dir("robolectric-offline")
+    doFirst {
+        val jar = robolectricOffline.singleFile
+        val dir = offlineDir.get().asFile.apply { mkdirs() }
+        jar.copyTo(File(dir, jar.name), overwrite = true)
+    }
+    systemProperty("robolectric.offline", "true")
+    systemProperty("robolectric.dependency.dir", offlineDir.get().asFile.absolutePath)
+}
