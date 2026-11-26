@@ -288,3 +288,71 @@ class LocalRecordBackup(Base):
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     operation_id: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CommunityMember(Base):
+    """Opt-in community membership. One row per patient; nickname is a chosen
+    pseudonym, never the account name or phone. Suspended members can read but not post."""
+
+    __tablename__ = "community_members"
+
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), primary_key=True)
+    nickname: Mapped[str] = mapped_column(String(24))
+    suspended: Mapped[bool] = mapped_column(Boolean, default=False)
+    suspended_reason: Mapped[str] = mapped_column(String(200), default="")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CommunityMessage(Base):
+    """One text message in the single community room. Nickname is a snapshot so later
+    renames do not rewrite history. Removed rows stay as tombstones for report context."""
+
+    __tablename__ = "community_messages"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=new_id)
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    nickname: Mapped[str] = mapped_column(String(24))
+    body: Mapped[str] = mapped_column(String(500))
+    removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    removed_by: Mapped[str] = mapped_column(String(120), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class CommunityReport(Base):
+    """A member flag on one message for the team review queue."""
+
+    __tablename__ = "community_reports"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=new_id)
+    message_id: Mapped[str] = mapped_column(ForeignKey("community_messages.id"), index=True)
+    reporter_patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(24))  # spam | harassment | medical-advice | private-details | other
+    detail: Mapped[str] = mapped_column(String(300), default="")
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | actioned | dismissed
+    action: Mapped[str] = mapped_column(String(24), default="")  # remove | remove_and_suspend | none
+    handled_by: Mapped[str] = mapped_column(String(120), default="")
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CommunityBlock(Base):
+    """One member hiding another member's messages from their own view."""
+
+    __tablename__ = "community_blocks"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)  # "<blocker>:<blocked>"
+    blocker_patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    blocked_patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CommunityModerator(Base):
+    """Server-issued review-queue identity. No self-service creation: tokens are made
+    by moderation_cli and shown once. Only the SHA-256 hash is stored, so a database
+    read never reveals a usable token. A row existing grants queue access."""
+
+    __tablename__ = "community_moderators"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
