@@ -61,8 +61,8 @@ def export_my_data(patient: Patient = Depends(get_current_patient), db: Session 
                       "retention_note": ("Deleting your account removes your membership and blanks your nickname and "
                                          "message text; an anonymous placeholder can remain in the chat. Reports "
                                          "other members filed about your messages, and the review team's action log, "
-                                         "are kept while a report is open and for up to 30 days after it is closed, "
-                                         "then permanently deleted.")},
+                                         "are kept for up to 30 days while awaiting review and up to 30 days after a "
+                                         "report is closed, then permanently deleted.")},
         "note": "Original report files are not included in this download. Open them from the report on your timeline.",
     }
     audit(db, f"patient:{patient.id}", "export_data", "patient", patient.id, {})
