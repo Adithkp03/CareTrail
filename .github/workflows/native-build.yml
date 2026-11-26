@@ -16,8 +16,12 @@ on:
         description: "Override API base URL for an isolated test build (leave empty for production)"
         required: false
         default: ""
+      test_variant:
+        description: "Build the isolated TEST APK: separate applicationId com.caretrail.native.test, 'CareTrail TEST' label, no production keys. Requires api_base set to the isolated test backend."
+        required: false
+        default: "false"
   push:
-    branches: [fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open, feat/official-support-listening, feat/community-room]
+    branches: [fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open, feat/official-support-listening, feat/community-room, fix/community-report-expiry, feat/test-apk-flavor]
 
 jobs:
   core:
@@ -64,13 +68,15 @@ jobs:
         run: |
           API_ARG=()
           if [ -n "${{ inputs.api_base }}" ]; then API_ARG=(-PcaretrailApi="${{ inputs.api_base }}"); fi
+          TEST_ARG=()
+          if [ "${{ inputs.test_variant }}" = "true" ]; then TEST_ARG=(-PcaretrailTestVariant=true); fi
           gradle :app:testDebugUnitTest :app:assembleDebug -Pcaretrail.skipScreenshotTest --no-daemon --console=plain \
             -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=androiddebugkey \
             -Pandroid.injected.signing.key.password=android \
             -PcaretrailSupabaseAnonKey="${{ secrets.SUPABASE_ANON_KEY }}" \
-            "${API_ARG[@]}"
+            "${API_ARG[@]}" "${TEST_ARG[@]}"
 
       # Fail the build if the APK is not signed with the stable Nov-20 identity
       # (SHA-256 of a signing cert is public metadata, printed in CI logs).
@@ -84,7 +90,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-core
+          name: ${{ inputs.test_variant == 'true' && 'native-TEST-core' || 'native-core' }}
           path: |
             android-native/app/build/outputs/apk/debug/app-debug.apk
             android-native/app/build/reports/tests/
