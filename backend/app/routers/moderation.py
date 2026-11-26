@@ -1,6 +1,6 @@
 """Team review queue for community reports. Access needs a server-issued moderator
 token (moderation_cli), never a patient or clinician session. Every action is audited."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import hashlib
 
@@ -11,9 +11,37 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import audit
-from ..models import CommunityMember, CommunityMessage, CommunityModerator, CommunityReport
+from ..models import AuditLog, CommunityMember, CommunityMessage, CommunityModerator, CommunityReport
 
 router = APIRouter(tags=["community-moderation"])
+
+# How long a closed report (and the moderation audit rows for its message) is kept
+# after the team finishes reviewing it. Open reports are never purged.
+REPORT_RETENTION_DAYS = 30
+
+
+def purge_expired_reports(db: Session) -> int:
+    """Permanently delete closed reports older than REPORT_RETENTION_DAYS, plus the
+    community moderation audit rows for messages that no longer have any report.
+    Open reports are never touched. Returns the number of reports deleted."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=REPORT_RETENTION_DAYS)
+    old = db.query(CommunityReport).filter(CommunityReport.status != "open",
+                                           CommunityReport.handled_at.isnot(None),
+                                           CommunityReport.handled_at < cutoff).all()
+    if not old:
+        return 0
+    message_ids = {r.message_id for r in old}
+    report_ids = [r.id for r in old]
+    db.query(CommunityReport).filter(CommunityReport.id.in_(report_ids)).delete(synchronize_session=False)
+    still_reported = {row[0] for row in db.query(CommunityReport.message_id)
+                      .filter(CommunityReport.message_id.in_(message_ids)).all()}
+    orphan_ids = message_ids - still_reported
+    if orphan_ids:
+        db.query(AuditLog).filter(AuditLog.action.startswith("community_"),
+                                  AuditLog.entity == "community_message",
+                                  AuditLog.entity_id.in_(orphan_ids)).delete(synchronize_session=False)
+    db.commit()
+    return len(report_ids)
 
 ACTIONS = {"dismiss", "remove", "remove_and_suspend"}
 
@@ -49,6 +77,7 @@ def queue(status: str = "open", response: Response = None,
     response.headers["Cache-Control"] = "no-store"
     if status not in {"open", "actioned", "dismissed", "all"}:
         raise HTTPException(422, "Unknown status filter")
+    purge_expired_reports(db)
     query = db.query(CommunityReport)
     if status != "all":
         query = query.filter(CommunityReport.status == status)
