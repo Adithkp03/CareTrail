@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import ensure_tables
 from .migrate import apply as apply_migrations
-from .routers import account, assistant, auth, clinicians, demo, doctor_questions, documents, flags, i18n, journeys, local_backup, milestones, prep, reminders, signoffs, trust, voice
+from .routers import account, assistant, auth, clinicians, community, demo, doctor_questions, documents, flags, i18n, journeys, local_backup, milestones, moderation, prep, reminders, signoffs, trust, voice
 
 ensure_tables()
 apply_migrations()
@@ -63,6 +63,8 @@ app.include_router(local_backup.router)
 app.include_router(i18n.router)
 app.include_router(assistant.router)
 app.include_router(doctor_questions.router)
+app.include_router(community.router)
+app.include_router(moderation.router)
 
 
 @app.get("/health")
