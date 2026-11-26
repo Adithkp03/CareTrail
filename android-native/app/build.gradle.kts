@@ -10,28 +10,48 @@ android {
     namespace = "com.caretrail.app"
     compileSdk = 34
 
+    // Isolated-test switch: -PcaretrailTestVariant=true (with -PcaretrailApi=<test
+    // backend>) builds a TEST APK that installs side-by-side with the production
+    // app: separate applicationId, "CareTrail TEST" launcher label, and no
+    // production service keys baked in (Google sign-in section is hidden).
+    val testVariant = (project.findProperty("caretrailTestVariant") as String?) == "true"
+
     defaultConfig {
         applicationId = "com.caretrail.native"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
-        // Same production backend the web app and Capacitor APK use.
-        val api = (project.findProperty("caretrailApi") as String?) ?: "https://caretrail-adith-k-ps-projects.vercel.app"
+        // Same production backend the web app and Capacitor APK use. A test-variant
+        // build must be given its isolated backend explicitly; it never defaults
+        // to production.
+        val api = (project.findProperty("caretrailApi") as String?)
+            ?: if (testVariant) "" else "https://caretrail-adith-k-ps-projects.vercel.app"
+        if (testVariant && (api.isEmpty() || api.contains("caretrail-adith-k-ps-projects"))) {
+            throw GradleException("Test variant needs -PcaretrailApi=<isolated test backend URL>")
+        }
         buildConfigField("String", "API_URL", "\"$api\"")
         // Google sign-in (optional). The anon key is Supabase's public client key,
         // same one the web frontend ships; still injected via gradle property so a
-        // build without it simply hides the Google button.
-        val supabaseUrl = (project.findProperty("caretrailSupabaseUrl") as String?) ?: "https://oeluqmffpqipqfpdjedi.supabase.co"
+        // build without it simply hides the Google button. The test variant ships
+        // no production service keys at all.
+        val supabaseUrl = if (testVariant) "" else (project.findProperty("caretrailSupabaseUrl") as String?) ?: "https://oeluqmffpqipqfpdjedi.supabase.co"
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        val supabaseAnonKey = (project.findProperty("caretrailSupabaseAnonKey") as String?) ?: ""
+        val supabaseAnonKey = if (testVariant) "" else (project.findProperty("caretrailSupabaseAnonKey") as String?) ?: ""
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        val googleServerClientId = (project.findProperty("caretrailGoogleServerClientId") as String?) ?: "975953077508-bvjgv0ffekdmp0hjb3tein62874m5gtk.apps.googleusercontent.com"
+        val googleServerClientId = if (testVariant) "" else (project.findProperty("caretrailGoogleServerClientId") as String?) ?: "975953077508-bvjgv0ffekdmp0hjb3tein62874m5gtk.apps.googleusercontent.com"
         buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", "\"$googleServerClientId\"")
+        manifestPlaceholders["appLabel"] = if (testVariant) "CareTrail TEST" else "CareTrail"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            if (testVariant) {
+                applicationIdSuffix = ".test"
+                versionNameSuffix = "-test"
+            }
+        }
         release {
             isMinifyEnabled = false
         }
