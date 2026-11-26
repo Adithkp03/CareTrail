@@ -8,6 +8,7 @@ import sys
 
 from .database import SessionLocal
 from .models import CommunityModerator
+from .routers.moderation import purge_expired_reports
 
 
 def main() -> int:
@@ -28,7 +29,12 @@ def main() -> int:
             db.commit()
         print(f"Revoked {n} token(s)")
         return 0
-    print("usage: python -m app.moderation_cli create|revoke <name>", file=sys.stderr)
+    if len(sys.argv) == 2 and sys.argv[1] == "purge":
+        with SessionLocal() as db:
+            n = purge_expired_reports(db)
+        print(f"Purged {n} expired report(s)")
+        return 0
+    print("usage: python -m app.moderation_cli create|revoke <name> | purge", file=sys.stderr)
     return 2
 
 
