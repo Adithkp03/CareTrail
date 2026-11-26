@@ -275,7 +275,7 @@ fun CommunityScreen(vm: AppViewModel, nav: Nav) {
                                     vm.api.communityReport(msg.id, reason)
                                     reporting = null; reportReason = null
                                 } catch (e: Exception) {
-                                    error = if (e is ApiException && e.code == 429) l.tr("Too many reports today. The team reviews every flag.")
+                                    error = if (e is ApiException && e.code == 429) l.tr("Too many reports today. Please try again tomorrow.")
                                         else e.message ?: l.tr("Could not send the report. Please try again.")
                                 }
                                 busy = false
