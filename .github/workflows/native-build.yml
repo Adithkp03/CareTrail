@@ -21,7 +21,9 @@ on:
         required: false
         default: "false"
   push:
-    branches: [fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open, feat/official-support-listening, feat/community-room, fix/community-report-expiry, feat/test-apk-flavor]
+    branches: [main, fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open, feat/official-support-listening, feat/community-room, fix/community-report-expiry, feat/test-apk-flavor]
+  pull_request:
+    branches: [main]
 
 jobs:
   core:
