@@ -76,9 +76,12 @@ def report_view(db: Session, rep: CommunityReport):
     msg = db.get(CommunityMessage, rep.message_id)
     reporter = db.get(CommunityMember, rep.reporter_patient_id)
     open_count = db.query(CommunityReport).filter_by(message_id=rep.message_id, status="open").count()
+    expires_at = None
+    if rep.status == "open":
+        expires_at = (rep.created_at + timedelta(days=REPORT_REVIEW_DAYS)).isoformat()
     return {"id": rep.id, "reason": rep.reason, "detail": rep.detail,
             "created_at": rep.created_at.isoformat(), "status": rep.status,
-            "open_reports_on_message": open_count,
+            "open_reports_on_message": open_count, "expires_at": expires_at,
             "reporter_nickname": reporter.nickname if reporter else "Former member",
             "message": None if msg is None else {
                 "id": msg.id, "nickname": "(removed account)" if msg.nickname == "" else msg.nickname,
@@ -153,6 +156,8 @@ small{color:#666}input,select{padding:8px;border-radius:8px;border:1px solid #bb
 <div id="login"><input id="tok" type="password" placeholder="Moderator token" autocomplete="off"><button onclick="save()">Open queue</button></div>
 <div id="app" style="display:none">
 <p><small>Signed in as <b id="who"></b> · <a href="#" onclick="localStorage.removeItem('ctmod');location.reload();return false">sign out</a> · <a href="#" onclick="load();return false">refresh</a></small></p>
+<p><small>Retention: an open report auto-expires 30 days after filing if not reviewed (the message stays visible; expiry is not a judgment). Closed reports (actioned, dismissed, expired) are deleted 30 days after closing. Audit rows for a message are kept only while one of its reports survives.</small></p>
+<div id="tabs"><button onclick="setStatus('open')">Open</button><button onclick="setStatus('actioned')">Actioned</button><button onclick="setStatus('dismissed')">Dismissed</button><button onclick="setStatus('expired')">Expired</button></div>
 <div id="list"></div></div>
 <script>
 let T=localStorage.getItem('ctmod')||'';
@@ -161,17 +166,19 @@ async function api(p,o){const r=await fetch(p,{...o,headers:{'Authorization':'Be
 function save(){T=document.getElementById('tok').value.trim();localStorage.setItem('ctmod',T);load()}
 async function act(id,a){const note=prompt('Note for the record (optional):')||'';
  await api('/moderation/reports/'+id+'/resolve',{method:'POST',body:JSON.stringify({action:a,note})});load()}
-async function load(){try{const d=await api('/moderation/reports?status=open');
+let S='open';
+function setStatus(s){S=s;load()}
+async function load(){try{const d=await api('/moderation/reports?status='+S);
  document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
  document.getElementById('who').textContent=d.moderator;
  const L=document.getElementById('list');
- if(!d.reports.length){L.innerHTML='<p>No open reports.</p>';return}
- L.innerHTML=d.reports.map(r=>`<div class="card"><small>${r.created_at.slice(0,16).replace('T',' ')} · reason: <b>${r.reason}</b> · reporter: ${r.reporter_nickname} · ${r.open_reports_on_message} open report(s) on this message</small>
+ if(!d.reports.length){L.innerHTML='<p>No '+S+' reports.</p>';return}
+ L.innerHTML=d.reports.map(r=>`<div class="card"><small>${r.created_at.slice(0,16).replace('T',' ')} · status: <b>${r.status}</b> · reason: <b>${r.reason}</b> · reporter: ${r.reporter_nickname} · ${r.open_reports_on_message} open report(s) on this message${r.status==='open'&&r.expires_at?` · <b>auto-expires ${r.expires_at.slice(0,10)}</b> if not reviewed`:''}</small>
  <div class="msg"><b>${r.message?r.message.nickname:'?'}</b>: ${r.message?r.message.body:'[message gone]'}</div>
  ${r.detail?'<small>Detail: '+r.detail+'</small><br>':''}
- <button onclick="act('${r.id}','dismiss')">Dismiss</button>
+ ${r.status==='open'?`<button onclick="act('${r.id}','dismiss')">Dismiss</button>
  <button class="remove" onclick="act('${r.id}','remove')">Remove message</button>
- <button class="suspend" onclick="act('${r.id}','remove_and_suspend')">Remove + suspend author</button></div>`).join('')}
+ <button class="suspend" onclick="act('${r.id}','remove_and_suspend')">Remove + suspend author</button>`:''}</div>`).join('')}
  catch(e){}}</script>
 <script>if(T)load()</script>
 </body></html>"""
