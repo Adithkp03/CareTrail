@@ -57,7 +57,12 @@ def export_my_data(patient: Patient = Depends(get_current_patient), db: Session 
                            for m in db.query(AssistantMessage).filter(AssistantMessage.patient_id == patient.id).order_by(AssistantMessage.created_at)],
         "community": {"nickname": (db.get(CommunityMember, patient.id).nickname if db.get(CommunityMember, patient.id) else None),
                       "messages": [{"body": m.body, "created_at": _iso(m.created_at), "removed": m.removed}
-                                   for m in db.query(CommunityMessage).filter(CommunityMessage.patient_id == patient.id).order_by(CommunityMessage.created_at)]},
+                                   for m in db.query(CommunityMessage).filter(CommunityMessage.patient_id == patient.id).order_by(CommunityMessage.created_at)],
+                      "retention_note": ("Deleting your account removes your membership and blanks your nickname and "
+                                         "message text; an anonymous placeholder can remain in the chat. Reports "
+                                         "other members filed about your messages, and the review team's action log, "
+                                         "are kept while a report is open and for up to 30 days after it is closed, "
+                                         "then permanently deleted.")},
         "note": "Original report files are not included in this download. Open them from the report on your timeline.",
     }
     audit(db, f"patient:{patient.id}", "export_data", "patient", patient.id, {})
