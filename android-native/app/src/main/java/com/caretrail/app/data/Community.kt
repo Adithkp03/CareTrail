@@ -58,7 +58,7 @@ object CommunityText {
         "Reports other members file about your messages, and the team's action log, are kept for up to 30 days while awaiting review and up to 30 days after a report is closed, then permanently deleted.",
     )
     const val consentLine = "Joining means you accept these guidelines."
-    const val reportNote = "The CareTrail team reviews every report. Reports are not seen by the member you report."
+    const val reportNote = "The CareTrail team reviews reports, but not instantly. A report that is not reviewed within 30 days expires automatically, which is not a judgment on you or the member you reported. Reports are not seen by the member you report."
     const val blockNote = "You will stop seeing their messages and they will not know. You can unblock them later from this page."
     const val suspendedNote = "Posting is paused for your account after a moderation review. You can still read the room."
     const val emptyRoom = "No messages yet. Say hello when you are ready."

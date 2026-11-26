@@ -192,7 +192,7 @@ def report(message_id: str, body: ReportBody, patient: Patient = Depends(get_cur
         CommunityReport.reporter_patient_id == patient.id,
         CommunityReport.created_at >= utcnow() - REPORT_WINDOW).count()
     if recent >= REPORT_LIMIT:
-        raise HTTPException(429, "Too many reports in a day. The team reviews every flag")
+        raise HTTPException(429, "Too many reports in a day. Please try again tomorrow")
     existing = db.query(CommunityReport).filter_by(
         message_id=message_id, reporter_patient_id=patient.id, status="open").first()
     if existing is not None:
