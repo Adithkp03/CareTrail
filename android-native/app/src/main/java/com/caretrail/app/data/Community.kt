@@ -54,7 +54,7 @@ object CommunityText {
         "No links, no photos, no private messages. Text only, inside this room.",
         "Nothing from your health records is shown here, and what you write here is never shared with your doctor or added to your records.",
         "Messages you post can be reported by other members and reviewed by the CareTrail team, who can remove them and pause posting for accounts that break these rules.",
-        "You can delete your own messages any time. They are removed from the room, and leaving or deleting your account anonymizes everything you posted.",
+        "You can delete your own messages any time. Deleting your account also anonymizes everything you posted and removes your membership.",
     )
     const val consentLine = "Joining means you accept these guidelines."
     const val reportNote = "The CareTrail team reviews every report. Reports are not seen by the member you report."
