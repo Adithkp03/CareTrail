@@ -48,7 +48,7 @@ class RecordSafetyScreenshotTest {
         val endpoint = Api::class.java.getDeclaredField("baseUrl").apply { isAccessible = true }
         endpoint.set(vm.api, "http://127.0.0.1:1/")
         val noop: () -> Unit = {}
-        val nav = Nav(home = noop, timeline = noop, reminders = noop, movements = noop, care = noop, prep = noop, doctor = noop, account = noop, dataSafety = noop, intake = noop, registration = noop, rh = noop, danger = noop, birth = noop, growth = noop, vaccines = noop, vault = noop, referral = noop, facilities = noop, wellness = noop, recovery = noop, mindCheck = noop, bpLog = noop, familyPlanning = noop, mindfulness = noop, chat = noop, doctorQuestions = noop, newJourney = noop, back = noop, milestone = {}, upload = {})
+        val nav = Nav(home = noop, timeline = noop, reminders = noop, movements = noop, care = noop, prep = noop, doctor = noop, account = noop, dataSafety = noop, intake = noop, registration = noop, rh = noop, danger = noop, birth = noop, growth = noop, vaccines = noop, vault = noop, referral = noop, facilities = noop, wellness = noop, recovery = noop, mindCheck = noop, bpLog = noop, familyPlanning = noop, mindfulness = noop, chat = noop, community = noop, doctorQuestions = noop, newJourney = noop, back = noop, milestone = {}, upload = {})
         compose.setContent { CareTrailTheme { when (screen) {
             "birth" -> BirthEntryScreen(vm, nav)
             "safety" -> DataSafetyScreen(vm, nav)
