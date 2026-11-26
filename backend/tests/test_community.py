@@ -175,3 +175,42 @@ def test_moderation_page_carries_working_csp(client):
     csp = r.headers.get("content-security-policy", "")
     assert "script-src 'unsafe-inline'" in csp and "style-src 'unsafe-inline'" in csp
     assert "connect-src 'self'" in csp and "default-src 'none'" in csp
+
+
+def test_closed_reports_purge_after_retention_window(client):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import AuditLog, CommunityReport
+
+    h1 = join(client, "9876543210", "Anu")
+    h2 = join(client, "9876543211", "Meera")
+    old_msg = post(client, h2, "old flagged text").json()
+    open_msg = post(client, h2, "fresh flagged text").json()
+    old_rep = client.post(f"/community/messages/{old_msg['id']}/report", headers=h1, json={"reason": "spam"}).json()
+    mod = moderator("Rev3")
+    done = client.post(f"/moderation/reports/{old_rep['id']}/resolve", headers=mod, json={"action": "dismiss"})
+    assert done.status_code == 200
+    client.post(f"/community/messages/{open_msg['id']}/report", headers=h1, json={"reason": "spam"})
+    # Backdate the closed report past the retention window.
+    gen = app.dependency_overrides[get_db]()
+    db = next(gen)
+    row = db.get(CommunityReport, old_rep["id"])
+    row.handled_at = datetime.now(timezone.utc) - timedelta(days=31)
+    db.commit()
+    db.close()
+    # A queue read runs the lazy purge: closed report and its audit row are gone.
+    queue = client.get("/moderation/reports?status=all", headers=mod).json()["reports"]
+    assert [r["id"] for r in queue] and all(r["id"] != old_rep["id"] for r in queue)
+    assert any(r["message"]["id"] == open_msg["id"] for r in queue)
+    db = next(app.dependency_overrides[get_db]())
+    leftover = db.query(AuditLog).filter(AuditLog.entity_id == old_msg["id"]).all()
+    db.close()
+    assert leftover == []
+
+
+def test_export_states_community_retention(client):
+    headers = join(client, "9876543210", "Anu")
+    post(client, headers, "hello")
+    data = client.get("/me/export", headers=headers).json()
+    note = data["community"]["retention_note"]
+    assert "30 days" in note and "placeholder" in note and "permanently deleted" in note
