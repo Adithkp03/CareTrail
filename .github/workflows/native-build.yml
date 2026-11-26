@@ -11,6 +11,11 @@ name: Native Android build (review)
 
 on:
   workflow_dispatch:
+    inputs:
+      api_base:
+        description: "Override API base URL for an isolated test build (leave empty for production)"
+        required: false
+        default: ""
   push:
     branches: [fix/reminder-gaps, feat/google-sign-in, fix/startup-cached-open, feat/official-support-listening, feat/community-room]
 
@@ -57,12 +62,15 @@ jobs:
         # The Supabase anon key is Supabase's PUBLIC publishable key (safe in
         # clients); passing it makes the Google button visible in the built APK.
         run: |
+          API_ARG=()
+          if [ -n "${{ inputs.api_base }}" ]; then API_ARG=(-PcaretrailApi="${{ inputs.api_base }}"); fi
           gradle :app:testDebugUnitTest :app:assembleDebug -Pcaretrail.skipScreenshotTest --no-daemon --console=plain \
             -Pandroid.injected.signing.store.file="$HOME/.android/debug.keystore" \
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=androiddebugkey \
             -Pandroid.injected.signing.key.password=android \
-            -PcaretrailSupabaseAnonKey="${{ secrets.SUPABASE_ANON_KEY }}"
+            -PcaretrailSupabaseAnonKey="${{ secrets.SUPABASE_ANON_KEY }}" \
+            "${API_ARG[@]}"
 
       # Fail the build if the APK is not signed with the stable Nov-20 identity
       # (SHA-256 of a signing cert is public metadata, printed in CI logs).
