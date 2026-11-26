@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -110,6 +111,10 @@ def test_report_flow_and_moderation_remove_and_suspend(client):
     assert queue["moderator"] == "Reviewer" and len(queue["reports"]) == 1
     rep = queue["reports"][0]
     assert rep["message"]["body"].startswith("You should skip") and rep["reason"] == "medical-advice"
+    # Open reports carry a visible auto-expiry date for the review queue
+    exp = datetime.fromisoformat(rep["expires_at"])
+    assert exp - datetime.fromisoformat(rep["created_at"]) >= timedelta(days=29)
+    assert rep["status"] == "open"
     done = client.post(f"/moderation/reports/{rep['id']}/resolve", headers=mod, json={"action": "remove_and_suspend", "note": "dangerous advice"})
     assert done.status_code == 200 and done.json()["reports_closed"] == 1
     assert client.post(f"/moderation/reports/{rep['id']}/resolve", headers=mod, json={"action": "dismiss"}).status_code == 409
@@ -214,3 +219,30 @@ def test_export_states_community_retention(client):
     data = client.get("/me/export", headers=headers).json()
     note = data["community"]["retention_note"]
     assert "30 days" in note and "placeholder" in note and "permanently deleted" in note
+
+
+def test_unreviewed_open_reports_expire_then_purge(client):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import CommunityReport
+
+    h1 = join(client, "9876543210", "Anu")
+    h2 = join(client, "9876543211", "Meera")
+    msg = post(client, h2, "flagged but never reviewed").json()
+    rep = client.post(f"/community/messages/{msg['id']}/report", headers=h1, json={"reason": "spam"}).json()
+    mod = moderator("Rev4")
+    # Age the open report past the review window: it expires unactioned, message stays visible.
+    gen = app.dependency_overrides[get_db]()
+    db = next(gen)
+    db.get(CommunityReport, rep["id"]).created_at = datetime.now(timezone.utc) - timedelta(days=31)
+    db.commit(); db.close()
+    queue = client.get("/moderation/reports?status=expired", headers=mod).json()["reports"]
+    assert len(queue) == 1 and queue[0]["id"] == rep["id"] and queue[0]["status"] == "expired"
+    assert any(m["id"] == msg["id"] for m in client.get("/community/messages", headers=h1).json()["messages"])
+    # Age the expiry past the retention window: it is purged like any closed report.
+    db = next(app.dependency_overrides[get_db]())
+    row = db.get(CommunityReport, rep["id"])
+    row.handled_at = datetime.now(timezone.utc) - timedelta(days=31)
+    db.commit(); db.close()
+    queue = client.get("/moderation/reports?status=all", headers=mod).json()["reports"]
+    assert all(r["id"] != rep["id"] for r in queue)

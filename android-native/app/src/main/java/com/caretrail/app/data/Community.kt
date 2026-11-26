@@ -55,7 +55,7 @@ object CommunityText {
         "Nothing from your health records is shown here, and what you write here is never shared with your doctor or added to your records.",
         "Messages you post can be reported by other members and reviewed by the CareTrail team, who can remove them and pause posting for accounts that break these rules.",
         "You can delete your own messages any time. Deleting your account removes your membership and blanks your nickname and message text; an anonymous placeholder can remain in the chat.",
-        "Reports other members file about your messages, and the team's action log, are kept while a report is open and for up to 30 days after it is closed, then permanently deleted.",
+        "Reports other members file about your messages, and the team's action log, are kept for up to 30 days while awaiting review and up to 30 days after a report is closed, then permanently deleted.",
     )
     const val consentLine = "Joining means you accept these guidelines."
     const val reportNote = "The CareTrail team reviews every report. Reports are not seen by the member you report."
