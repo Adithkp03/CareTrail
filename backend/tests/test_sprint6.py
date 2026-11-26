@@ -5,6 +5,8 @@ to "contact your doctor now", advice-seeking questions get a fixed deferral,
 app-help questions are deterministic, and general info comes only from the
 curated corpus.
 """
+from datetime import date, timedelta
+
 from tests.conftest import auth, signup
 from tests.test_clinicians import provision
 
@@ -46,10 +48,14 @@ def test_assistant_app_help_is_deterministic(client):
     j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(token)).json()
     milestones = j["milestones"]
     mid = milestones[1]["id"]
-    client.post(f"/milestones/{mid}/schedule", json={"scheduled_date": "2026-11-05"}, headers=auth(token))
+    # The assistant reports only upcoming appointments, so the scheduled date
+    # must stay in the future relative to the day the test runs; a hardcoded
+    # date silently becomes past and the appointment disappears from answers.
+    appt = (date.today() + timedelta(days=10)).isoformat()
+    client.post(f"/milestones/{mid}/schedule", json={"scheduled_date": appt}, headers=auth(token))
     r = chat(client, token, "When is my next appointment?").json()
     assert r["source"] == "app:appointments" and r["suggest_doctor"] is False
-    assert "2026-11-05" in r["answer"]
+    assert appt in r["answer"]
     r = chat(client, token, "Do I have any reminders?").json()
     assert r["source"] == "app:reminders"
     r = chat(client, token, "How do I upload a report?").json()
