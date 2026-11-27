@@ -1,0 +1,124 @@
+"""Download your data, or delete your account and everything under it."""
+import json
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..deps import audit, get_current_patient
+from ..models import (AiCallTrace, AssistantMessage, AuditLog, AuthToken, CareInstruction, Clinician, CommunityBlock, CommunityMember,
+                      CommunityMessage, CommunityReport, Document, DocumentBlob,
+                      DoctorQuestion, LocalRecordBackup, Journey, JourneyClinicianGrant, Milestone, Observation, Patient, ReminderState, SignOff)
+
+router = APIRouter(tags=["account"])
+
+
+def _iso(v):
+    return v.isoformat() if v is not None else None
+
+
+@router.get("/me/export")
+def export_my_data(patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    journeys = []
+    for j in db.query(Journey).filter(Journey.patient_id == patient.id).order_by(Journey.created_at):
+        docs = db.query(Document).filter(Document.journey_id == j.id).all()
+        doctor_names = {c.id: c.name for c in db.query(Clinician).filter(
+            Clinician.id.in_([i.clinician_id for i in db.query(CareInstruction).filter(CareInstruction.journey_id == j.id)] or [""]))}
+        journeys.append({
+            "local_record_backup": [{"module": row.module, "revision": row.revision, "schema_version": row.schema_version,
+                                    "deleted": row.deleted, "data": row.payload if not row.deleted else None,
+                                    "updated_at": _iso(row.updated_at)}
+                                   for row in db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id == j.id)],
+            "id": j.id, "template": j.template_id, "lmp": _iso(j.lmp), "edd": _iso(j.edd), "created_at": _iso(j.created_at),
+            "milestones": [{"key": m.key, "title": m.title, "completed_at": _iso(m.completed_at), "scheduled_date": _iso(m.scheduled_date)}
+                           for m in db.query(Milestone).filter(Milestone.journey_id == j.id).order_by(Milestone.sort_order)],
+            "results": [{"code": o.code, "value": o.value, "unit": o.unit, "observed_on": _iso(o.observed_on), "source": o.source,
+                         "report_id": o.document_id}
+                        for o in db.query(Observation).filter(Observation.journey_id == j.id).order_by(Observation.observed_on)],
+            "reports": [{"id": d.id, "filename": d.filename, "status": d.status, "uploaded_at": _iso(d.uploaded_at),
+                         "sha256": getattr(d, "content_hash", None), "read_values": getattr(d, "extracted_values", None)}
+                        for d in docs],
+            "doctor_signoffs": [{"doctor": s.doctor_name, "verified_clinician": bool(s.clinician_id), "note": s.note, "signed_at": _iso(s.signed_at)}
+                                for s in db.query(SignOff).filter(SignOff.journey_id == j.id)],
+            "doctor_instructions": [{"doctor": doctor_names.get(i.clinician_id), "note": i.note, "created_at": _iso(i.created_at),
+                                     "acknowledged_at": _iso(i.acknowledged_at)}
+                                    for i in db.query(CareInstruction).filter(CareInstruction.journey_id == j.id)],
+            "doctor_questions": [{"question": q.question, "asked_at": _iso(q.created_at), "answer": q.answer,
+                                  "answered_by": q.answerer_name, "answered_at": _iso(q.answered_at)}
+                                 for q in db.query(DoctorQuestion).filter(DoctorQuestion.journey_id == j.id).order_by(DoctorQuestion.created_at)],
+        })
+    data = {
+        "exported_for": {"name": patient.name, "phone": patient.phone, "email": patient.email, "language": patient.language,
+                         "consent_at": _iso(patient.consent_at), "created_at": _iso(patient.created_at)},
+        "journeys": journeys,
+        "assistant_chat": [{"role": m.role, "text": m.text, "language": m.language, "created_at": _iso(m.created_at)}
+                           for m in db.query(AssistantMessage).filter(AssistantMessage.patient_id == patient.id).order_by(AssistantMessage.created_at)],
+        "community": {"nickname": (db.get(CommunityMember, patient.id).nickname if db.get(CommunityMember, patient.id) else None),
+                      "messages": [{"body": m.body, "created_at": _iso(m.created_at), "removed": m.removed}
+                                   for m in db.query(CommunityMessage).filter(CommunityMessage.patient_id == patient.id).order_by(CommunityMessage.created_at)],
+                      "retention_note": ("Deleting your account removes your membership and blanks your nickname and "
+                                         "message text; an anonymous placeholder can remain in the chat. Reports "
+                                         "other members filed about your messages, and the review team's action log, "
+                                         "are kept for up to 30 days while awaiting review and up to 30 days after a "
+                                         "report is closed, then permanently deleted.")},
+        "note": "Original report files are not included in this download. Open them from the report on your timeline.",
+    }
+    audit(db, f"patient:{patient.id}", "export_data", "patient", patient.id, {})
+    db.commit()
+    return Response(content=json.dumps(data, indent=2), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="caretrail-my-data.json"', "Cache-Control": "no-store"})
+
+
+class DeleteAccountRequest(BaseModel):
+    confirm: str
+
+
+@router.delete("/me")
+def delete_my_account(body: DeleteAccountRequest, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    if patient.is_demo:
+        raise HTTPException(status_code=403, detail="The demo account cannot be deleted")
+    if body.confirm != "DELETE":
+        raise HTTPException(status_code=422, detail="Type DELETE to confirm")
+    pid = patient.id
+    jids = [j.id for j in db.query(Journey).filter(Journey.patient_id == pid)]
+    if jids:
+        dids = [d.id for d in db.query(Document).filter(Document.journey_id.in_(jids))]
+        db.query(CareInstruction).filter(CareInstruction.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(JourneyClinicianGrant).filter(JourneyClinicianGrant.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(SignOff).filter(SignOff.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(Observation).filter(Observation.journey_id.in_(jids)).delete(synchronize_session=False)
+        if dids:
+            db.query(DocumentBlob).filter(DocumentBlob.document_id.in_(dids)).delete(synchronize_session=False)
+        db.query(Document).filter(Document.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(Milestone).filter(Milestone.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(AuditLog).filter(AuditLog.entity == "journey", AuditLog.entity_id.in_(jids)).delete(synchronize_session=False)
+        db.query(DoctorQuestion).filter(DoctorQuestion.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id.in_(jids)).delete(synchronize_session=False)
+        db.query(Journey).filter(Journey.patient_id == pid).delete(synchronize_session=False)
+    # Community: anonymize posted messages, drop membership, blocks and reports made.
+    # Anonymize posted messages and detach them from the patient row: the tombstones
+    # stay so reports filed by others keep their context, and the nullable patient_id
+    # lets the patient row be deleted under Postgres FK enforcement.
+    for msg in db.query(CommunityMessage).filter(CommunityMessage.patient_id == pid):
+        msg.body = ""
+        msg.nickname = ""
+        msg.removed = True
+        msg.removed_by = "account deletion"
+        msg.patient_id = None
+    # Flush the anonymization before the bulk deletes below: they execute immediately,
+    # and DELETE FROM patients would otherwise reach the database before these UPDATEs.
+    db.flush()
+    db.query(CommunityReport).filter(CommunityReport.reporter_patient_id == pid).delete(synchronize_session=False)
+    db.query(CommunityBlock).filter((CommunityBlock.blocker_patient_id == pid) | (CommunityBlock.blocked_patient_id == pid)).delete(synchronize_session=False)
+    db.query(CommunityMember).filter(CommunityMember.patient_id == pid).delete(synchronize_session=False)
+    db.query(AssistantMessage).filter(AssistantMessage.patient_id == pid).delete(synchronize_session=False)
+    db.query(ReminderState).filter(ReminderState.patient_id == pid).delete(synchronize_session=False)
+    db.query(AiCallTrace).filter(AiCallTrace.patient_id == pid).delete(synchronize_session=False)
+    db.query(AuditLog).filter(AuditLog.actor == f"patient:{pid}").delete(synchronize_session=False)
+    db.query(AuthToken).filter(AuthToken.patient_id == pid).delete(synchronize_session=False)
+    db.query(Patient).filter(Patient.id == pid).delete(synchronize_session=False)
+    audit(db, "system", "delete_account", "patient", pid, {})
+    db.commit()
+    return {"deleted": True}
