@@ -154,7 +154,13 @@ if not tap("log in", scroll=False, tries=6, wait=4):
 if not tap("try the demo", tries=25, wait=6):
     bail("NAV FAILED: LoginScreen 'try the demo' not found")
 to_top()
-if find("skip for now"): tap("skip for now", wait=3)
+# Post-login reminder setup shows "Skip for now" IN THE CURRENT LOCALE (ml default).
+SKIP_LABELS = ["skip for now", "ഇപ്പോൾ ഒഴിവാക്കുക"]
+def tap_skip():
+    for s in SKIP_LABELS:
+        if find(s): return tap(s, wait=3)
+    return False
+tap_skip()
 
 # GATE 1: real Home, in Malayalam (demo persona's default locale).
 home = wait_for(lambda inv: on_home(inv, "ml"), timeout=120)
@@ -188,7 +194,7 @@ inv = wait_for(lambda inv: fetched_ok(inv, "ml"), timeout=120)
 sh("svc wifi disable"); sh("svc data disable"); time.sleep(2)
 sh(f"am force-stop {PKG}"); time.sleep(2)
 sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(12)
-if find("skip for now"): tap("skip for now", wait=3)
+tap_skip()
 inv = wait_for(lambda inv: on_home(inv, "ml"), timeout=60)
 off_ok = on_home(inv, "ml") and fetched_ok(inv, "ml")
 check("ml_offline_cached_render", off_ok)
