@@ -56,7 +56,13 @@ def member(db: Session, patient: Patient) -> CommunityMember:
 
 def not_demo(patient: Patient):
     if patient.is_demo:
-        raise HTTPException(403, "The shared demo account cannot use the community. Create a private account")
+        raise HTTPException(403, "The shared demo account cannot use this community action. Create a private account")
+
+
+# The shared demo account may join and post so app demos can show the room
+# (user request, temporary). Its identity is fixed and clearly labeled instead
+# of a free nickname; moderation-facing actions (report, block) stay blocked.
+DEMO_NICKNAME = "Anjali (demo)"
 
 
 def clean_body(raw: str) -> str:
@@ -86,10 +92,9 @@ class JoinBody(BaseModel):
 
 @router.post("/community/join")
 def join(body: JoinBody, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
-    not_demo(patient)
     if body.consent is not True:
         raise HTTPException(422, "Community guidelines must be accepted to join")
-    nick = clean_nickname(body.nickname)
+    nick = DEMO_NICKNAME if patient.is_demo else clean_nickname(body.nickname)
     row = db.get(CommunityMember, patient.id)
     if row is None:
         row = CommunityMember(patient_id=patient.id, nickname=nick)
@@ -142,7 +147,6 @@ class PostBody(BaseModel):
 
 @router.post("/community/messages", status_code=201)
 def post_message(body: PostBody, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
-    not_demo(patient)
     mem = member(db, patient)
     if mem.suspended:
         raise HTTPException(403, "Posting is paused for your account after a moderation review")
