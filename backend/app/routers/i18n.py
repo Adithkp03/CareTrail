@@ -40,9 +40,11 @@ def _translate_one(text: str, lang: str) -> str | None:
 
 @router.post("/i18n/translate")
 def translate_batch(body: TranslateRequest, patient: Patient = Depends(get_current_patient), db: Session = Depends(get_db)):
+    if body.lang not in ("en", "ml", "hi", "ta", "te", "kn", "bn", "mr", "as"):
+        raise HTTPException(status_code=400, detail="unsupported language")
     if body.lang not in ("en", "ml", "hi", "ta", "te", "kn", "bn", "mr"):
-        # Unsupported by Sarvam (e.g. Assamese): serve the original English text
-        # instead of failing, so screens still render.
+        # Offered in the app but not supported by Sarvam (Assamese): serve the
+        # original English text instead of failing, so screens still render.
         return {"lang": body.lang, "translations": {t: t for t in body.texts if isinstance(t, str) and t.strip()}}
     texts = [t for t in dict.fromkeys(body.texts) if isinstance(t, str) and t.strip()][:MAX_TEXTS]
     if body.lang == "en" or not texts:
