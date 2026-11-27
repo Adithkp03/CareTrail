@@ -115,6 +115,36 @@ class BottomBarScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w320dp-h720dp-port")
+    fun homeScreenSmallPhoneKeepsFullWidthCtaAndEvenCards() {
+        val hold = java.util.concurrent.CountDownLatch(1)
+        val server = hangingServer(hold)
+        try {
+            val vm = seededVm(server)
+            composeRule.setContent {
+                CareTrailTheme {
+                    Box(Modifier.fillMaxSize().background(CT.Bg)) {
+                        Column(Modifier.fillMaxSize()) {
+                            Box(Modifier.weight(1f)) { HomeScreen(vm, fakeNav()) }
+                            BottomBar(vm, "home", fakeNav())
+                        }
+                    }
+                }
+            }
+            composeRule.waitUntil(15_000) { vm.journey.value is JourneyState.Ready }
+            composeRule.waitForIdle()
+            composeRule.onNodeWithText("Hi, Anjali").assertIsDisplayed()
+            composeRule.onNodeWithText("See this week's care", substring = true).assertIsDisplayed()
+            composeRule.onNodeWithText("Help assistant").assertIsDisplayed()
+            composeRule.onNodeWithText("Ask your doctor").assertIsDisplayed()
+            composeRule.onRoot().captureRoboImage()
+        } finally {
+            hold.countDown()
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun bottomBarShowsCommunityInsteadOfMovements() {
         val vm = AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         composeRule.setContent { CareTrailTheme { BottomBar(vm, "community", fakeNav()) } }
