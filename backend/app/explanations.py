@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from . import voice
 from .models import ExplanationCache
 
+
 # --- Curated fallback content (demo-critical strings; native review pending) ---
 
 MILESTONE_EXPLANATIONS_EN = {
@@ -81,7 +82,6 @@ def milestone_explanation(db: Session, milestone_key: str, title: str, prep_note
     row = db.query(ExplanationCache).filter(ExplanationCache.cache_key == cache_key).first()
     if row:
         return {"text": row.text, "language": language, "audio_available": bool(row.audio_path), "provider": row.provider, "cache": True}
-
     if language == "en":
         text, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     else:
