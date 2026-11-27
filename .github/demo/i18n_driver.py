@@ -101,7 +101,7 @@ def count_script(inv, script):
 DYN_EN = ["second-trimester review", "anomaly scan"]
 EXPECTED = {
     "ml": {"script": "MALAYALAM", "pill": "മലയാളം",
-           "nav": ["മുഖപേജ്", "ആസ്ഥാനം", "ഓർമ്മപ്പെടുത്തലുകൾ", "പ്രൊഫൈല്"],
+           "nav": ["ഹോം", "ആസ്ഥാനം", "ഓർമ്മപ്പെടുത്തലുകൾ", "പ്രൊഫൈല്"],
            "dyn": ["രണ്ടാം ത്രൈമാസ", "അനോമലി സ്കാൻ"]},
     "ta": {"script": "TAMIL", "pill": "தமிழ்",
            "nav": ["முகப்பு", "நினைவூட்டல்கள்", "சுயவிவരம்"],
