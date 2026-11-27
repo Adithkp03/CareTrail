@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from . import voice
 from .models import ExplanationCache
 
+
 # --- Curated fallback content (demo-critical strings; native review pending) ---
 
 MILESTONE_EXPLANATIONS_EN = {
@@ -69,18 +70,27 @@ def _english_milestone_text(milestone_key: str, title: str, prep_notes: str, pat
     return f"{title}. {prep_notes}".strip(), "template"
 
 
-def milestone_explanation(db: Session, milestone_key: str, title: str, prep_notes: str, template_version: str, language: str, patient_id: str | None = None) -> dict:
-    # Changed clinical wording gets a new cache key, avoiding stale explanations.
+def milestone_cache_key(milestone_key: str, prep_notes: str, template_version: str, language: str) -> str:
+    """Exact cache key for one wording revision. Changed clinical wording gets a
+    new key, avoiding stale explanations - and audio must use the same key."""
     revision = hashlib.sha1(prep_notes.encode("utf-8")).hexdigest()[:12]
-    cache_key = f"{milestone_key}|{language}|{template_version}|{revision}"
+    return f"{milestone_key}|{language}|{template_version}|{revision}"
+
+
+def milestone_explanation(db: Session, milestone_key: str, title: str, prep_notes: str, template_version: str, language: str, patient_id: str | None = None) -> dict:
+    cache_key = milestone_cache_key(milestone_key, prep_notes, template_version, language)
     row = db.query(ExplanationCache).filter(ExplanationCache.cache_key == cache_key).first()
     if row:
         return {"text": row.text, "language": language, "audio_available": bool(row.audio_path), "provider": row.provider, "cache": True}
-
-    english, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     if language == "en":
-        text = english
+        text, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     else:
+        # Canonical source binding: every language derives from the single cached
+        # English row for this wording revision, so source text and spoken text
+        # can never diverge into per-language variants of an LLM generation.
+        canonical = milestone_explanation(db, milestone_key, title, prep_notes, template_version, "en", patient_id)
+        english = canonical["text"]
+        provider = canonical["provider"]
         text = voice.translate(english, language) or MILESTONE_EXPLANATIONS_LOCAL.get((milestone_key, language)) or english
         if text != english and not voice.available():
             provider = "curated"
@@ -94,14 +104,13 @@ def result_explanation(db: Session, code: str, label: str, template_version: str
     return milestone_explanation(db, f"result:{code}", label, RESULT_EXPLANATIONS_EN.get(code, ""), template_version, language, patient_id)
 
 
-def explanation_audio(db: Session, cache_prefix: str, language: str) -> bytes | None:
-    """Bulbul v3 audio for a cached explanation; generated once and stored."""
-    row = (
-        db.query(ExplanationCache)
-        .filter(ExplanationCache.cache_key.like(f"{cache_prefix}|{language}|%"))
-        .order_by(ExplanationCache.id.desc())
-        .first()
-    )
+def explanation_audio(db: Session, cache_key: str, language: str) -> bytes | None:
+    """Bulbul v3 audio for a cached explanation; generated once and stored.
+
+    The cache key must be the exact key the text endpoint serves. A loose
+    prefix match can pick a row cached from older clinical wording, so the
+    spoken audio would not match the text on screen."""
+    row = db.query(ExplanationCache).filter(ExplanationCache.cache_key == cache_key).first()
     if row is None:
         return None
     if row.audio_path:

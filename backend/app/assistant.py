@@ -17,7 +17,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from . import voice
+from . import apphelp_llm, voice
 from .answers import CONTACT_DOCTOR, _matches_danger_sign, detect_question_language
 from .explanations import MILESTONE_EXPLANATIONS_EN
 from .guidance import retrieve
@@ -118,7 +118,10 @@ def _app_help(db: Session, journey: Journey | None, q: str, language: str) -> di
         return {"answer": APP_GUIDE["upload"], "source": "app:reports"}
     for key in ("upload", "movements", "export", "language", "doctor_link", "referral"):
         if _matches_any(q, APP_INTENT_KEYWORDS[key]):
-            return {"answer": APP_GUIDE[key], "source": f"app:{key}"}
+            # Static app-guide text only: the model (when enabled) rewords this
+            # fixed text; the user's question is never sent to it.
+            answer = apphelp_llm.rephrase_app_help(APP_GUIDE[key]) or APP_GUIDE[key]
+            return {"answer": answer, "source": f"app:{key}"}
     return None
 
 

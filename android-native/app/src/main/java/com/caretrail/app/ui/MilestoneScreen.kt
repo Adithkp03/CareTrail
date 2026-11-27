@@ -111,7 +111,7 @@ fun MilestoneScreen(vm: AppViewModel, id: String, nav: Nav) {
             if (error.isNotEmpty()) Note(error, tone = Tone.Red) else Muted(l.t("loading"))
             return@Page
         }
-        if (offline) Note("Offline - showing the last loaded copy.", Modifier.padding(bottom = 8.dp))
+        if (offline) Note(l.tr("Offline - showing the last loaded copy."), Modifier.padding(bottom = 8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 CareIcon(Logic.iconFor(ms), 26.dp)

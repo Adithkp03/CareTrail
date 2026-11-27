@@ -1,5 +1,6 @@
 package com.caretrail.app.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,8 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.caretrail.app.AppViewModel
@@ -49,6 +55,8 @@ import com.caretrail.app.data.highRisk
 import com.caretrail.app.data.vaccineLogs
 import com.caretrail.app.data.healthIntake
 import com.caretrail.app.data.rhProfile
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** Loads the patient's journey and renders [content] once it is ready. */
 @Composable
@@ -57,13 +65,13 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
     val l = rememberL(vm)
     LaunchedEffect(Unit) { vm.refreshJourney() }
     when (val s = state) {
-        is JourneyState.Loading -> JourneyLoading(s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
+        is JourneyState.Loading -> JourneyLoading(l, s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
         is JourneyState.Empty -> LaunchedEffect(Unit) { onEmpty() }
         is JourneyState.Failed -> Page {
             Spacer(gap(48))
             Note(s.message, tone = Tone.Red)
             Spacer(gap(12))
-            OutlineButton("Retry") { vm.refreshJourney() }
+            OutlineButton(l.tr("Retry")) { vm.refreshJourney() }
         }
         is JourneyState.Ready -> if (s.stale && !s.offline) {
             Column {
@@ -82,17 +90,17 @@ fun StaleRefreshNote(l: L, modifier: Modifier = Modifier) =
     Note(l.tr("Showing your last synced information - updating..."), modifier, tone = Tone.Blue)
 
 @Composable
-internal fun JourneyLoading(takingLonger: Boolean, loading: String, retry: () -> Unit) {
+internal fun JourneyLoading(l: L, takingLonger: Boolean, loading: String, retry: () -> Unit) {
     Page {
         Spacer(gap(48))
         CircularProgressIndicator(color = CT.Brand)
         Spacer(gap(12))
-        Text(if (takingLonger) "Still loading your care timeline" else loading, style = MaterialTheme.typography.titleMedium)
+        Text(if (takingLonger) l.tr("Still loading your care timeline") else loading, style = MaterialTheme.typography.titleMedium)
         if (takingLonger) {
             Spacer(gap(12))
-            Note("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet.")
+            Note(l.tr("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet."))
             Spacer(gap(12))
-            OutlineButton("Try again") { retry() }
+            OutlineButton(l.tr("Try again")) { retry() }
         }
     }
 }
@@ -124,6 +132,51 @@ fun MilestoneRow(m: Milestone, l: L, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Flat illustrated scene for the Home hero: warm amber sky, smiling-weather sun,
+ * soft clouds and layered green hills - the playful focal point the reference UI
+ * direction calls for. Drawn in Canvas so it renders identically in app and CI.
+ */
+@Composable
+fun HeroIllustration(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        // Clouds.
+        drawOval(Color.White.copy(alpha = 0.70f), topLeft = Offset(w * 0.06f, h * 0.16f), size = Size(w * 0.24f, h * 0.10f))
+        drawOval(Color.White.copy(alpha = 0.50f), topLeft = Offset(w * 0.42f, h * 0.10f), size = Size(w * 0.17f, h * 0.08f))
+        // Sun with rays, top right.
+        val sunC = Offset(w * 0.82f, h * 0.26f)
+        val sunR = w * 0.070f
+        for (i in 0 until 8) {
+            val a = Math.PI * 2 * i / 8
+            val inner = Offset((sunC.x + sunR * 1.4f * cos(a)).toFloat(), (sunC.y + sunR * 1.4f * sin(a)).toFloat())
+            val outer = Offset((sunC.x + sunR * 2.0f * cos(a)).toFloat(), (sunC.y + sunR * 2.0f * sin(a)).toFloat())
+            drawLine(CT.SunDeep, inner, outer, strokeWidth = sunR * 0.16f, cap = StrokeCap.Round)
+        }
+        drawCircle(CT.SunYellow, sunR, sunC)
+        // Layered hills at the bottom.
+        val back = Path().apply {
+            moveTo(0f, h)
+            lineTo(0f, h * 0.82f)
+            quadraticTo(w * 0.28f, h * 0.62f, w * 0.58f, h * 0.82f)
+            quadraticTo(w * 0.72f, h * 0.90f, w * 0.82f, h * 0.85f)
+            lineTo(w, h * 0.92f)
+            lineTo(w, h)
+            close()
+        }
+        drawPath(back, CT.HillLight)
+        val front = Path().apply {
+            moveTo(w * 0.40f, h)
+            quadraticTo(w * 0.64f, h * 0.70f, w * 0.90f, h * 0.90f)
+            quadraticTo(w * 0.96f, h * 0.94f, w, h * 0.92f)
+            lineTo(w, h)
+            close()
+        }
+        drawPath(front, CT.HillDeep)
+    }
+}
+
 @Composable
 fun HomeScreen(vm: AppViewModel, nav: Nav) {
     val l = rememberL(vm)
@@ -145,56 +198,63 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
         val nextVax = if (postpartum) VaccineSchedule.openItems(birth.date, vm.store.vaccineLogs(j.journey_id)).firstOrNull() else null
 
         Page {
-            if (offline) Note("Offline - showing your last loaded timeline.", Modifier.padding(bottom = 12.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(CT.SoftBlue), contentAlignment = Alignment.Center) {
-                        Text(j.patient.name.take(1), color = CT.Brand, style = MaterialTheme.typography.titleMedium)
-                    }
-                    Column {
-                        Text("CARETRAIL", color = CT.Brand, style = MaterialTheme.typography.labelSmall)
-                        Text(j.patient.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    }
+            if (offline) Note(l.tr("Offline - showing your last loaded timeline."), Modifier.padding(bottom = 12.dp))
+            // Reference-led header: a warm greeting with strong type, avatar and language on the right.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("${l.t("greetingHi")} ${j.patient.name.split(" ").first()}", color = CT.Ink, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
+                    Spacer(gap(2))
+                    Text("CARETRAIL", color = CT.Brand, style = MaterialTheme.typography.labelSmall)
                 }
                 LangPicker(l.lang, { vm.translator.setLang(it) }, compact = true)
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.size(44.dp).clip(CircleShape).background(CT.SoftBlue), contentAlignment = Alignment.Center) {
+                    Text(j.patient.name.take(1), color = CT.Brand, style = MaterialTheme.typography.titleMedium)
+                }
             }
             if (l.lang !in Langs.reviewed) { Spacer(gap(12)); Note(l.t("translationNote")) }
             Spacer(gap(16))
             if (!postpartum) {
-            // "You are here" hero
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(CT.Navy, CT.NavyEnd))).padding(16.dp)
+            // Illustrated hero: strong week type over a flat sunny scene, one primary action.
+            Box(
+                Modifier.fillMaxWidth().height(256.dp).clip(RoundedCornerShape(28.dp))
+                    .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(l.t("journeyTitle"), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium)
-                        Spacer(gap(8))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("$week", color = Color.White, style = MaterialTheme.typography.displayLarge)
-                            Text(" ${l.t("weeks")}", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 4.dp))
-                        }
+                HeroIllustration(Modifier.matchParentSize())
+                Column(Modifier.align(Alignment.TopStart).padding(20.dp).fillMaxWidth(0.66f)) {
+                    Text(l.t("journeyTitle").uppercase(), color = CT.Ink.copy(alpha = 0.6f), style = MaterialTheme.typography.labelMedium)
+                    Spacer(gap(6))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("$week", color = CT.Ink, style = MaterialTheme.typography.displayLarge)
+                        Text(" ${l.t("weeks")}", color = CT.Ink.copy(alpha = 0.7f), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    Spacer(gap(2))
+                    Text("+ ${j.gestational_age.plus_days} ${l.t("days")} · ${l.t(Logic.STAGES[stage])}", color = CT.Ink.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
+                }
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp)) {
+                    Column(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.75f)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text("$done / $total ${l.t("completedOf")}", color = CT.Ink, style = MaterialTheme.typography.labelMedium)
                         Spacer(gap(4))
-                        Text("+ ${j.gestational_age.plus_days} ${l.t("days")} · ${l.t(Logic.STAGES[stage])}", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+                        LinearProgressIndicator(
+                            progress = { Logic.progressFraction(j) }, modifier = Modifier.width(72.dp).height(4.dp).clip(CircleShape),
+                            color = CT.Brand, trackColor = CT.Ink.copy(alpha = 0.12f),
+                        )
                     }
-                    Box(Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                        CareIcon("pregnancy", 34.dp, tint = Color(0xFFB9CFFF))
+                    Spacer(gap(10))
+                    // One full-width primary action, like the reference's Check-in button - wraps nowhere.
+                    Box(
+                        Modifier.fillMaxWidth().clip(CircleShape).background(CT.Brand)
+                            .clickable(role = Role.Button) { if (current != null) nav.milestone(current.id) else nav.timeline() }
+                            .padding(vertical = 13.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(l.tr("See this week's care") + "  →", color = Color.White, style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
                 }
-                Spacer(gap(12))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(l.t("youAreHere"), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium)
-                    Text("$done / $total ${l.t("completedOf")}", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                }
-                Spacer(gap(8))
-                LinearProgressIndicator(
-                    progress = { Logic.progressFraction(j) }, modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                    color = CT.Accent, trackColor = Color.White.copy(alpha = 0.15f),
-                )
             }
-            Spacer(gap(16))
-            // NOW / NEXT / attention
-            CTCard(shape = RoundedCornerShape(16.dp), onClick = { if (current != null) nav.milestone(current.id) else nav.timeline() }) {
+            Spacer(gap(20))
+            // NOW / NEXT / attention - varied pastel tones, not a uniform stack.
+            CTCard(shape = RoundedCornerShape(20.dp), onClick = { if (current != null) nav.milestone(current.id) else nav.timeline() }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("visit", 20.dp) }
                     Column(Modifier.weight(1f)) {
@@ -204,8 +264,8 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     }
                 }
             }
-            Spacer(gap(8))
-            CTCard(shape = RoundedCornerShape(16.dp), onClick = { if (next != null) nav.milestone(next.id) else nav.timeline() }) {
+            Spacer(gap(10))
+            CTCard(color = CT.SoftBlue, border = CT.SoftBlue, shape = RoundedCornerShape(20.dp), onClick = { if (next != null) nav.milestone(next.id) else nav.timeline() }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.Peach), contentAlignment = Alignment.Center) { CareIcon("review", 20.dp) }
                     Column(Modifier.weight(1f)) {
@@ -216,28 +276,24 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             } else {
-            // Postpartum hero: baby's age + next vaccine instead of the pregnancy timeline.
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(CT.Navy, CT.NavyEnd))).padding(16.dp)
+            // Postpartum hero: same illustrated scene, baby's age instead of pregnancy week.
+            Box(
+                Modifier.fillMaxWidth().height(256.dp).clip(RoundedCornerShape(28.dp))
+                    .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(l.tr("Your baby").uppercase(), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium)
-                        Spacer(gap(8))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("${babyDays / 7}", color = Color.White, style = MaterialTheme.typography.displayLarge)
-                            Text(" ${l.t("weeks")}", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 4.dp))
-                        }
-                        Spacer(gap(4))
-                        Text("+ ${babyDays % 7} ${l.t("days")}" + (if (birth.gender.isNotEmpty()) " · " + l.tr(if (birth.gender == "girl") "Girl" else "Boy") else ""), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+                HeroIllustration(Modifier.matchParentSize())
+                Column(Modifier.align(Alignment.TopStart).padding(20.dp).fillMaxWidth(0.66f)) {
+                    Text(l.tr("Your baby").uppercase(), color = CT.Ink.copy(alpha = 0.6f), style = MaterialTheme.typography.labelMedium)
+                    Spacer(gap(6))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${babyDays / 7}", color = CT.Ink, style = MaterialTheme.typography.displayLarge)
+                        Text(" ${l.t("weeks")}", color = CT.Ink.copy(alpha = 0.7f), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
                     }
-                    Box(Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                        CareIcon("pregnancy", 34.dp, tint = Color(0xFFB9CFFF))
-                    }
+                    Spacer(gap(2))
+                    Text("+ ${babyDays % 7} ${l.t("days")}" + (if (birth.gender.isNotEmpty()) " · " + l.tr(if (birth.gender == "girl") "Girl" else "Boy") else ""), color = CT.Ink.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Spacer(gap(16))
+            Spacer(gap(20))
             CTCard(shape = RoundedCornerShape(16.dp), onClick = nav.vaccines) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("vaccination", 20.dp) }
@@ -262,16 +318,17 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             }
             Spacer(gap(8))
             // Sprint 6: help assistant + ask-the-doctor entries.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CTCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), onClick = nav.chat) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CT.BrandSoft), contentAlignment = Alignment.Center) { CareIcon("review", 18.dp) }
-                    Spacer(gap(6))
+            // Equal width AND equal height: intrinsic-height row, both cards fill it.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CTCard(modifier = Modifier.weight(1f).fillMaxHeight(), color = CT.BrandSoft, border = CT.BrandSoft, shape = RoundedCornerShape(20.dp), onClick = nav.chat) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) { CareIcon("review", 18.dp) }
+                    Spacer(gap(8))
                     Text(l.tr("Help assistant"), style = MaterialTheme.typography.titleSmall)
                     Muted(l.tr("General info & app help"))
                 }
-                CTCard(modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), onClick = nav.doctorQuestions) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CT.Peach), contentAlignment = Alignment.Center) { CareIcon("visit", 18.dp) }
-                    Spacer(gap(6))
+                CTCard(modifier = Modifier.weight(1f).fillMaxHeight(), color = CT.Peach, border = CT.Peach, shape = RoundedCornerShape(20.dp), onClick = nav.doctorQuestions) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) { CareIcon("visit", 18.dp) }
+                    Spacer(gap(8))
                     Text(l.tr("Ask your doctor"), style = MaterialTheme.typography.titleSmall)
                     Muted(l.tr("Send a question"))
                 }
@@ -357,7 +414,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                             Column(Modifier.weight(1f)) {
                                 Text(l.tr("Postpartum checkup due").uppercase(), color = CT.Red800, style = MaterialTheme.typography.labelSmall)
                                 Text(
-                                    l.tr(if (due42) "Your mandatory 42-day postnatal checkup is due - tap to open your recovery hub." else "Your 2-week high-risk BP/sugar review is due - tap to open your recovery hub."),
+                                    l.tr(if (due42) "Your recommended 42-day postnatal checkup is due - tap to open your recovery hub." else "Your 2-week high-risk BP/sugar review is due - tap to open your recovery hub."),
                                     style = MaterialTheme.typography.bodySmall, color = CT.Red800,
                                 )
                             }
@@ -386,9 +443,9 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             Spacer(gap(12))
-            OfficialSupportPanel()
+            OfficialSupportPanel(l)
             Spacer(gap(8))
-            ParentingListeningPanel()
+            ParentingListeningPanel(l)
             Spacer(gap(8))
             CTCard(onClick = nav.community) {
                 SectionTitle(l.tr("Community room"))
@@ -460,13 +517,13 @@ fun TimelineScreen(vm: AppViewModel, nav: Nav) {
         var expanded by remember { mutableStateOf(setOf<Int>()) }
         var showByStatus by remember { mutableStateOf(false) }
         Page(title = l.tr("Your timeline"), back = nav.home) {
-            if (offline) Note("Offline - showing your last loaded timeline.", Modifier.padding(vertical = 8.dp))
+            if (offline) Note(l.tr("Offline - showing your last loaded timeline."), Modifier.padding(vertical = 8.dp))
             Spacer(gap(8))
-            CTCard(color = CT.Brand, border = CT.Brand, shape = RoundedCornerShape(16.dp)) {
-                Text(l.t("youAreHere").uppercase(), color = Color.White, style = MaterialTheme.typography.labelSmall)
-                Text("$week ${l.t("weeks")} + ${j.gestational_age.plus_days} ${l.t("days")}", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                Text(l.t(Logic.STAGES[current]), color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.bodySmall)
-                Text("${l.tr("Due date")}: ${j.edd}", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
+            CTCard(color = CT.Amber100, border = CT.Amber300, shape = RoundedCornerShape(16.dp)) {
+                Text(l.t("youAreHere").uppercase(), color = CT.Amber900, style = MaterialTheme.typography.labelSmall)
+                Text("$week ${l.t("weeks")} + ${j.gestational_age.plus_days} ${l.t("days")}", color = CT.Ink, style = MaterialTheme.typography.titleLarge)
+                Text(l.t(Logic.STAGES[current]), color = CT.Ink.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
+                Text("${l.tr("Due date")}: ${j.edd}", color = CT.Ink.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
             }
             Spacer(gap(12))
             Muted("✓ ${l.t("done")}   ● ${l.t("now")}   ○ ${l.t("next")}")

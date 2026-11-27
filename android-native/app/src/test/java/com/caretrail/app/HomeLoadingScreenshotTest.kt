@@ -25,7 +25,9 @@ class HomeLoadingScreenshotTest {
     @get:Rule val composeRule = createComposeRule()
     @Test @Config(qualifiers = "w360dp-h820dp-port")
     fun firstLoadExplainsSlowRequestAndOffersRetry() {
-        composeRule.setContent { CareTrailTheme { JourneyLoading(true, "Loading...") {} } }
+        val vm = AppViewModel(ApplicationProvider.getApplicationContext<Application>())
+        val labels = L("en", emptyMap(), vm)
+        composeRule.setContent { CareTrailTheme { JourneyLoading(labels, true, "Loading...") {} } }
         composeRule.onNodeWithText("Still loading your care timeline").assertIsDisplayed()
         composeRule.onNodeWithText("Try again").assertIsDisplayed()
         composeRule.onRoot().captureRoboImage()

@@ -1,6 +1,8 @@
 package com.caretrail.app
 
 import androidx.compose.ui.test.*
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.caretrail.app.data.OfficialSupport
 import com.caretrail.app.ui.*
@@ -18,7 +20,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(qualifiers = "w360dp-h820dp-port")
 class OfficialSupportScreenshotTest {
     @get:Rule val compose = createComposeRule()
-    private fun show() { compose.setContent { CareTrailTheme { Page(title = "Your journey", back = {}) { OfficialSupportPanel() } } } }
+    private fun show() { compose.setContent { CareTrailTheme { Page(title = "Your journey", back = {}) { OfficialSupportPanel(L("en", emptyMap(), AppViewModel(ApplicationProvider.getApplicationContext<Application>()))) } } } }
     @Test fun startsClosedWithoutOpeningSources() {
         show()
         compose.onNodeWithText("Government support: official guidance").assertExists()

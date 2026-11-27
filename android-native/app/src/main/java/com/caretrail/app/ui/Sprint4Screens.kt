@@ -127,7 +127,7 @@ fun WellnessScreen(vm: AppViewModel, nav: Nav) {
                         Spacer(gap(8))
                     }
                     if (c42 == FollowUps.State.DUE) {
-                        Text(l.tr("Your mandatory 42-day postnatal checkup is due. Book it even if you feel fine - BP, wound, bleeding, mood and family planning are reviewed."), style = MaterialTheme.typography.bodySmall, color = CT.Red800)
+                        Text(l.tr("Your recommended 42-day postnatal checkup is due. Book it even if you feel fine - BP, wound, bleeding, mood and family planning are reviewed."), style = MaterialTheme.typography.bodySmall, color = CT.Red800)
                         Spacer(gap(6))
                         OutlineButton(l.tr("Mark 42-day checkup done")) {
                             done = done.copy(checkup42_done = LocalDate.now().toString())
@@ -137,7 +137,7 @@ fun WellnessScreen(vm: AppViewModel, nav: Nav) {
                 }
                 Spacer(gap(12))
             } else if (c42 == FollowUps.State.UPCOMING) {
-                Note(l.tr("Your mandatory 42-day checkup is due on ${FollowUps.checkup42DueDate(pp.birthDate) ?: ""} - CareTrail will flag it here."), tone = Tone.Blue)
+                Note(l.tr("Your recommended 42-day checkup is due on ${FollowUps.checkup42DueDate(pp.birthDate) ?: ""} - CareTrail will flag it here."), tone = Tone.Blue)
                 Spacer(gap(12))
             }
 

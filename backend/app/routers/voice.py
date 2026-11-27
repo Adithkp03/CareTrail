@@ -6,7 +6,7 @@ from .. import voice
 from ..answers import answer_question, detect_question_language
 from ..database import get_db
 from ..deps import audit, get_current_patient, get_owned_journey
-from ..explanations import explanation_audio, milestone_explanation, result_explanation
+from ..explanations import explanation_audio, milestone_cache_key, milestone_explanation, result_explanation
 from ..models import Journey, Milestone, Patient
 from ..schemas import AskTextRequest
 from ..template_loader import load_template
@@ -48,10 +48,12 @@ def get_milestone_explanation_audio(
         raise HTTPException(status_code=404, detail="Milestone not found")
     get_owned_journey(m.journey_id, patient, db)
     current = next((item for item in load_template(m.journey.template_id, m.journey.template_version)["milestones"] if item["key"] == m.key), {})
-    milestone_explanation(db, m.key, m.title, current.get("prep_notes", m.prep_notes), m.journey.template_version, lang, patient.id)  # ensure cached
-    audio = explanation_audio(db, m.key, lang)
+    prep_notes = current.get("prep_notes", m.prep_notes)
+    milestone_explanation(db, m.key, m.title, prep_notes, m.journey.template_version, lang, patient.id)  # ensure cached
+    audio = explanation_audio(db, milestone_cache_key(m.key, prep_notes, m.journey.template_version, lang), lang)
     if audio is None:
-        raise HTTPException(status_code=503, detail="Audio needs SARVAM_API_KEY (Bulbul text-to-speech)")
+        detail = "Audio is not available for this language right now"
+        raise HTTPException(status_code=503, detail=detail)
     return Response(content=audio, media_type="audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg")
 
 

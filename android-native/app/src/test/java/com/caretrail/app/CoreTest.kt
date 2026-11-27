@@ -206,7 +206,7 @@ class CoreTest {
         assertEquals(FollowUps.State.UPCOMING, FollowUps.twoWeekState(birth, true, FollowUpDone(), day10))
         assertEquals(FollowUps.State.DUE, FollowUps.twoWeekState(birth, true, FollowUpDone(), day14))
         assertEquals(FollowUps.State.DONE, FollowUps.twoWeekState(birth, true, FollowUpDone(two_week_done = "2026-09-30"), day50))
-        // The 42-day checkup is mandatory for everyone.
+        // The 42-day checkup is recommended for everyone.
         assertEquals(FollowUps.State.UPCOMING, FollowUps.checkup42State(birth, FollowUpDone(), day14))
         assertEquals(FollowUps.State.DUE, FollowUps.checkup42State(birth, FollowUpDone(), day50))
         assertEquals(FollowUps.State.DONE, FollowUps.checkup42State(birth, FollowUpDone(checkup42_done = "2026-10-30"), day50))

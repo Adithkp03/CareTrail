@@ -10,6 +10,7 @@ class Nav(
     val prep: () -> Unit,
     val doctor: () -> Unit,
     val account: () -> Unit,
+    val accountData: () -> Unit,
     val dataSafety: () -> Unit,
     val intake: () -> Unit,
     val registration: () -> Unit,
@@ -37,6 +38,7 @@ class Nav(
 )
 
 object Routes {
+    const val WELCOME = "welcome"
     const val LOGIN = "login"
     const val SIGNUP = "signup"
     const val NEW_JOURNEY = "newjourney"
@@ -48,6 +50,7 @@ object Routes {
     const val PREP = "prep"
     const val DOCTOR = "doctor"
     const val ACCOUNT = "account"
+    const val ACCOUNT_DATA = "account_data"
     const val DATA_SAFETY = "datasafety"
     const val INTAKE = "intake"
     const val REGISTRATION = "registration"

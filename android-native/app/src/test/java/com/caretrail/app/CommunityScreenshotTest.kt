@@ -2,6 +2,8 @@ package com.caretrail.app
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import com.caretrail.app.data.CommunityMsg
 import com.caretrail.app.ui.*
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -18,6 +20,8 @@ import org.robolectric.annotation.GraphicsMode
 class CommunityScreenshotTest {
     @get:Rule val compose = createComposeRule()
 
+    private val labels by lazy { L("en", emptyMap(), AppViewModel(ApplicationProvider.getApplicationContext<Application>())) }
+
     private val sample = listOf(
         CommunityMsg(id = "m1", author_id = "p1", nickname = "Anu M", body = "Hello everyone, 20 weeks today and finally feeling less tired", created_at = "2026-11-26T09:40:00"),
         CommunityMsg(id = "m2", author_id = "me", nickname = "Rani", body = "Same here, the second trimester is kinder", created_at = "2026-11-26T09:42:00", own = true),
@@ -25,7 +29,7 @@ class CommunityScreenshotTest {
     )
 
     @Test fun joinCardShowsGuidelinesAndNotice() {
-        compose.setContent { CareTrailTheme { Page(title = "Community room", back = {}) { CommunityJoinContent("", {}, null, false) {} } } }
+        compose.setContent { CareTrailTheme { Page(title = "Community room", back = {}) { CommunityJoinContent(labels, "", {}, null, false) {} } } }
         compose.onNodeWithText("Before you join").assertExists()
         compose.onNodeWithText("Accept and join").assertExists()
         compose.onRoot().captureRoboImage()
@@ -35,7 +39,7 @@ class CommunityScreenshotTest {
         compose.setContent {
             CareTrailTheme {
                 Page(title = "Community room", back = {}) {
-                    CommunityChatContent(sample, suspended = false, input = "", onInput = {}, inputProblem = null,
+                    CommunityChatContent(labels, sample, suspended = false, input = "", onInput = {}, inputProblem = null,
                         sending = false, error = "", onSend = {}, onReport = {}, onBlock = {}, onDelete = {})
                 }
             }
@@ -50,7 +54,7 @@ class CommunityScreenshotTest {
         compose.setContent {
             CareTrailTheme {
                 Page(title = "Community room", back = {}) {
-                    CommunityReportContent(sample[0], selected = "medical-advice", onSelect = {}, busy = false, onSend = {}, onCancel = {})
+                    CommunityReportContent(labels, sample[0], selected = "medical-advice", onSelect = {}, busy = false, onSend = {}, onCancel = {})
                 }
             }
         }
@@ -64,7 +68,7 @@ class CommunityScreenshotTest {
         compose.setContent {
             CareTrailTheme {
                 Page(title = "Community room", back = {}) {
-                    CommunityChatContent(sample.take(1), suspended = true, input = "", onInput = {}, inputProblem = null,
+                    CommunityChatContent(labels, sample.take(1), suspended = true, input = "", onInput = {}, inputProblem = null,
                         sending = false, error = "", onSend = {}, onReport = {}, onBlock = {}, onDelete = {})
                 }
             }

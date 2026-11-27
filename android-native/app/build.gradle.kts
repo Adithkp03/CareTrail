@@ -100,6 +100,14 @@ dependencies {
     testImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.41.0")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.41.0")
+
+    // On-device (emulator) keyboard proof: same harness as the unit UI tests.
+    androidTestImplementation("junit:junit:4.13.2")
+    androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
 // Screenshot harness isolation: Roborazzi UI tests run only via the
