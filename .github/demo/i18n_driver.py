@@ -156,9 +156,15 @@ if not tap("try the demo", tries=25, wait=6):
 to_top()
 # Post-login reminder setup shows "Skip for now" IN THE CURRENT LOCALE (ml default).
 SKIP_LABELS = ["skip for now", "ഇപ്പോൾ ഒഴിവാക്കുക"]
-def tap_skip():
-    for s in SKIP_LABELS:
-        if find(s): return tap(s, wait=3)
+def tap_skip(timeout=60):
+    """Wait for the OBSERVED daily-setup screen (its skip button), then tap it.
+    Returns False if it never appears (e.g. setupDone already true -> straight Home)."""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        for s in SKIP_LABELS:
+            if find(s): return tap(s, scroll=False, wait=4)
+        time.sleep(3)
+    say("skip screen never appeared within", timeout, "s")
     return False
 tap_skip()
 
