@@ -65,13 +65,13 @@ fun JourneyGate(vm: AppViewModel, onEmpty: () -> Unit, content: @Composable (Jou
     val l = rememberL(vm)
     LaunchedEffect(Unit) { vm.refreshJourney() }
     when (val s = state) {
-        is JourneyState.Loading -> JourneyLoading(s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
+        is JourneyState.Loading -> JourneyLoading(l, s.takingLonger, l.t("loading")) { vm.refreshJourney(force = true) }
         is JourneyState.Empty -> LaunchedEffect(Unit) { onEmpty() }
         is JourneyState.Failed -> Page {
             Spacer(gap(48))
             Note(s.message, tone = Tone.Red)
             Spacer(gap(12))
-            OutlineButton("Retry") { vm.refreshJourney() }
+            OutlineButton(l.tr("Retry")) { vm.refreshJourney() }
         }
         is JourneyState.Ready -> if (s.stale && !s.offline) {
             Column {
@@ -90,17 +90,17 @@ fun StaleRefreshNote(l: L, modifier: Modifier = Modifier) =
     Note(l.tr("Showing your last synced information - updating..."), modifier, tone = Tone.Blue)
 
 @Composable
-internal fun JourneyLoading(takingLonger: Boolean, loading: String, retry: () -> Unit) {
+internal fun JourneyLoading(l: L, takingLonger: Boolean, loading: String, retry: () -> Unit) {
     Page {
         Spacer(gap(48))
         CircularProgressIndicator(color = CT.Brand)
         Spacer(gap(12))
-        Text(if (takingLonger) "Still loading your care timeline" else loading, style = MaterialTheme.typography.titleMedium)
+        Text(if (takingLonger) l.tr("Still loading your care timeline") else loading, style = MaterialTheme.typography.titleMedium)
         if (takingLonger) {
             Spacer(gap(12))
-            Note("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet.")
+            Note(l.tr("The server is taking longer than expected. You can keep waiting or try again. Your care information is not ready yet."))
             Spacer(gap(12))
-            OutlineButton("Try again") { retry() }
+            OutlineButton(l.tr("Try again")) { retry() }
         }
     }
 }
@@ -198,11 +198,11 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
         val nextVax = if (postpartum) VaccineSchedule.openItems(birth.date, vm.store.vaccineLogs(j.journey_id)).firstOrNull() else null
 
         Page {
-            if (offline) Note("Offline - showing your last loaded timeline.", Modifier.padding(bottom = 12.dp))
+            if (offline) Note(l.tr("Offline - showing your last loaded timeline."), Modifier.padding(bottom = 12.dp))
             // Reference-led header: a warm greeting with strong type, avatar and language on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Hi, ${j.patient.name.split(" ").first()}", color = CT.Ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text("${l.t("greetingHi")} ${j.patient.name.split(" ").first()}", color = CT.Ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Spacer(gap(2))
                     Text("CARETRAIL", color = CT.Brand, style = MaterialTheme.typography.labelSmall)
                 }
@@ -517,7 +517,7 @@ fun TimelineScreen(vm: AppViewModel, nav: Nav) {
         var expanded by remember { mutableStateOf(setOf<Int>()) }
         var showByStatus by remember { mutableStateOf(false) }
         Page(title = l.tr("Your timeline"), back = nav.home) {
-            if (offline) Note("Offline - showing your last loaded timeline.", Modifier.padding(vertical = 8.dp))
+            if (offline) Note(l.tr("Offline - showing your last loaded timeline."), Modifier.padding(vertical = 8.dp))
             Spacer(gap(8))
             CTCard(color = CT.Amber100, border = CT.Amber300, shape = RoundedCornerShape(16.dp)) {
                 Text(l.t("youAreHere").uppercase(), color = CT.Amber900, style = MaterialTheme.typography.labelSmall)
