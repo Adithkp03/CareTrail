@@ -29,11 +29,11 @@ class Translator(private val api: Api, private val store: Store, scope: Coroutin
      *  locale glossary / native-speaker review lands. Ordinary labels only - nothing clinical. */
     private val curated = mapOf(
         "ml" to mapOf(
-            "Help assistant" to "സഹായി",
-            "Home" to "മുഖപേജ്",
+            "Help assistant" to "ഹെൽപ്പ് അസിസ്റ്റന്റ്",
+            "Home" to "ഹോം",
         ),
         "ta" to mapOf(
-            "Help assistant" to "உதவியாளர்",
+            "Help assistant" to "உதவி அசிஸ்டன்ட்",
         ),
     )
 
