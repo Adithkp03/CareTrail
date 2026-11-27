@@ -176,7 +176,7 @@ internal fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 CareIcon(iconLabel.first, 18.dp, tint = if (selected) Color.White else CT.Ink.copy(alpha = 0.75f))
-                Text(iconLabel.second, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp, letterSpacing = 0.sp), color = if (selected) Color.White else CT.Ink.copy(alpha = 0.75f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(iconLabel.second, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp, letterSpacing = 0.sp, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center), color = if (selected) Color.White else CT.Ink.copy(alpha = 0.75f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Clip, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
             }
         }
     }
