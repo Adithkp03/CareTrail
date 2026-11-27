@@ -216,7 +216,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             if (!postpartum) {
             // Illustrated hero: strong week type over a flat sunny scene, one primary action.
             Box(
-                Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(28.dp))
+                Modifier.fillMaxWidth().height(256.dp).clip(RoundedCornerShape(28.dp))
                     .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
                 HeroIllustration(Modifier.matchParentSize())
@@ -230,10 +230,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     Spacer(gap(2))
                     Text("+ ${j.gestational_age.plus_days} ${l.t("days")} · ${l.t(Logic.STAGES[stage])}", color = CT.Ink.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
                 }
-                Row(
-                    Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
+                Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(16.dp)) {
                     Column(Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.75f)).padding(horizontal = 12.dp, vertical = 8.dp)) {
                         Text("$done / $total ${l.t("completedOf")}", color = CT.Ink, style = MaterialTheme.typography.labelMedium)
                         Spacer(gap(4))
@@ -242,12 +239,15 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                             color = CT.Brand, trackColor = CT.Ink.copy(alpha = 0.12f),
                         )
                     }
+                    Spacer(gap(10))
+                    // One full-width primary action, like the reference's Check-in button - wraps nowhere.
                     Box(
-                        Modifier.clip(CircleShape).background(CT.Brand)
+                        Modifier.fillMaxWidth().clip(CircleShape).background(CT.Brand)
                             .clickable(role = Role.Button) { if (current != null) nav.milestone(current.id) else nav.timeline() }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(vertical = 13.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Text(l.tr("See this week's care") + "  →", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        Text(l.tr("See this week's care") + "  →", color = Color.White, style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
                 }
             }
@@ -277,7 +277,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             } else {
             // Postpartum hero: same illustrated scene, baby's age instead of pregnancy week.
             Box(
-                Modifier.fillMaxWidth().height(236.dp).clip(RoundedCornerShape(28.dp))
+                Modifier.fillMaxWidth().height(256.dp).clip(RoundedCornerShape(28.dp))
                     .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
                 HeroIllustration(Modifier.matchParentSize())
