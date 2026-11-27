@@ -95,14 +95,17 @@ def count_script(inv, script):
 # substrings are matched, so server-side rewording fails honestly, not silently.
 # Nav labels confirm Home structure in the SELECTED locale; the Welcome screen
 # (WelcomeScreens.kt) contains none of these, so it can never pass a Home gate.
-DYN_EN = ["no care step due right now", "open your journey to see all steps"]
+# The demo persona HAS a current care step, so Home renders its title (server journey
+# data via l.tr), not the empty-state strings. EXPECTED dyn values are the observed
+# fetched renderings of that title; if Sarvam rewords, the gate fails honestly.
+DYN_EN = ["second-trimester review", "anomaly scan"]
 EXPECTED = {
     "ml": {"script": "MALAYALAM", "pill": "മലയാളം",
-           "nav": ["ആസ്ഥാനം", "ഓർമ്മപ്പെടുത്തലുകൾ", "പ്രൊഫൈല്"],
-           "dyn": ["യാതൊരു പരിചരണവും", "യാത്ര തുറക്കുക"]},
+           "nav": ["മുഖപേജ്", "ആസ്ഥാനം", "ഓർമ്മപ്പെടുത്തലുകൾ", "പ്രൊഫൈല്"],
+           "dyn": ["രണ്ടാം ത്രൈമാസ", "അനോമലി സ്കാൻ"]},
     "ta": {"script": "TAMIL", "pill": "தமிழ்",
-           "nav": ["முகப்பு", "நினைவூட்டல்கள்", "சுயவிவரம்"],
-           "dyn": ["பராமரிப்பு நடவடிக்கை", "பயணத்தை திறந்த"]},
+           "nav": ["முகப்பு", "நினைவூட்டல்கள்", "சுயவிவരம்"],
+           "dyn": ["இரண்டாம் காலாண்டு", "முரண்பாட்டு ஸ்கேன்"]},
     "en": {"script": "LATIN", "pill": "english",
            "nav": ["home", "reminders", "profile"],
            "dyn": DYN_EN},
@@ -176,22 +179,22 @@ if not CHECKS[-1][1]:
 
 # 1) Malayalam fetched: pill + script + EXPECTED dynamic translation present.
 inv = wait_for(lambda inv: fetched_ok(inv, "ml"), timeout=120)
+capture("home_ml", inv)  # unconditional: pixels/JSON show the observed state whatever the verdict
 check("ml_fetched_render", fetched_ok(inv, "ml"))
-if CHECKS[-1][1]: capture("home_ml_fetched", inv)
 
 # 2) Tamil fetched via the header pill.
 if not tap("മലയാളം", scroll=False, wait=2): bail("NAV FAILED: ml pill not found")
 if not tap("தமிழ்", scroll=False, wait=4): bail("NAV FAILED: ta option not found")
 inv = wait_for(lambda inv: fetched_ok(inv, "ta"), timeout=120)
+capture("home_ta", inv)
 check("ta_fetched_render", fetched_ok(inv, "ta"))
-if CHECKS[-1][1]: capture("home_ta_fetched", inv)
 
 # 3) English baseline: dynamic strings back in English.
 if not tap("தமிழ்", scroll=False, wait=2): bail("NAV FAILED: ta pill not found")
 if not tap("english", scroll=False, wait=4): bail("NAV FAILED: en option not found")
 inv = wait_for(lambda inv: fetched_ok(inv, "en"), timeout=60)
+capture("home_en", inv)
 check("en_baseline", fetched_ok(inv, "en"))
-if CHECKS[-1][1]: capture("home_en_baseline", inv)
 
 # 4) Offline-after-fetch: refetch ml, radios off, cold relaunch, cache must render.
 if not tap("english", scroll=False, wait=2): bail("NAV FAILED: en pill not found")
@@ -202,9 +205,9 @@ sh(f"am force-stop {PKG}"); time.sleep(2)
 sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(12)
 tap_skip()
 inv = wait_for(lambda inv: on_home(inv, "ml"), timeout=60)
+capture("home_offline", inv)
 off_ok = on_home(inv, "ml") and fetched_ok(inv, "ml")
 check("ml_offline_cached_render", off_ok)
-if off_ok: capture("home_ml_offline_cached", inv)
 sh("svc wifi enable"); sh("svc data enable")
 
 fails = [n for n, ok in CHECKS if not ok]
