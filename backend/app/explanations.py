@@ -82,10 +82,15 @@ def milestone_explanation(db: Session, milestone_key: str, title: str, prep_note
     if row:
         return {"text": row.text, "language": language, "audio_available": bool(row.audio_path), "provider": row.provider, "cache": True}
 
-    english, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     if language == "en":
-        text = english
+        text, provider = _english_milestone_text(milestone_key, title, prep_notes, patient_id)
     else:
+        # Canonical source binding: every language derives from the single cached
+        # English row for this wording revision, so source text and spoken text
+        # can never diverge into per-language variants of an LLM generation.
+        canonical = milestone_explanation(db, milestone_key, title, prep_notes, template_version, "en", patient_id)
+        english = canonical["text"]
+        provider = canonical["provider"]
         text = voice.translate(english, language) or MILESTONE_EXPLANATIONS_LOCAL.get((milestone_key, language)) or english
         if text != english and not voice.available():
             provider = "curated"
