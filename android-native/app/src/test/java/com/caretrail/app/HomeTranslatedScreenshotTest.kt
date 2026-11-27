@@ -198,8 +198,10 @@ class HomeTranslatedScreenshotTest {
             renderHome(vm)
             composeRule.waitUntil(15_000) { vm.journey.value is JourneyState.Ready }
             composeRule.waitForIdle()
-            composeRule.onNodeWithText("Help assistant").assertExists()
+            // Curated labels render natively even with an empty cache; dynamic
+            // server strings must still fall back to English.
             composeRule.onNodeWithText("Ask your doctor").assertExists()
+            composeRule.onNodeWithText("Send a question").assertExists()
             composeRule.onRoot().captureRoboImage()
         } finally {
             hold.countDown()
