@@ -31,7 +31,11 @@ sealed interface JourneyState {
     data class Failed(val message: String) : JourneyState
 }
 
-class AppViewModel(app: Application, apiBase: String = BuildConfig.API_URL) : AndroidViewModel(app) {
+// @JvmOverloads is load-bearing, not style: MainActivity uses `by viewModels()`, whose
+// AndroidViewModelProvider factory reflectively requires an AppViewModel(Application)
+// constructor. A Kotlin default parameter alone does not generate one, so without the
+// overload every cold start crashed on the first frame (delivered build 327f837).
+class AppViewModel @JvmOverloads constructor(app: Application, apiBase: String = BuildConfig.API_URL) : AndroidViewModel(app) {
     val store = Store(app)
     private val _loggedIn = MutableStateFlow(store.token != null)
     val loggedIn: StateFlow<Boolean> = _loggedIn
