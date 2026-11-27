@@ -4,9 +4,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import com.caretrail.app.data.DailyReminderPlan
 import com.caretrail.app.data.DoseRecord
 import com.caretrail.app.data.MedicationReminder
+import com.caretrail.app.ui.L
 import com.caretrail.app.ui.TodayDoses
 import com.github.takahirom.roborazzi.captureRoboImage
 import java.time.LocalDate
@@ -40,7 +43,8 @@ class DoseCardScreenshotTest {
                 DoseRecord("med-1", "Iron supplement", "${today}T08:00", "taken", "${today}T08:05"),
             ),
         )
-        composeRule.setContent { TodayDoses(plan) {} }
+        val labels = L("en", emptyMap(), AppViewModel(ApplicationProvider.getApplicationContext<Application>()))
+        composeRule.setContent { TodayDoses(labels, plan) {} }
         composeRule.onNodeWithText("Marked taken").assertIsDisplayed()
         composeRule.onRoot().captureRoboImage()
     }
