@@ -52,7 +52,8 @@ def get_milestone_explanation_audio(
     milestone_explanation(db, m.key, m.title, prep_notes, m.journey.template_version, lang, patient.id)  # ensure cached
     audio = explanation_audio(db, milestone_cache_key(m.key, prep_notes, m.journey.template_version, lang), lang)
     if audio is None:
-        raise HTTPException(status_code=503, detail="Audio is not available for this language right now")
+        detail = "Audio is not available for this language right now"
+        raise HTTPException(status_code=503, detail=detail)
     return Response(content=audio, media_type="audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg")
 
 
