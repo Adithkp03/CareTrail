@@ -2,9 +2,11 @@
 
 Navigation helpers are the recording driver's debugged versions (visibility-aware
 find, scroll-until-visible tap, ANR recovery). The proof FAILS (non-zero exit)
-unless each state is actually verified: Home reached, selected language confirmed
-on screen, expected script present in rendered text. A job that only reached the
-login screen is a failed proof, not a green one. Synthetic demo data only."""
+unless each state is verified IN THE SELECTED LOCALE: actual Home structure
+(bottom-nav / care-card in that locale, never satisfiable by the Welcome screen),
+the language pill, and EXPECTED dynamic translations PRESENT (strings that only
+exist on screen after a successful /i18n/translate fetch - Translator.tr() has no
+seeding). Navigation failures exit immediately. Synthetic demo data only."""
 import json, os, re, subprocess, sys, time
 import xml.etree.ElementTree as ET
 
@@ -74,7 +76,6 @@ def script_of(s):
         if 0x0900 <= o <= 0x097F: r = "DEVANAGARI"
     return r
 def script_counts():
-    """Merged inventory of the current page (top + one scroll down)."""
     seen = {}
     for swipe in (False, True):
         root = dump()
@@ -87,24 +88,45 @@ def script_counts():
 def count_script(inv, script):
     return sum(1 for s in inv.values() if s == script)
 
+# Provably-dynamic strings: rendered via l.tr(...) (JourneyScreens.kt:90,262-263),
+# whose only source is the on-phone cache populated by successful /i18n/translate
+# responses (Translator.kt:59-68, no seeding). EXPECTED values are the exact
+# production endpoint responses probed at proof-authoring time; distinctive
+# substrings are matched, so server-side rewording fails honestly, not silently.
+# Nav labels confirm Home structure in the SELECTED locale; the Welcome screen
+# (WelcomeScreens.kt) contains none of these, so it can never pass a Home gate.
+DYN_EN = ["no care step due right now", "open your journey to see all steps"]
+EXPECTED = {
+    "ml": {"script": "MALAYALAM", "pill": "മലയാളം",
+           "nav": ["ആസ്ഥാനം", "ഓർമ്മപ്പെടുത്തലുകൾ", "പ്രൊഫൈല്"],
+           "dyn": ["യാതൊരു പരിചരണവും", "യാത്ര തുറക്കുക"]},
+    "ta": {"script": "TAMIL", "pill": "தமிழ்",
+           "nav": ["முகப்பு", "நினைவூட்டல்கள்", "சுயவிவரம்"],
+           "dyn": ["பராமரிப்பு நடவடிக்கை", "பயணத்தை திறந்த"]},
+    "en": {"script": "LATIN", "pill": "english",
+           "nav": ["home", "reminders", "profile"],
+           "dyn": DYN_EN},
+}
+def blob(inv): return " || ".join(inv.keys()).lower()
+def on_home(inv, lang):
+    e = EXPECTED[lang]; b = blob(inv)
+    nav_ok = sum(1 for n in e["nav"] if n.lower() in b) >= 2
+    dyn_ok = any(d.lower() in b for d in e["dyn"])
+    return nav_ok or dyn_ok
+def fetched_ok(inv, lang):
+    e = EXPECTED[lang]; b = blob(inv)
+    dyn_present = any(d.lower() in b for d in e["dyn"])
+    return (count_script(inv, e["script"]) >= 3
+            and any(e["pill"] in t.lower() for t in inv)
+            and dyn_present)
+
 CHECKS = []
 def check(name, ok):
     CHECKS.append((name, bool(ok))); say("CHECK", name, "PASS" if ok else "FAIL")
-
-# Provably-dynamic strings: rendered via l.tr(...) (JourneyScreens.kt:90,262-263), whose
-# only sources are the on-phone SharedPreferences cache, populated ONLY by successful
-# /i18n/translate responses (Translator.kt:59-68, no seeding). If these render translated
-# on a fresh install, the fetch happened on this device. Pill labels and >=N script nodes
-# cannot prove that (they may be bundled I18nData maps).
-DYN = ["no care step due right now", "open your journey to see all steps"]
-def dyn_gone(inv):
-    low = [t.lower() for t in inv]
-    return all(not any(d in t for t in low) for d in DYN)
-def fetched_ok(inv, script, pill):
-    return (count_script(inv, script) >= 3 and any(pill in t for t in inv) and dyn_gone(inv))
+def bail(msg):
+    say(msg); say("FAILED CHECKS: [navigation]"); log.close(); sys.exit(1)
 
 def capture(state, inv):
-    """Name artifacts only for a verified state; caller checks first."""
     sh(f"screencap -p /sdcard/{state}.png")
     adb("pull", f"/sdcard/{state}.png", f"{OUT}/{state}.png")
     rows = [{"text": t, "script": s} for t, s in sorted(inv.items())]
@@ -125,46 +147,50 @@ screen_size()
 sh(f"am force-stop {PKG}"); time.sleep(2)
 sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(10)
 
-# Demo login (persona defaults to Malayalam; the app fetches live after switch).
-tap("try the demo", tries=20, wait=6)
+# Entry is the WELCOME screen (redesign): tagline + language + Log in / Sign up.
+# The demo button lives on LoginScreen, below the fold in the scrollable Page.
+if not tap("log in", scroll=False, tries=6, wait=4):
+    bail("NAV FAILED: welcome screen 'Log in' not found")
+if not tap("try the demo", tries=25, wait=6):
+    bail("NAV FAILED: LoginScreen 'try the demo' not found")
 to_top()
 if find("skip for now"): tap("skip for now", wait=3)
 
-# GATE 1: Home must actually be reached before anything is called a proof.
-home = wait_for(lambda inv: any("caretrail" == t.lower() for t in inv), timeout=90)
-check("home_reached", any(t.lower() == "caretrail" for t in home))
+# GATE 1: real Home, in Malayalam (demo persona's default locale).
+home = wait_for(lambda inv: on_home(inv, "ml"), timeout=120)
+check("home_reached_ml", on_home(home, "ml"))
 if not CHECKS[-1][1]:
-    say("HOME NEVER REACHED - proof failed"); log.close(); sys.exit(1)
+    bail("HOME NEVER REACHED in ml - proof failed")
 
-# 1) Malayalam fetched: pill + Malayalam script + dynamic care-card strings no longer English.
-inv = wait_for(lambda inv: fetched_ok(inv, "MALAYALAM", "മലയാളം"), timeout=120)
-check("ml_fetched_render", fetched_ok(inv, "MALAYALAM", "മലയാളം"))
+# 1) Malayalam fetched: pill + script + EXPECTED dynamic translation present.
+inv = wait_for(lambda inv: fetched_ok(inv, "ml"), timeout=120)
+check("ml_fetched_render", fetched_ok(inv, "ml"))
 if CHECKS[-1][1]: capture("home_ml_fetched", inv)
 
 # 2) Tamil fetched via the header pill.
-tap("മലയാളം", scroll=False, wait=2)
-tap("தமிழ்", scroll=False, wait=4)
-inv = wait_for(lambda inv: fetched_ok(inv, "TAMIL", "தமிழ்"), timeout=120)
-check("ta_fetched_render", fetched_ok(inv, "TAMIL", "தமிழ்"))
+if not tap("മലയാളം", scroll=False, wait=2): bail("NAV FAILED: ml pill not found")
+if not tap("தமிழ்", scroll=False, wait=4): bail("NAV FAILED: ta option not found")
+inv = wait_for(lambda inv: fetched_ok(inv, "ta"), timeout=120)
+check("ta_fetched_render", fetched_ok(inv, "ta"))
 if CHECKS[-1][1]: capture("home_ta_fetched", inv)
 
-# 3) English baseline.
-tap("தமிழ்", scroll=False, wait=2)
-tap("english", scroll=False, wait=4)
-inv = wait_for(lambda inv: any("english" in t.lower() for t in inv), timeout=30)
-check("en_baseline", any("english" in t.lower() for t in inv))
+# 3) English baseline: dynamic strings back in English.
+if not tap("தமிழ்", scroll=False, wait=2): bail("NAV FAILED: ta pill not found")
+if not tap("english", scroll=False, wait=4): bail("NAV FAILED: en option not found")
+inv = wait_for(lambda inv: fetched_ok(inv, "en"), timeout=60)
+check("en_baseline", fetched_ok(inv, "en"))
 if CHECKS[-1][1]: capture("home_en_baseline", inv)
 
 # 4) Offline-after-fetch: refetch ml, radios off, cold relaunch, cache must render.
-tap("english", scroll=False, wait=2)
-tap("മലയാളം", scroll=False, wait=4)
-inv = wait_for(lambda inv: fetched_ok(inv, "MALAYALAM", "മലയാളം"), timeout=120)
+if not tap("english", scroll=False, wait=2): bail("NAV FAILED: en pill not found")
+if not tap("മലയാളം", scroll=False, wait=4): bail("NAV FAILED: ml option not found")
+inv = wait_for(lambda inv: fetched_ok(inv, "ml"), timeout=120)
 sh("svc wifi disable"); sh("svc data disable"); time.sleep(2)
 sh(f"am force-stop {PKG}"); time.sleep(2)
 sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(12)
 if find("skip for now"): tap("skip for now", wait=3)
-inv = wait_for(lambda inv: fetched_ok(inv, "MALAYALAM", "മലയാളം") or any(t.lower() == "caretrail" for t in inv), timeout=60)
-off_ok = fetched_ok(inv, "MALAYALAM", "മലയാളം")
+inv = wait_for(lambda inv: on_home(inv, "ml"), timeout=60)
+off_ok = on_home(inv, "ml") and fetched_ok(inv, "ml")
 check("ml_offline_cached_render", off_ok)
 if off_ok: capture("home_ml_offline_cached", inv)
 sh("svc wifi enable"); sh("svc data enable")
