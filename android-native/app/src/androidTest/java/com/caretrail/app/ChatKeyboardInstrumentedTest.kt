@@ -84,7 +84,8 @@ class ChatKeyboardInstrumentedTest {
 
             // Keyboard shown => window (and compose root) shrinks under adjustResize.
             composeRule.waitUntil(10_000) {
-                composeRule.onRoot().getUnclippedBoundsInRoot().height < rootBefore.height - 80.dp
+                val b = composeRule.onRoot().getUnclippedBoundsInRoot()
+                b.bottom - b.top < rootBefore.bottom - rootBefore.top - 80.dp
             }
             composeRule.waitForIdle()
 
