@@ -154,11 +154,11 @@ fun CareTrailApp(vm: AppViewModel, openDailyReminders: Boolean = false) {
 }
 
 @Composable
-private fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
+internal fun BottomBar(vm: AppViewModel, route: String?, nav: Nav) {
     val l = rememberL(vm)
     val tabs = listOf(
         Triple(Routes.HOME, "home" to l.tr("Home"), nav.home), Triple(Routes.TIMELINE, "review" to l.tr("Timeline"), nav.timeline),
-        Triple(Routes.REMINDERS, "bell" to l.tr("Reminders"), nav.reminders), Triple(Routes.MOVEMENTS, "movement" to l.tr("Movements"), nav.movements),
+        Triple(Routes.REMINDERS, "bell" to l.tr("Reminders"), nav.reminders), Triple(Routes.COMMUNITY, "community" to l.tr("Community"), nav.community),
     )
     Row(
         Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
