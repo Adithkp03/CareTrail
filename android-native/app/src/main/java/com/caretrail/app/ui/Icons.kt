@@ -32,6 +32,7 @@ val CarePaths: Map<String, List<String>> = mapOf(
     "vaccination" to listOf("m5 19 3-3m-1-9 10 10M9 5l10 10M13 3l8 8m-8 8-8-8m-2 2 8 8"),
     "review" to listOf(rect(5, 4, 14, 17, 2), "M9 4V2h6v2M8 10h8m-8 4h8m-8 4h5"),
     "pregnancy" to listOf("M9 7a3 3 0 1 0 6 0 3 3 0 0 0-6 0ZM8 21v-4a4 4 0 0 1 8 0v4M12 14a4 4 0 0 1 4 4"),
+    "community" to listOf(circle(9, 8, 3), "M4 20v-1a5 5 0 0 1 10 0v1", "M16 5.5a3 3 0 0 1 0 5.7", "M17 14.9a5 5 0 0 1 3 4.1v1"),
     "movement" to listOf("M3 12h4l2-5 3 10 2-5h7M18 5l1-2m-1 18 1-2"),
     "warning" to listOf("M12 3 2 21h20L12 3Zm0 6v5m0 3v1"),
     "hospital" to listOf(rect(4, 7, 16, 14, 1), "M10 4h4v7m-6 1h8m-4-4v8m-2 5v-4h4v4"),
