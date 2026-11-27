@@ -310,7 +310,7 @@ class CommunityMessage(Base):
     __tablename__ = "community_messages"
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True, default=new_id)
-    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    patient_id: Mapped[str | None] = mapped_column(ForeignKey("patients.id"), index=True, nullable=True)
     nickname: Mapped[str] = mapped_column(String(24))
     body: Mapped[str] = mapped_column(String(500))
     removed: Mapped[bool] = mapped_column(Boolean, default=False)

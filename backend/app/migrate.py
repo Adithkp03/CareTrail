@@ -31,10 +31,20 @@ def secure_public_tables(conn):
     conn.execute(text((Path(__file__).parent / "sql" / "private_backend_tables.sql").read_text()))
 
 
+def _drop_not_null(conn, insp, table, column):
+    """Allow community tombstones to outlive their author (account deletion)."""
+    if conn.dialect.name != "postgresql" or table not in insp.get_table_names():
+        return
+    col = {c["name"]: c for c in insp.get_columns(table)}.get(column)
+    if col is not None and not col["nullable"]:
+        conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL"))
+
+
 def apply():
     insp = inspect(engine)
     with engine.begin() as conn:
         secure_public_tables(conn)
+        _drop_not_null(conn, insp, "community_messages", "patient_id")
         for table, patches in _PATCHES.items():
             if table not in insp.get_table_names():
                 continue

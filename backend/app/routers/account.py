@@ -98,11 +98,18 @@ def delete_my_account(body: DeleteAccountRequest, patient: Patient = Depends(get
         db.query(LocalRecordBackup).filter(LocalRecordBackup.journey_id.in_(jids)).delete(synchronize_session=False)
         db.query(Journey).filter(Journey.patient_id == pid).delete(synchronize_session=False)
     # Community: anonymize posted messages, drop membership, blocks and reports made.
+    # Anonymize posted messages and detach them from the patient row: the tombstones
+    # stay so reports filed by others keep their context, and the nullable patient_id
+    # lets the patient row be deleted under Postgres FK enforcement.
     for msg in db.query(CommunityMessage).filter(CommunityMessage.patient_id == pid):
         msg.body = ""
         msg.nickname = ""
         msg.removed = True
         msg.removed_by = "account deletion"
+        msg.patient_id = None
+    # Flush the anonymization before the bulk deletes below: they execute immediately,
+    # and DELETE FROM patients would otherwise reach the database before these UPDATEs.
+    db.flush()
     db.query(CommunityReport).filter(CommunityReport.reporter_patient_id == pid).delete(synchronize_session=False)
     db.query(CommunityBlock).filter((CommunityBlock.blocker_patient_id == pid) | (CommunityBlock.blocked_patient_id == pid)).delete(synchronize_session=False)
     db.query(CommunityMember).filter(CommunityMember.patient_id == pid).delete(synchronize_session=False)
