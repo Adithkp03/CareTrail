@@ -153,10 +153,10 @@ fun DoctorScreen(vm: AppViewModel, nav: Nav) {
                     }
                 }
                 Spacer(gap(8))
-                Text("Journey code for your doctor:", style = MaterialTheme.typography.bodySmall)
+                Text(l.tr("Journey code for your doctor:"), style = MaterialTheme.typography.bodySmall)
                 androidx.compose.foundation.text.selection.SelectionContainer { Text(j.journey_id, style = MaterialTheme.typography.labelSmall) }
                 Spacer(gap(8))
-                OutlineButton("Doctor sign-in (opens website)") { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$WEB/clinician?journey=${j.journey_id}"))) }
+                OutlineButton(l.tr("Doctor sign-in (opens website)")) { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$WEB/clinician?journey=${j.journey_id}"))) }
             }
             if (message.isNotEmpty()) Text(message, color = CT.Brand, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             brief?.let { b ->
