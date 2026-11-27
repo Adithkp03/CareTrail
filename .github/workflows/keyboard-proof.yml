@@ -39,14 +39,17 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: cd android-native && gradle :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain
-
-      - name: Pull keyboard screenshots
-        if: always()
-        run: |
-          mkdir -p keyboard-shots
-          adb pull /sdcard/Android/data/com.caretrail.native/files/ keyboard-shots/ || true
-          ls -la keyboard-shots
+          # The emulator dies when this action ends, so the screenshot pull must
+          # happen inside this script, not in a later step.
+          script: |
+            cd android-native
+            gradle :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain
+            TEST_STATUS=$?
+            cd ..
+            mkdir -p keyboard-shots
+            adb pull /sdcard/Android/data/com.caretrail.native/files/ keyboard-shots/ || true
+            ls -la keyboard-shots
+            exit $TEST_STATUS
 
       - uses: actions/upload-artifact@v4
         if: always()
