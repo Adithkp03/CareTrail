@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -317,14 +318,15 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             }
             Spacer(gap(8))
             // Sprint 6: help assistant + ask-the-doctor entries.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CTCard(modifier = Modifier.weight(1.25f), color = CT.BrandSoft, border = CT.BrandSoft, shape = RoundedCornerShape(20.dp), onClick = nav.chat) {
+            // Equal width AND equal height: intrinsic-height row, both cards fill it.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CTCard(modifier = Modifier.weight(1f).fillMaxHeight(), color = CT.BrandSoft, border = CT.BrandSoft, shape = RoundedCornerShape(20.dp), onClick = nav.chat) {
                     Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) { CareIcon("review", 18.dp) }
                     Spacer(gap(8))
                     Text(l.tr("Help assistant"), style = MaterialTheme.typography.titleSmall)
                     Muted(l.tr("General info & app help"))
                 }
-                CTCard(modifier = Modifier.weight(1f), color = CT.Peach, border = CT.Peach, shape = RoundedCornerShape(20.dp), onClick = nav.doctorQuestions) {
+                CTCard(modifier = Modifier.weight(1f).fillMaxHeight(), color = CT.Peach, border = CT.Peach, shape = RoundedCornerShape(20.dp), onClick = nav.doctorQuestions) {
                     Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.75f)), contentAlignment = Alignment.Center) { CareIcon("visit", 18.dp) }
                     Spacer(gap(8))
                     Text(l.tr("Ask your doctor"), style = MaterialTheme.typography.titleSmall)
