@@ -171,3 +171,37 @@ def test_sarvam_stt_request_selects_language(monkeypatch):
     for code in ("ta", "te", "kn", "bn", "mr"):
         assert voice.stt(b"RIFF", "sample.wav", code) == "hello"
     assert sent == ["ta-IN", "te-IN", "kn-IN", "bn-IN", "mr-IN"]
+
+
+def test_audio_uses_exact_wording_revision_not_stale_cache(monkeypatch):
+    """Regression: the audio endpoint must speak the same explanation text the
+    screen shows. A loose prefix match over ExplanationCache can pick a row
+    cached from older clinical wording, so audio and text disagree."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from app import explanations
+    from app.database import Base
+    from app.models import ExplanationCache
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+
+    db.add(ExplanationCache(cache_key="anomaly_scan|ml|v1|currentrev", text="CURRENT ultrasound wording", language="ml", provider="curated", audio_path=""))
+    db.commit()
+    # Stale row inserted later: under the old id-desc prefix query it would win.
+    db.add(ExplanationCache(cache_key="anomaly_scan|ml|v0|oldrev", text="STALE newborn wording", language="ml", provider="sarvam", audio_path=""))
+    db.commit()
+
+    monkeypatch.setenv("SARVAM_API_KEY", "test-key")
+    seen = {}
+
+    def fake_tts(text, language):
+        seen["text"] = text
+        return b"RIFF\x24\x00\x00\x00WAVE"
+
+    monkeypatch.setattr(explanations.voice, "tts", fake_tts)
+    audio = explanations.explanation_audio(db, "anomaly_scan|ml|v1|currentrev", "ml")
+    assert audio is not None and seen["text"] == "CURRENT ultrasound wording"
