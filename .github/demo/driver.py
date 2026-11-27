@@ -37,17 +37,35 @@ def nodes(root):
         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
         if m and t.strip("|"):
             x1, y1, x2, y2 = map(int, m.groups()); yield t.lower(), (x1 + x2) // 2, (y1 + y2) // 2, y2 - y1
-def find(text, root=None):
+SW, SH = 720, 1600
+def screen_size():
+    global SW, SH
+    m = re.search(r"(\d+)x(\d+)", sh("wm size"))
+    if m: SW, SH = int(m.group(1)), int(m.group(2))
+    say("screen", SW, SH)
+def find(text, root=None, visible=True):
+    """First node containing text. With visible=True, nodes whose centre is outside the
+    scrollable viewport (under the header or the bottom bar, or off-screen) are ignored,
+    so we scroll instead of blind-tapping a clipped node."""
     root = root or dump()
     for t, x, y, h in nodes(root):
-        if text.lower() in t: return x, y
-def tap(text, scroll=True, tries=7, wait=1.5):
+        if text.lower() in t:
+            if visible and not (0.07 * SH < y < 0.86 * SH and 0 < x < SW): continue
+            return x, y
+def swipe_down_content():  # finger moves up: reveals content further down the page
+    sh(f"input swipe {SW//2} {int(SH*0.72)} {SW//2} {int(SH*0.32)} 400"); time.sleep(0.8)
+def to_top():
+    for _ in range(4):
+        sh(f"input swipe {SW//2} {int(SH*0.30)} {SW//2} {int(SH*0.75)} 300"); time.sleep(0.5)
+def tap(text, scroll=True, tries=9, wait=1.5, visible=True):
+    went_top = False
     for i in range(tries):
-        p = find(text)
+        p = find(text, visible=visible)
         if p:
-            sh(f"input tap {p[0]} {p[1]}"); time.sleep(wait); say("tap ok:", text); return True
+            sh(f"input tap {p[0]} {p[1]}"); time.sleep(wait); say("tap ok:", text, p); return True
         if not scroll: break
-        sh("input swipe 540 1700 540 800 400"); time.sleep(0.8)
+        if not went_top: to_top(); went_top = True; continue  # page may already be scrolled past the target
+        swipe_down_content()
     say("TAP FAILED:", text); shot(f"fail_{re.sub(r'[^a-z]+','_',text.lower())}"); return False
 def type_into(label, text):
     if tap(label, wait=0.8):
@@ -85,6 +103,7 @@ def call(method, path, body=None, headers=None):
     return json.load(urllib.request.urlopen(req, timeout=30))
 
 adb("wait-for-device")
+screen_size()
 for _ in range(120):
     if sh("getprop sys.boot_completed").strip() == "1": break
     time.sleep(2)
@@ -114,6 +133,7 @@ with Rec("scene2_link_doctor"):
 
 with Rec("scene3_ask_doctor"):
     tap("ask your doctor", wait=3)
+    check("scene3", "ask_screen_open", seen("send a question", "no doctor linked yet"))
     type_into("type your question", QUESTION)
     tap("send to", wait=4); shot("question_sent")
     check("scene3", "question_listed", seen("your questions", "waiting for your doctor"))
@@ -145,7 +165,7 @@ with Rec("scene4_doctor_reply_seen"):
 with Rec("scene5_referral"):
     tap("referral transfer", wait=3); shot("ref_initial")
     check("scene5", "referral_screen", seen("referral transfer", "patient-carried"))
-    tap("prepare my referral", wait=3); sh("input swipe 540 1700 540 1100 400"); time.sleep(1.5); shot("ref_prepared")
+    tap("prepare my referral", wait=3); sh(f"input swipe {SW//2} {int(SH*0.75)} {SW//2} {int(SH*0.45)} 400"); time.sleep(1.5); shot("ref_prepared")
     check("scene5", "summary_shown", seen("review before export", "caretrail referral summary"))
     tap("i have reviewed and want to export", wait=1.5)
     tap("save unencrypted referral json", wait=4); shot("ref_picker_save")
@@ -160,3 +180,4 @@ for sc in {b[0] for b in bad}:
             os.rename(f"{OUT}/{f}", f"{OUT}/FAILED_{f}")
 say("FAILED CHECKS:", bad if bad else "none"); say("done")
 sys.exit(1 if bad else 0)
+
