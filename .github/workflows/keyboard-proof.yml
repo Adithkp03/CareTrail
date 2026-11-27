@@ -47,8 +47,10 @@ jobs:
             gradle -p android-native :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain;
             TEST_STATUS=$?;
             mkdir -p keyboard-shots;
-            adb pull /sdcard/Android/data/com.caretrail.native/files/ keyboard-shots/ || true;
-            ls -la keyboard-shots;
+            adb shell ls /sdcard/Android/data/com.caretrail.native/files/ || true;
+            adb pull /sdcard/Android/data/com.caretrail.native/files/chat-keyboard-open.png keyboard-shots/ || true;
+            adb exec-out cat /sdcard/Android/data/com.caretrail.native/files/chat-keyboard-open.png > keyboard-shots/chat-keyboard-open.png 2>/dev/null || true;
+            ls -laR keyboard-shots;
             exit $TEST_STATUS
 
       - uses: actions/upload-artifact@v4
