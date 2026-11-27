@@ -41,14 +41,14 @@ jobs:
           disable-animations: true
           # The emulator dies when this action ends, so the screenshot pull must
           # happen inside this script, not in a later step.
-          script: |
-            cd android-native
-            gradle :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain
-            TEST_STATUS=$?
-            cd ..
-            mkdir -p keyboard-shots
-            adb pull /sdcard/Android/data/com.caretrail.native/files/ keyboard-shots/ || true
-            ls -la keyboard-shots
+          # android-emulator-runner executes each script line in its own sh -c,
+          # so cd and variables do not persist across lines: keep it one line.
+          script: >-
+            gradle -p android-native :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain;
+            TEST_STATUS=$?;
+            mkdir -p keyboard-shots;
+            adb pull /sdcard/Android/data/com.caretrail.native/files/ keyboard-shots/ || true;
+            ls -la keyboard-shots;
             exit $TEST_STATUS
 
       - uses: actions/upload-artifact@v4
