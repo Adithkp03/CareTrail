@@ -6,12 +6,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,17 +25,105 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.caretrail.app.AppViewModel
+import com.caretrail.app.BuildConfig
 import com.caretrail.app.data.Brief
 import com.caretrail.app.data.Langs
+import com.caretrail.app.data.LinkedDoctor
+import com.caretrail.app.data.birthRecord
 import com.caretrail.app.data.Logic
 import kotlinx.coroutines.launch
 
 private const val WEB = "https://caretrail-web.vercel.app"
+
+/**
+ * Profile tab: patient info, doctor details, app details and logout. Data
+ * download / account deletion stay on the separate Your data screen.
+ */
+@Composable
+fun ProfileScreen(vm: AppViewModel, nav: Nav) {
+    val l = rememberL(vm)
+    JourneyGate(vm, onEmpty = nav.newJourney) { j, _, _ ->
+        var showLogoutWarning by remember { mutableStateOf(false) }
+        val birth = vm.store.birthRecord(j.journey_id)
+        val postpartum = birth.confirmed && birth.date.isNotEmpty()
+        val babyDays = if (postpartum) java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(birth.date), java.time.LocalDate.now()).toInt() else 0
+        val langLabel = Langs.all.firstOrNull { it.code == j.patient.language }?.label ?: j.patient.language
+        var linkedDoctors by remember { mutableStateOf<List<LinkedDoctor>?>(null) }
+        LaunchedEffect(j.journey_id) {
+            linkedDoctors = try { vm.api.doctorQuestions(j.journey_id).linked_doctors } catch (_: Exception) { emptyList() }
+        }
+        Page(title = l.tr("Profile")) {
+            Spacer(gap(12))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.size(64.dp).clip(CircleShape).background(CT.SoftBlue), contentAlignment = Alignment.Center) {
+                    Text(j.patient.name.take(1).uppercase(), color = CT.Brand, style = MaterialTheme.typography.displayLarge)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(j.patient.name, style = MaterialTheme.typography.titleLarge)
+                    Muted(
+                        (if (postpartum) "${l.tr("Your baby")} · ${babyDays / 7} ${l.t("weeks")}" else "${j.gestational_age.weeks} ${l.t("weeks")}") +
+                            " · " + langLabel,
+                    )
+                }
+            }
+            Spacer(gap(20))
+            CTCard {
+                SectionTitle(l.tr("Your doctor"))
+                Spacer(gap(8))
+                val doctors = linkedDoctors
+                when {
+                    doctors == null -> Muted(l.tr("Checking linked doctors..."))
+                    doctors.isEmpty() -> Muted(l.tr("No doctor linked yet. Give your doctor access so they can review this journey and answer your questions."))
+                    else -> doctors.forEach { d ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                            Box(Modifier.size(36.dp).clip(CircleShape).background(CT.BrandSoft), contentAlignment = Alignment.Center) {
+                                Text(d.name.take(1).uppercase(), color = CT.Brand, style = MaterialTheme.typography.titleSmall)
+                            }
+                            Column {
+                                Text(d.name, style = MaterialTheme.typography.bodyLarge)
+                                Muted(l.tr("Linked - can review this journey"))
+                            }
+                        }
+                    }
+                }
+                Spacer(gap(10))
+                OutlineButton(l.tr("Doctor review and access"), onClick = nav.doctor)
+            }
+            Spacer(gap(12))
+            CTCard {
+                SectionTitle(l.tr("About this app"))
+                Spacer(gap(4))
+                Muted("CareTrail " + BuildConfig.VERSION_NAME + " · " + l.tr("Prototype - not a clinical record or emergency service."))
+                Spacer(gap(10))
+                OutlineButton(l.t("dataSafety"), onClick = nav.dataSafety)
+            }
+            Spacer(gap(12))
+            CTCard {
+                SectionTitle(l.tr("Your data"))
+                Spacer(gap(4))
+                Muted(l.tr("Download a copy of your data, or delete your account."))
+                Spacer(gap(10))
+                OutlineButton(l.tr("Download or delete your data"), onClick = nav.accountData)
+            }
+            Spacer(gap(20))
+            OutlineButton(l.t("logout")) { showLogoutWarning = true }
+            if (showLogoutWarning) androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showLogoutWarning = false },
+                title = { Text(l.tr("Before you log out")) },
+                text = { Text(l.tr("Logout removes this phone's local records and unfinished drafts. Only structured modules you explicitly backed up have a server copy. Later edits and unfinished drafts are not automatically uploaded. Check Optional cloud backup before logging out. Download my data includes server records and backed-up modules only. A referral file includes selected records, not a restorable backup.")) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false; vm.logout() }) { Text(l.tr("Remove local records and log out")) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { showLogoutWarning = false }) { Text(l.tr("Stay signed in")) } },
+            )
+        }
+    }
+}
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -62,10 +153,10 @@ fun DoctorScreen(vm: AppViewModel, nav: Nav) {
                     }
                 }
                 Spacer(gap(8))
-                Text("Journey code for your doctor:", style = MaterialTheme.typography.bodySmall)
+                Text(l.tr("Journey code for your doctor:"), style = MaterialTheme.typography.bodySmall)
                 androidx.compose.foundation.text.selection.SelectionContainer { Text(j.journey_id, style = MaterialTheme.typography.labelSmall) }
                 Spacer(gap(8))
-                OutlineButton("Doctor sign-in (opens website)") { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$WEB/clinician?journey=${j.journey_id}"))) }
+                OutlineButton(l.tr("Doctor sign-in (opens website)")) { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$WEB/clinician?journey=${j.journey_id}"))) }
             }
             if (message.isNotEmpty()) Text(message, color = CT.Brand, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             brief?.let { b ->
@@ -192,6 +283,6 @@ fun DataSafetyScreen(vm: AppViewModel, nav: Nav) {
         }
         if (cryptoStatus.isNotEmpty()) Note(l.tr(cryptoStatus), tone = Tone.Blue)
         Spacer(gap(8))
-        Text(l.tr("Download or delete your data"), color = CT.Brand, style = MaterialTheme.typography.labelLarge, modifier = Modifier.androidClick(nav.account))
+        Text(l.tr("Download or delete your data"), color = CT.Brand, style = MaterialTheme.typography.labelLarge, modifier = Modifier.androidClick(nav.accountData))
     }
 }

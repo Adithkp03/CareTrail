@@ -11,7 +11,7 @@ import com.caretrail.app.data.OfficialSupport
 
 /** Local text only until the user chooses to open an official source. */
 @Composable
-fun OfficialSupportPanel() {
+fun OfficialSupportPanel(l: L) {
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
@@ -29,7 +29,7 @@ fun OfficialSupportPanel() {
                 error = false
                 try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(resource.url))) }
                 catch (_: Exception) { error = true }
-            }) { Text("Open official source (browser)") }
+            }) { Text(l.tr("Open official source (browser)")) }
         }
     }
     Muted("Sources checked ${OfficialSupport.reviewedOn}. Links need internet and open outside CareTrail. We do not send your account or health details with them.")

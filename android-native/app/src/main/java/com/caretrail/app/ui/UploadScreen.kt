@@ -167,7 +167,7 @@ fun UploadScreen(vm: AppViewModel, preselect: String?, nav: Nav) {
                     Spacer(gap(12))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(confirmed, { confirmed = it })
-                        Text("I checked the original report and these values match it.", style = MaterialTheme.typography.bodySmall)
+                        Text(l.tr("I checked the original report and these values match it."), style = MaterialTheme.typography.bodySmall)
                     }
                     if (error.isNotEmpty()) Text(error, color = CT.Red700, style = MaterialTheme.typography.bodySmall)
                     Spacer(gap(8))

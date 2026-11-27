@@ -46,7 +46,7 @@ class StartupStaleScreenshotTest {
 
     private fun fakeNav() = Nav(
         home = {}, timeline = {}, reminders = {}, movements = {}, care = {}, prep = {},
-        doctor = {}, account = {}, dataSafety = {}, intake = {}, registration = {}, rh = {},
+        doctor = {}, account = {}, accountData = {}, dataSafety = {}, intake = {}, registration = {}, rh = {},
         danger = {}, birth = {}, growth = {}, vaccines = {}, vault = {}, referral = {},
         facilities = {}, wellness = {}, recovery = {}, mindCheck = {}, bpLog = {},
         familyPlanning = {}, mindfulness = {}, chat = {}, community = {}, doctorQuestions = {},

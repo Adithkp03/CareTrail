@@ -15,6 +15,7 @@ import java.util.UUID
 /** Manual, per-operation opt in. Opening this panel performs no network reads or uploads. */
 @Composable
 fun StructuredBackupPanel(vm: AppViewModel) {
+    val l = rememberL(vm)
     val state by vm.journey.collectAsState()
     val jid = (state as? JourneyState.Ready)?.journey?.journey_id ?: return
     val session = vm.store.token ?: return
@@ -42,7 +43,7 @@ fun StructuredBackupPanel(vm: AppViewModel) {
             Text(label, modifier = Modifier.weight(1f))
         }
     }
-    OutlineButton("Preview selected local and server copies", enabled = !busy && selected.isNotEmpty()) {
+    OutlineButton(l.tr("Preview selected local and server copies"), enabled = !busy && selected.isNotEmpty()) {
         busy = true; status = "Reading selected backup metadata..."
         scope.launch {
             try {
@@ -72,9 +73,9 @@ fun StructuredBackupPanel(vm: AppViewModel) {
             pending = row ?: BackupRecord(module, 0); action = "upload"
         }
         if (row != null && !row.deleted) {
-            OutlineButton("Restore missing phone copy", enabled = !busy && local == null) { pending = row; action = "restore" }
+            OutlineButton(l.tr("Restore missing phone copy"), enabled = !busy && local == null) { pending = row; action = "restore" }
             if (local != null) Text("Restore will not replace an existing phone record. It is kept even if the server copy differs.")
-            OutlineButton("Delete this server copy", enabled = !busy) { pending = row; action = "delete" }
+            OutlineButton(l.tr("Delete this server copy"), enabled = !busy) { pending = row; action = "delete" }
         }
     }
     if (status.isNotEmpty()) Note(status, tone = Tone.Blue)
@@ -86,7 +87,7 @@ fun StructuredBackupPanel(vm: AppViewModel) {
                 "restore" -> "This writes to this phone only if no different local copy exists. A restored birth record may switch this journey to postpartum mode."
                 else -> "This removes the server payload and keeps a revision tombstone to block stale uploads. Your phone copy stays."
             }}") },
-            dismissButton = { TextButton(enabled = !busy, onClick = { pending = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(enabled = !busy, onClick = { pending = null }) { Text(l.tr("Cancel")) } },
             confirmButton = { TextButton(enabled = !busy, onClick = {
                 busy = true
                 scope.launch {
@@ -108,6 +109,6 @@ fun StructuredBackupPanel(vm: AppViewModel) {
                     } catch (e: Exception) { status = "${e.message ?: "Action failed"}. Local records were not removed. If a request timed out, preview the server before retrying." }
                     finally { busy = false; pending = null }
                 }
-            }) { Text("Confirm") } })
+            }) { Text(l.tr("Confirm")) } })
     }
                     }

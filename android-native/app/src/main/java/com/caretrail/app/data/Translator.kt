@@ -25,6 +25,18 @@ class Translator(private val api: Api, private val store: Store, scope: Coroutin
     private val kick = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
     private val scope = scope
 
+    /** Hand-picked ordinary-UI label corrections that win over machine output until the
+     *  locale glossary / native-speaker review lands. Ordinary labels only - nothing clinical. */
+    private val curated = mapOf(
+        "ml" to mapOf(
+            "Help assistant" to "ഹെൽപ്പ് അസിസ്റ്റന്റ്",
+            "Home" to "ഹോം",
+        ),
+        "ta" to mapOf(
+            "Help assistant" to "உதவி அசிஸ்டன்ட்",
+        ),
+    )
+
     init {
         scope.launch {
             kick.debounce(200).collect { flush() }
@@ -44,6 +56,7 @@ class Translator(private val api: Api, private val store: Store, scope: Coroutin
     fun tr(text: String?, lang: String = _lang.value, cache: Map<String, String> = _cache.value): String {
         if (text.isNullOrEmpty()) return ""
         if (lang == "en") return text
+        curated[lang]?.get(text)?.let { return it }
         cache[text]?.let { return it }
         if (store.token != null) {
             val added = synchronized(pending) { if (text !in inflight && pending.add(text)) true else false }

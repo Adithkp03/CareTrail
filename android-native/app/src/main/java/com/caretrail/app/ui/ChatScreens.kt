@@ -1,7 +1,10 @@
 package com.caretrail.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +12,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,8 +32,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.caretrail.app.AppViewModel
 import com.caretrail.app.data.AppJson
@@ -64,6 +75,26 @@ fun AssistantScreen(vm: AppViewModel, nav: Nav) {
         } catch (_: Exception) { /* cached copy stays */ }
     }
 
+    fun send() {
+        val q = input.trim()
+        if (q.isEmpty() || sending) return
+        input = ""; sending = true; error = ""
+        messages = messages + ChatMsg(role = "user", text = q)
+        scope.launch {
+            try {
+                val r = vm.api.assistantChat(q, l.lang)
+                messages = messages + ChatMsg(id = r.message_id, role = "assistant", text = r.answer, source = r.source, urgent = r.urgent, suggest_doctor = r.suggest_doctor)
+                offline = false
+                cache()
+            } catch (e: Exception) {
+                error = e.message ?: l.tr("Something went wrong. Please try again.")
+                messages = messages.dropLast(1)
+                input = q
+            }
+            sending = false
+        }
+    }
+
     Page(title = l.tr("Help assistant"), back = nav.home) {
         Note(l.tr("General information and app help only - not medical advice. For anything about your own health, ask your doctor."))
         Spacer(gap(12))
@@ -81,18 +112,53 @@ fun AssistantScreen(vm: AppViewModel, nav: Nav) {
         } else {
             if (offline) { Note(l.tr("Offline - showing your last loaded conversation."), Modifier.padding(bottom = 8.dp)) }
             if (messages.isEmpty()) {
-                CTCard {
-                    Muted(l.tr("Try asking:"))
-                    Spacer(gap(6))
-                    listOf("When is my next appointment?", "What is the anomaly scan?", "How do I upload a report?").forEach { q ->
-                        TextButton(onClick = { input = q }) { Text(l.tr(q), color = CT.Brand, style = MaterialTheme.typography.bodySmall) }
+                Column(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(84.dp).clip(CircleShape).background(CT.BrandSoft), contentAlignment = Alignment.Center) {
+                        CareIcon("pregnancy", size = 42.dp, tint = CT.Brand)
+                    }
+                    Spacer(gap(12))
+                    Text(l.tr("Hello, how can I help you?"), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+                    Spacer(gap(4))
+                    Text(
+                        l.tr("Ask about appointments, reminders, reports and using CareTrail."),
+                        color = CT.Muted, style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp),
+                    )
+                    Spacer(gap(14))
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Spacer(gap(2))
+                        listOf(
+                            "\uD83D\uDCC5" to "When is my next appointment?",
+                            "\uD83E\uDD30" to "What is the anomaly scan?",
+                            "\uD83D\uDCC4" to "How do I upload a report?",
+                        ).forEach { (emoji, q) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .background(Color.White, RoundedCornerShape(50))
+                                    .border(BorderStroke(1.dp, CT.CardBorder), RoundedCornerShape(50))
+                                    .clickable(role = Role.Button) { input = l.tr(q) }
+                                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                            ) {
+                                Text(emoji, style = MaterialTheme.typography.bodySmall)
+                                Spacer(gap(6))
+                                Text(l.tr(q), color = CT.Ink, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Spacer(gap(2))
                     }
                 }
                 Spacer(gap(12))
             }
             messages.forEach { m ->
                 val mine = m.role == "user"
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.Top) {
+                    if (!mine) {
+                        Box(Modifier.size(30.dp).clip(CircleShape).background(CT.BrandSoft), contentAlignment = Alignment.Center) {
+                            CareIcon("pregnancy", size = 16.dp, tint = CT.Brand)
+                        }
+                        Spacer(Modifier.width(6.dp))
+                    }
                     Column(
                         Modifier.widthIn(max = 300.dp)
                             .background(
@@ -101,7 +167,7 @@ fun AssistantScreen(vm: AppViewModel, nav: Nav) {
                                     m.urgent -> CT.Red50
                                     else -> Color.White
                                 },
-                                RoundedCornerShape(16.dp),
+                                RoundedCornerShape(18.dp),
                             )
                             .padding(12.dp)
                     ) {
@@ -125,34 +191,43 @@ fun AssistantScreen(vm: AppViewModel, nav: Nav) {
                 Spacer(gap(8))
             }
             if (sending) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                    Box(Modifier.background(Color.White, RoundedCornerShape(16.dp)).padding(12.dp)) { Text("…", color = CT.Muted) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Top) {
+                    Box(Modifier.size(30.dp).clip(CircleShape).background(CT.BrandSoft), contentAlignment = Alignment.Center) {
+                        CareIcon("pregnancy", size = 16.dp, tint = CT.Brand)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Box(Modifier.background(Color.White, RoundedCornerShape(18.dp)).padding(12.dp)) { Text("…", color = CT.Muted) }
                 }
                 Spacer(gap(8))
             }
             if (error.isNotEmpty()) { Note(error, tone = Tone.Red); Spacer(gap(8)) }
-            CTCard {
-                CTField(input, { input = it }, l.tr("Ask a question…"), singleLine = false)
-                Spacer(gap(8))
-                PrimaryButton(if (sending) "…" else l.tr("Send"), enabled = !sending && input.isNotBlank()) {
-                    val q = input.trim()
-                    input = ""; sending = true; error = ""
-                    messages = messages + ChatMsg(role = "user", text = q)
-                    scope.launch {
-                        try {
-                            val r = vm.api.assistantChat(q, l.lang)
-                            messages = messages + ChatMsg(id = r.message_id, role = "assistant", text = r.answer, source = r.source, urgent = r.urgent, suggest_doctor = r.suggest_doctor)
-                            offline = false
-                            cache()
-                        } catch (e: Exception) {
-                            error = e.message ?: l.tr("Something went wrong. Please try again.")
-                            messages = messages.dropLast(1)
-                            input = q
-                        }
-                        sending = false
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it },
+                placeholder = { Text(l.tr("Ask anything…"), color = CT.Muted) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = false,
+                maxLines = 4,
+                shape = RoundedCornerShape(28.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CT.FieldBorder,
+                    unfocusedBorderColor = CT.CardBorder,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                ),
+                trailingIcon = {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (!sending && input.isNotBlank()) CT.Brand else CT.BrandSoft)
+                            .clickable(enabled = !sending && input.isNotBlank(), role = Role.Button) { send() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CareIcon("send", size = 18.dp, tint = if (!sending && input.isNotBlank()) Color.White else CT.Brand)
                     }
-                }
-            }
+                },
+            )
             if (messages.isNotEmpty()) {
                 Spacer(gap(8))
                 if (confirmClear) {

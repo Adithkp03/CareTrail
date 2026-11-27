@@ -95,7 +95,7 @@ object MentalHealth {
     )
 }
 
-/** Time-based postpartum follow-ups: 2-week high-risk review and mandatory 42-day checkup. */
+/** Time-based postpartum follow-ups: 2-week high-risk review and recommended 42-day checkup. */
 object FollowUps {
     enum class State { NOT_APPLICABLE, UPCOMING, DUE, DONE }
     fun daysSince(birthDate: String, today: LocalDate = LocalDate.now()): Long? = try {

@@ -55,8 +55,11 @@ def chat(prompt: str, db=None, patient_id: str | None = None) -> str | None:
 
 
 def translate(text: str, target_language: str, source_language: str = "en", db=None) -> str | None:
-    """Sarvam Translate. None when unavailable."""
+    """Sarvam Translate. None when unavailable or the language is not supported."""
     if not available():
+        return None
+    if target_language not in LANG_NAMES or source_language not in LANG_NAMES:
+        # e.g. Assamese: not in Sarvam's supported set - fall back gracefully
         return None
     text = strip_pii(text)
     with _client() as c:
@@ -74,8 +77,10 @@ def translate(text: str, target_language: str, source_language: str = "en", db=N
 
 
 def tts(text: str, language: str) -> bytes | None:
-    """Bulbul v3 text-to-speech -> mp3 bytes. None when unavailable."""
+    """Bulbul v3 text-to-speech -> mp3 bytes. None when unavailable or the language is not supported."""
     if not available():
+        return None
+    if language not in LANG_NAMES:
         return None
     with _client() as c:
         r = c.post(
@@ -95,8 +100,10 @@ def tts(text: str, language: str) -> bytes | None:
 
 
 def stt(audio_bytes: bytes, filename: str, language: str) -> str | None:
-    """Saarika v2.5 speech-to-text (handles code-mixed speech). None when unavailable."""
+    """Saarika v2.5 speech-to-text (handles code-mixed speech). None when unavailable or the language is not supported."""
     if not available():
+        return None
+    if language not in LANG_NAMES:
         return None
     import httpx
 
