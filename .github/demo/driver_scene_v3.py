@@ -261,6 +261,7 @@ def do_upload_setup():
     if not ok:
         tap_all("recent files", wait=3); ok = tap("cbc_malayalam_low_hb", scroll=True, tries=3, wait=5)
     if not ok: say("SETUP upload: file not picked"); return False
+    tap_last("upload report", scroll=True, wait=4)  # extraction starts only from this button (UploadScreen.kt PrimaryButton)
     if not seen("i checked the original report", wait=45):
         say("SETUP extraction slow/failed"); shot("setup_extract_state"); return False
     swipe_down_content()
@@ -319,6 +320,7 @@ elif JOB == "upload_attention":
         if not ok:
             tap_all("recent files", wait=3); ok = tap("cbc_malayalam_low_hb", scroll=True, tries=3, wait=5)
         check("file_picked", ok)
+        tap_last("upload report", scroll=True, wait=4)  # title and button share the label; last match is the button
         check("reading", seen("reading your report", "read on this device", "read by ai", wait=8))
         if not seen("i checked the original report", wait=45):
             say("extraction slow or failed"); shot("extract_state")
@@ -365,11 +367,15 @@ elif JOB == "facilities":
         launch_app(); login_demo(); back_to_home()
         tap("facilities", scroll=True, wait=3)
         check("facilities_screen", seen("where should we look", "facilities near you"))
-        check("pin_field", type_into_edittext("411001"))
-        tap("find", scroll=False, tries=2, wait=15)
+        ok = type_into_edittext("411001")
+        if ok and not seen("411001", wait=1.5):
+            say("PIN not in field after type; retrying once"); ok = type_into_edittext("411001")
+        check("pin_field", ok and seen("411001", wait=1.5))
+        shot("pin_typed")
+        tap("find", scroll=False, tries=2, wait=20)
         if seen("place not found", "could not", wait=2):
-            say("PIN geocode failed; trying GPS"); tap("use my gps location", scroll=False, wait=15)
-        check("results", seen("hospital", "clinic", "km", wait=12))
+            say("PIN geocode failed; trying GPS"); tap("use my gps location", scroll=False, wait=20)
+        check("results", seen("hospital", "clinic", "km", wait=30))
         shot("facilities_list"); swipe_down_content(); time.sleep(1.5); shot("facilities_list2")
         back_to_home()
 
