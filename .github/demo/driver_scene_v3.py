@@ -148,15 +148,29 @@ def back_to_home():
 def launch_app():
     sh(f"am force-stop {PKG}"); time.sleep(2)
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(8)
+def ensure_english():
+    # Demo profile seeds Malayalam: home, quick-access tiles and the home nav label then
+    # render ml, and every English tap target misses (v3 wave-1 evidence:
+    # dumpassistant-009 - tile titles like the Malayalam help-assistant label, nav home
+    # label in ml; zero English "Upload report" nodes in all 65 assistant dumps).
+    # Switch via the header LangPicker (Components.kt:130; entries from Langs.all,
+    # "English" first) before any English tap.
+    pill = find("\u25be", band=(0.02, 0.3))
+    if pill and find("\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02", band=(0.02, 0.3)):
+        sh(f"input tap {pill[0]} {pill[1]}"); time.sleep(2)
+        if tap("english", scroll=False, tries=3, wait=3):
+            say("locale switched:", seen("your pregnancy journey", "after birth", wait=4))
+
 def login_demo():
     if find("your pregnancy journey", band=(0.02, 0.999)) or find("after birth", band=(0.02, 0.999)):
-        say("already logged in"); return
+        say("already logged in"); ensure_english(); return
     if not find("try the demo", band=(0.02, 0.999)):
         tap_all("log in", wait=3)
     if find("try the demo", band=(0.02, 0.999)):
         tap_all("try the demo", wait=9)
     if find("skip for now", band=(0.02, 0.999)): tap("skip for now", scroll=False, wait=4)
     seen("your pregnancy journey", wait=4)
+    ensure_english()
 def pick_day_in_date_dialog():
     root = dump(); picked = False
     for e in (root.iter("node") if root is not None else []):
