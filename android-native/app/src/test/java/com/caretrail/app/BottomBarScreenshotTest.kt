@@ -104,7 +104,7 @@ class BottomBarScreenshotTest {
             }
             composeRule.waitUntil(15_000) { vm.journey.value is JourneyState.Ready }
             composeRule.waitForIdle()
-            composeRule.onNodeWithText("Anjali").assertIsDisplayed()
+            composeRule.onNodeWithText("Hi, Anjali").assertIsDisplayed()
             composeRule.onNodeWithText("Community").assertIsDisplayed()
             composeRule.onNodeWithText("Profile").assertIsDisplayed()
             composeRule.onRoot().captureRoboImage()
