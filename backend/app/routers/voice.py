@@ -51,7 +51,7 @@ def get_milestone_explanation_audio(
     milestone_explanation(db, m.key, m.title, current.get("prep_notes", m.prep_notes), m.journey.template_version, lang, patient.id)  # ensure cached
     audio = explanation_audio(db, m.key, lang)
     if audio is None:
-        raise HTTPException(status_code=503, detail="Audio needs SARVAM_API_KEY (Bulbul text-to-speech)")
+        raise HTTPException(status_code=503, detail="Audio is not available for this language right now")
     return Response(content=audio, media_type="audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg")
 
 
