@@ -55,6 +55,7 @@ fun CommunityNotice(modifier: Modifier = Modifier) {
 /** Stateless join card: guidelines, nickname, consent. Testable without a ViewModel. */
 @Composable
 fun CommunityJoinContent(
+    l: L,
     nickname: String,
     onNickname: (String) -> Unit,
     problem: String?,
@@ -71,18 +72,19 @@ fun CommunityJoinContent(
             Spacer(gap(4))
         }
         Spacer(gap(10))
-        CTField(nickname, onNickname, "Choose a nickname (not your real name or phone number)")
+        CTField(nickname, onNickname, l.tr("Choose a nickname (not your real name or phone number)"))
         if (problem != null) { Spacer(gap(6)); Note(problem, tone = Tone.Red) }
         Spacer(gap(10))
         Muted(CommunityText.consentLine)
         Spacer(gap(8))
-        PrimaryButton(if (busy) "…" else "Accept and join", enabled = !busy && nickname.isNotBlank(), onClick = onJoin)
+        PrimaryButton(if (busy) "…" else l.tr("Accept and join"), enabled = !busy && nickname.isNotBlank(), onClick = onJoin)
     }
 }
 
 /** One chat bubble with its moderation actions. */
 @Composable
 fun CommunityBubble(
+    l: L,
     msg: CommunityMsg,
     onReport: (CommunityMsg) -> Unit,
     onBlock: (CommunityMsg) -> Unit,
@@ -101,24 +103,24 @@ fun CommunityBubble(
                 .padding(12.dp),
         ) {
             Text(
-                if (msg.own) "You" else msg.nickname,
+                if (msg.own) l.tr("You") else msg.nickname,
                 color = if (msg.own) Color.White.copy(alpha = 0.8f) else CT.Brand,
                 style = MaterialTheme.typography.labelSmall,
             )
             Spacer(gap(2))
             Text(
-                if (msg.author_blocked) "You blocked this member. Their messages are hidden." else msg.body,
+                if (msg.author_blocked) l.tr("You blocked this member. Their messages are hidden.") else msg.body,
                 color = if (msg.own) Color.White else if (msg.author_blocked) CT.Muted else CT.Ink,
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (!msg.own && !msg.author_blocked) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { onReport(msg) }) { Text("Report", color = CT.Red700, style = MaterialTheme.typography.labelSmall) }
-                    TextButton(onClick = { onBlock(msg) }) { Text("Block ${msg.nickname}", color = CT.Muted, style = MaterialTheme.typography.labelSmall) }
+                    TextButton(onClick = { onReport(msg) }) { Text(l.tr("Report"), color = CT.Red700, style = MaterialTheme.typography.labelSmall) }
+                    TextButton(onClick = { onBlock(msg) }) { Text("${l.tr("Block")} ${msg.nickname}", color = CT.Muted, style = MaterialTheme.typography.labelSmall) }
                 }
             }
             if (msg.own) {
-                TextButton(onClick = { onDelete(msg) }) { Text("Delete", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall) }
+                TextButton(onClick = { onDelete(msg) }) { Text(l.tr("Delete"), color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall) }
             }
         }
     }
@@ -128,6 +130,7 @@ fun CommunityBubble(
 /** Stateless report sheet, shown instead of the composer while a report is open. */
 @Composable
 fun CommunityReportContent(
+    l: L,
     msg: CommunityMsg,
     selected: String?,
     onSelect: (String) -> Unit,
@@ -136,7 +139,7 @@ fun CommunityReportContent(
     onCancel: () -> Unit,
 ) {
     CTCard {
-        SectionTitle("Report this message")
+        SectionTitle(l.tr("Report this message"))
         Spacer(gap(6))
         Muted("\"${msg.body.take(120)}\" - ${msg.nickname}")
         Spacer(gap(8))
@@ -151,15 +154,16 @@ fun CommunityReportContent(
         Spacer(gap(8))
         Muted(CommunityText.reportNote)
         Spacer(gap(8))
-        PrimaryButton(if (busy) "…" else "Send report", enabled = !busy && selected != null, onClick = onSend)
+        PrimaryButton(if (busy) "…" else l.tr("Send report"), enabled = !busy && selected != null, onClick = onSend)
         Spacer(gap(4))
-        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Cancel", color = CT.Muted) }
+        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(l.tr("Cancel"), color = CT.Muted) }
     }
 }
 
 /** Stateless chat body: notice, messages, composer. Testable without a ViewModel. */
 @Composable
 fun CommunityChatContent(
+    l: L,
     messages: List<CommunityMsg>,
     suspended: Boolean,
     input: String,
@@ -182,14 +186,14 @@ fun CommunityChatContent(
         CTCard { Muted(CommunityText.emptyRoom) }
         Spacer(gap(8))
     }
-    messages.forEach { CommunityBubble(it, onReport, onBlock, onDelete) }
+    messages.forEach { CommunityBubble(l, it, onReport, onBlock, onDelete) }
     if (error.isNotEmpty()) { Note(error, tone = Tone.Red); Spacer(gap(8)) }
     if (!suspended) {
         CTCard {
-            CTField(input, onInput, "Write to the room…", singleLine = false)
+            CTField(input, onInput, l.tr("Write to the room…"), singleLine = false)
             if (inputProblem != null) { Spacer(gap(6)); Note(inputProblem, tone = Tone.Red) }
             Spacer(gap(8))
-            PrimaryButton(if (sending) "…" else "Send", enabled = !sending && input.isNotBlank(), onClick = onSend)
+            PrimaryButton(if (sending) "…" else l.tr("Send"), enabled = !sending && input.isNotBlank(), onClick = onSend)
         }
     }
 }
@@ -234,6 +238,7 @@ fun CommunityScreen(vm: AppViewModel, nav: Nav) {
         when {
             joined == null -> Muted(l.tr("Loading…"))
             joined == false -> CommunityJoinContent(
+                l,
                 nickname = nickname,
                 onNickname = { nickname = it },
                 problem = error.takeIf { it.isNotEmpty() }
@@ -257,11 +262,11 @@ fun CommunityScreen(vm: AppViewModel, nav: Nav) {
                 if (confirmBlock != null) {
                     val target = confirmBlock!!
                     CTCard {
-                        SectionTitle("Block ${target.nickname}?")
+                        SectionTitle("${l.tr("Block")} ${target.nickname}?")
                         Spacer(gap(6))
                         Muted(CommunityText.blockNote)
                         Spacer(gap(8))
-                        PrimaryButton("Block", onClick = {
+                        PrimaryButton(l.tr("Block"), onClick = {
                             busy = true
                             scope.launch {
                                 try { vm.api.communityBlock(target.author_id); confirmBlock = null; refresh() }
@@ -269,12 +274,13 @@ fun CommunityScreen(vm: AppViewModel, nav: Nav) {
                                 busy = false
                             }
                         })
-                        TextButton(onClick = { confirmBlock = null }, modifier = Modifier.fillMaxWidth()) { Text("Cancel", color = CT.Muted) }
+                        TextButton(onClick = { confirmBlock = null }, modifier = Modifier.fillMaxWidth()) { Text(l.tr("Cancel"), color = CT.Muted) }
                     }
                     Spacer(gap(8))
                 }
                 if (reporting != null) {
                     CommunityReportContent(
+                        l,
                         msg = reporting!!,
                         selected = reportReason,
                         onSelect = { reportReason = it },
@@ -298,6 +304,7 @@ fun CommunityScreen(vm: AppViewModel, nav: Nav) {
                     Spacer(gap(8))
                 }
                 CommunityChatContent(
+                    l,
                     messages = messages,
                     suspended = suspended,
                     input = input,
