@@ -3,6 +3,8 @@ package com.caretrail.app
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import com.caretrail.app.ui.*
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -24,11 +26,12 @@ class ContentSectionsScreenshotTest {
     @get:Rule val compose = createComposeRule()
 
     private fun showBoth() {
+        val labels = L("en", emptyMap(), AppViewModel(ApplicationProvider.getApplicationContext<Application>()))
         compose.setContent {
             CareTrailTheme {
                 Column {
-                    OfficialSupportPanel()
-                    ParentingListeningPanel()
+                    OfficialSupportPanel(labels)
+                    ParentingListeningPanel(labels)
                 }
             }
         }
