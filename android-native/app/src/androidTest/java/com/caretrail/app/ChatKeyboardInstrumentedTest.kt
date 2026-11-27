@@ -99,6 +99,16 @@ class ChatKeyboardInstrumentedTest {
             val ctx = InstrumentationRegistry.getInstrumentation().targetContext
             val out = File(ctx.getExternalFilesDir(null), "chat-keyboard-open.png")
             FileOutputStream(out).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            // CI: connectedAndroidTest uninstalls the app afterwards, deleting its
+            // private external dir, so also publish to shared Pictures for adb pull.
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "chat-keyboard-open.png")
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/")
+            }
+            ctx.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.let { uri ->
+                ctx.contentResolver.openOutputStream(uri)?.use { os -> bmp.compress(Bitmap.CompressFormat.PNG, 100, os) }
+            }
         } finally {
             server.shutdown()
         }
