@@ -40,12 +40,15 @@ def find(text):
             return (x1 + x2) // 2, (y1 + y2) // 2
     return None
 
-def tap(text, tries=10, wait=2.0):
-    for _ in range(tries):
+def tap(text, tries=10, wait=2.0, scroll=True):
+    for i in range(tries):
         p = find(text)
         if p:
             sh(f"input tap {p[0]} {p[1]}"); time.sleep(wait); say("tap ok:", text); return True
-        time.sleep(2)
+        if scroll and i >= 1:
+            sh("input swipe 540 1700 540 800 400"); time.sleep(1.2)  # reveal below-fold content
+        else:
+            time.sleep(2)
     say("TAP FAILED:", text); return False
 
 def script_of(s):
@@ -91,6 +94,8 @@ sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(10)
 
 # Demo login (persona defaults to Malayalam; the app fetches live on switch).
 tap("try the demo", tries=20, wait=6)
+for _ in range(3):
+    sh("input swipe 540 700 540 1800 300"); time.sleep(0.6)  # back to top
 if find("skip for now"): tap("skip for now", wait=3)
 if not wait_home(): say("HOME NEVER REACHED"); raise SystemExit(1)
 
