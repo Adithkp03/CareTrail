@@ -93,7 +93,9 @@ with Rec("scene1_login"):
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(7); shot("welcome")
     if not find("try the demo"): tap("log in", scroll=False, wait=2)
     check("scene1", "login_screen", seen("try the demo"))
-    tap("try the demo", wait=8); shot("home")
+    tap("try the demo", wait=8)
+    if find("skip for now"): tap("skip for now", wait=4)  # reminders-setup interstitial after fresh demo login
+    shot("home")
     check("scene1", "home_after_login", seen("quick access", "see this week", "now"))
 
 with Rec("scene2_link_doctor"):
@@ -124,6 +126,7 @@ except Exception as e: say("DOCTOR API STEP FAILED:", e)
 
 with Rec("scene4_doctor_reply_seen"):
     sh(f"am force-stop {PKG}"); time.sleep(2); sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(8)
+    if find("skip for now"): tap("skip for now", wait=4)  # same interstitial if setup state did not persist
     tap("ask your doctor", wait=3); shot("answer_seen")
     check("scene4", "doctor_reply_visible", seen("please do not change the dose"))
     time.sleep(2); sh("input keyevent 4"); time.sleep(2)
