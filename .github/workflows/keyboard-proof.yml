@@ -47,10 +47,9 @@ jobs:
             gradle -p android-native :app:connectedDebugAndroidTest -PcaretrailSupabaseAnonKey=ci-screenshot-dummy --no-daemon --console=plain;
             TEST_STATUS=$?;
             mkdir -p keyboard-shots;
-            adb shell 'ls -la /sdcard/Android/data/com.caretrail.native.test/files/ 2>&1' || true;
-            adb shell 'run-as com.caretrail.native.test ls -la /sdcard/Android/data/com.caretrail.native.test/files/ 2>&1' || true;
-            adb exec-out 'run-as com.caretrail.native.test cat /sdcard/Android/data/com.caretrail.native.test/files/chat-keyboard-open.png 2>/dev/null' > keyboard-shots/chat-keyboard-open.png || true;
-            [ -s keyboard-shots/chat-keyboard-open.png ] || adb pull /sdcard/Android/data/com.caretrail.native.test/files/chat-keyboard-open.png keyboard-shots/ || true;
+            adb shell 'run-as com.caretrail.native ls -la /sdcard/Android/data/com.caretrail.native/files/ 2>&1' || true;
+            adb exec-out 'run-as com.caretrail.native cat /sdcard/Android/data/com.caretrail.native/files/chat-keyboard-open.png 2>/dev/null' > keyboard-shots/chat-keyboard-open.png || true;
+            [ -s keyboard-shots/chat-keyboard-open.png ] || adb pull /sdcard/Android/data/com.caretrail.native/files/chat-keyboard-open.png keyboard-shots/ || true;
             [ -s keyboard-shots/chat-keyboard-open.png ] || rm -f keyboard-shots/chat-keyboard-open.png;
             ls -laR keyboard-shots;
             exit $TEST_STATUS
