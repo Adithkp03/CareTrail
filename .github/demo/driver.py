@@ -65,6 +65,12 @@ def seen(*texts, wait=2.0):
     return False
 def check(scene, name, ok):
     RESULTS.setdefault(scene, {})[name] = bool(ok); say("CHECK", scene, name, "PASS" if ok else "FAIL")
+def ensure_english():
+    # Demo persona defaults to Malayalam UI; switch via the header language pill.
+    if find("മലയാളം"):
+        tap("മലയാളം", scroll=False, wait=2)
+        tap("english", scroll=False, wait=3)
+
 class Rec:
     def __init__(s, name): s.name = name
     def __enter__(s):
@@ -95,8 +101,9 @@ with Rec("scene1_login"):
     check("scene1", "login_screen", seen("try the demo"))
     tap("try the demo", wait=8)
     if find("skip for now"): tap("skip for now", wait=4)  # reminders-setup interstitial after fresh demo login
+    ensure_english()
     shot("home")
-    check("scene1", "home_after_login", seen("quick access"))  # home-only label on this build; "now" also appears on the reminders interstitial
+    check("scene1", "home_after_login", seen("your pregnancy journey"))  # hero title, English-only assertion
 
 with Rec("scene2_link_doctor"):
     tap("doctor view", wait=3)
@@ -127,10 +134,11 @@ except Exception as e: say("DOCTOR API STEP FAILED:", e)
 with Rec("scene4_doctor_reply_seen"):
     sh(f"am force-stop {PKG}"); time.sleep(2); sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(8)
     if find("skip for now"): tap("skip for now", wait=4)  # same interstitial if setup state did not persist
+    ensure_english()
     tap("ask your doctor", wait=3); shot("answer_seen")
     check("scene4", "doctor_reply_visible", seen("please do not change the dose"))
     time.sleep(2); sh("input keyevent 4"); time.sleep(2)
-    check("scene4", "instruction_visible", seen("repeat haemoglobin", "instructions from your doctor"))
+    check("scene4", "instruction_visible", seen("repeat haemoglobin"))  # exact seeded instruction text, not the section header
     tap("acknowledge", wait=3); shot("instruction_ack")
     check("scene4", "acknowledged", seen("you acknowledged"))
 
@@ -139,12 +147,11 @@ with Rec("scene5_referral"):
     check("scene5", "referral_screen", seen("referral transfer", "patient-carried"))
     tap("prepare my referral", wait=3); sh("input swipe 540 1700 540 1100 400"); time.sleep(1.5); shot("ref_prepared")
     check("scene5", "summary_shown", seen("review before export", "caretrail referral summary"))
-    tap("export acknowledged", wait=1.5)
+    tap("i have reviewed and want to export", wait=1.5)
     tap("save unencrypted referral json", wait=4); shot("ref_picker_save")
     tap("save", scroll=False, wait=3); shot("ref_saved")
     tap("preview a received referral", wait=4); shot("ref_picker_open")
     tap("caretrail-referral", scroll=False, wait=4); shot("ref_received")
-    time.sleep(2)
 json.dump(RESULTS, open(f"{OUT}/results.json", "w"), indent=1)
 bad = [(sc, k) for sc, d in RESULTS.items() for k, v in d.items() if not v]
 for sc in {b[0] for b in bad}:
