@@ -202,7 +202,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
             // Reference-led header: a warm greeting with strong type, avatar and language on the right.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("${l.t("greetingHi")} ${j.patient.name.split(" ").first()}", color = CT.Ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text("${l.t("greetingHi")} ${j.patient.name.split(" ").first()}", color = CT.Ink, style = MaterialTheme.typography.headlineMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Clip)
                     Spacer(gap(2))
                     Text("CARETRAIL", color = CT.Brand, style = MaterialTheme.typography.labelSmall)
                 }
@@ -221,7 +221,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
                 HeroIllustration(Modifier.matchParentSize())
-                Column(Modifier.align(Alignment.TopStart).padding(20.dp)) {
+                Column(Modifier.align(Alignment.TopStart).padding(20.dp).fillMaxWidth(0.66f)) {
                     Text(l.t("journeyTitle").uppercase(), color = CT.Ink.copy(alpha = 0.6f), style = MaterialTheme.typography.labelMedium)
                     Spacer(gap(6))
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -282,7 +282,7 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                     .background(Brush.linearGradient(listOf(CT.Amber100, CT.Peach)))
             ) {
                 HeroIllustration(Modifier.matchParentSize())
-                Column(Modifier.align(Alignment.TopStart).padding(20.dp)) {
+                Column(Modifier.align(Alignment.TopStart).padding(20.dp).fillMaxWidth(0.66f)) {
                     Text(l.tr("Your baby").uppercase(), color = CT.Ink.copy(alpha = 0.6f), style = MaterialTheme.typography.labelMedium)
                     Spacer(gap(6))
                     Row(verticalAlignment = Alignment.Bottom) {
