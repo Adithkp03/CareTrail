@@ -443,9 +443,9 @@ fun HomeScreen(vm: AppViewModel, nav: Nav) {
                 }
             }
             Spacer(gap(12))
-            OfficialSupportPanel()
+            OfficialSupportPanel(l)
             Spacer(gap(8))
-            ParentingListeningPanel()
+            ParentingListeningPanel(l)
             Spacer(gap(8))
             CTCard(onClick = nav.community) {
                 SectionTitle(l.tr("Community room"))
