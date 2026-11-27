@@ -61,7 +61,7 @@ private fun LoginArt(l: L) {
         Column {
             Text("CARETRAIL", color = Color.White, style = MaterialTheme.typography.labelMedium)
             Spacer(gap(48))
-            Text("Welcome back.", color = Color.White, style = welcomeStyle)
+            Text(l.tr("Welcome back."), color = Color.White, style = welcomeStyle)
             Spacer(gap(10))
             Text(l.t("tagline"), color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
         }
