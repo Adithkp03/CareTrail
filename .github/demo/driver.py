@@ -96,7 +96,7 @@ with Rec("scene1_login"):
     tap("try the demo", wait=8)
     if find("skip for now"): tap("skip for now", wait=4)  # reminders-setup interstitial after fresh demo login
     shot("home")
-    check("scene1", "home_after_login", seen("quick access", "see this week", "now"))
+    check("scene1", "home_after_login", seen("quick access"))  # home-only label on this build; "now" also appears on the reminders interstitial
 
 with Rec("scene2_link_doctor"):
     tap("doctor view", wait=3)
