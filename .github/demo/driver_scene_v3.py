@@ -1,6 +1,6 @@
 """driver_scene_v3.py - ONE isolated scene-group per invocation.
 Usage: python3 driver_scene_v3.py <job>
-Jobs: signup | timeline | upload_attention | assistant | reminders | facilities |
+Jobs: signup | timeline | upload_attention | assistant | reminders | facilities | profile_datasafety |
       profile | birth_baby | wellness | mindful | vault
 Each job cold-boots its own emulator (handled by the workflow), installs the
 prebuilt APK, demo-logs-in, performs any unrecorded state setup the group needs
@@ -377,6 +377,21 @@ elif JOB == "facilities":
             say("PIN geocode failed; trying GPS"); tap("use my gps location", scroll=False, wait=20)
         check("results", seen("hospital", "clinic", "km", wait=30))
         shot("facilities_list"); swipe_down_content(); time.sleep(1.5); shot("facilities_list2")
+        back_to_home()
+
+elif JOB == "profile_datasafety":
+    # r22b: Profile -> Data safety (MoreScreens.kt:105 OutlineButton l.t("dataSafety") ->
+    # DataSafetyScreen ~line 262). Inspect/show controls only; NO destructive or state-
+    # changing taps (do not tap "Enable device-key encryption").
+    with Rec("r22b_datasafety"):
+        launch_app(); login_demo(); back_to_home()
+        tap_bottom("profile", wait=3)
+        check("profile", seen("your doctor", "about this app"))
+        tap("data safety", scroll=True, wait=3)
+        check("data_safety", seen("local records are not cloud-synced", "enable device-key encryption for local cache", wait=4))
+        shot("datasafety_top"); swipe_down_content(); time.sleep(1.5)
+        shot("datasafety_mid"); swipe_down_content(); time.sleep(1.5)
+        shot("datasafety_low"); time.sleep(1)
         back_to_home()
 
 elif JOB == "profile":
