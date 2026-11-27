@@ -122,6 +122,65 @@ def type_into_edittext(text):
     sh(f"input tap {p[0]} {p[1]}"); time.sleep(0.8)
     sh("input text '" + text.replace(" ", "%s") + "'"); time.sleep(0.8)
     sh("input keyevent 4"); time.sleep(0.8); return True
+
+def tap_confirm_checkbox():
+    # Confirm screen (UploadScreen.kt:174): confirmation Checkbox is a SEPARATE node from its
+    # label text "I checked the original report..." - tapping the text does nothing (verified
+    # dumps028-034: CheckBox clickable=true checked=false at [54,1580][180,1706], text non-clickable).
+    # Target: CheckBox-class node in the label's row band, LEFT of the label. Verify by the app's
+    # own gate: the Save wrapper (clickable View containing "Save confirmed values") flips
+    # enabled=false -> true. Scroll fallback if the row is below the band.
+    for attempt in range(4):
+        root = dump()
+        anchor = None
+        for t, x1, y1, x2, y2 in nodes(root):
+            if "i checked the original report" in t:
+                anchor = (x1, y1, x2, y2); break
+        if anchor is None:
+            if attempt < 2: swipe_down_content(); time.sleep(1); continue
+            say("CHECKBOX: anchor label not found"); return False
+        ax1, ay1, ax2, ay2 = anchor
+        band_lo, band_hi = ay1 - 60, ay2 + 60
+        best = None
+        for e in root.iter("node"):
+            cls = e.get("class") or ""
+            m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+            if not m: continue
+            x1, y1, x2, y2 = map(int, m.groups())
+            cy = (y1 + y2) // 2
+            if not (band_lo <= cy <= band_hi): continue
+            if x2 > ax1 + 5: continue   # must sit LEFT of the label
+            if "CheckBox" in cls and (e.get("clickable") == "true"):
+                best = ((x1 + x2) // 2, cy, "checkbox-node"); break
+            if best is None and e.get("clickable") == "true":
+                best = ((x1 + x2) // 2, cy, "clickable-left-of-label")
+        if best is None:
+            # coordinate fallback: just left of the label's left edge, row midline
+            best = (max(ax1 - 60, 30), (ay1 + ay2) // 2, "coord-fallback")
+        sh(f"input tap {best[0]} {best[1]}"); time.sleep(1.5); say("checkbox tap:", best[2], (best[0], best[1]))
+        # verify: checkbox checked OR save-wrapper enabled flip
+        root = dump(); save_enabled = False; box_checked = False
+        save_c = None
+        for e in root.iter("node"):
+            t = (e.get("text") or "").lower()
+            if "save confirmed values" in t:
+                m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups()); save_c = ((x1 + x2) // 2, (y1 + y2) // 2)
+                break
+        for e in root.iter("node"):
+            m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+            if not m: continue
+            x1, y1, x2, y2 = map(int, m.groups())
+            if "CheckBox" in (e.get("class") or "") and (e.get("checked") == "true"):
+                if band_lo <= (y1 + y2) // 2 <= band_hi and x2 <= ax1 + 5: box_checked = True
+            if save_c and e.get("clickable") == "true" and x1 <= save_c[0] <= x2 and y1 <= save_c[1] <= y2:
+                if e.get("enabled") == "true": save_enabled = True
+        say("checkbox verify: checked=", box_checked, "save_enabled=", save_enabled)
+        if box_checked or save_enabled: return True
+        time.sleep(1)
+    return False
+
 def shot(name):
     sh(f"screencap -p /sdcard/{JOB}-{name}.png"); adb("pull", f"/sdcard/{JOB}-{name}.png", f"{OUT}/{JOB}-{name}.png")
 RESULTS = {}
@@ -265,7 +324,8 @@ def do_upload_setup():
     if not seen("i checked the original report", wait=45):
         say("SETUP extraction slow/failed"); shot("setup_extract_state"); return False
     swipe_down_content()
-    tap("i checked the original report", scroll=True, wait=1.5)
+    if not tap_confirm_checkbox():
+        say("SETUP upload: confirm checkbox not checked"); check("setup_upload", False); back_to_home(); return False
     tap("save confirmed values", scroll=True, wait=6)
     ok = seen("values saved to your timeline", wait=6)
     check("setup_upload", ok)
@@ -325,9 +385,11 @@ elif JOB == "upload_attention":
         if not seen("i checked the original report", wait=45):
             say("extraction slow or failed"); shot("extract_state")
         swipe_down_content()
-        tap("i checked the original report", scroll=True, wait=1.5)
         shot("extract_proposed")
-        tap("save confirmed values", scroll=True, wait=6)
+        okc = tap_confirm_checkbox()
+        check("confirm_checkbox", okc)
+        if okc:
+            tap("save confirmed values", scroll=True, wait=6)
         check("saved", seen("values saved to your timeline", wait=6))
         shot("upload_saved"); time.sleep(2)
     with Rec("r07_attention"):
@@ -361,21 +423,56 @@ elif JOB == "reminders":
         shot("med_schedule"); time.sleep(1.5); back_to_home()
 
 elif JOB == "facilities":
-    # r20: quick access "Facilities" (dump104) -> dump293 layout; PIN field is a
-    # label-less EditText -> tap by class; "Find" and "Use my GPS location" verified clickable
+    # r20: quick access "Facilities" -> facilities screen. PIN field is a label-less EditText whose
+    # reported bounds overlap the Find button (dump022: EditText [32,994][158,1563] vs Find
+    # [95,1216][985,1342]); tapping its center hit Find with an empty PIN and the old helper's
+    # BACK keypress then popped the screen home (dumps024+). v6: focus-tap inside the field band
+    # ABOVE the Find button, type, NO keyevent-BACK anywhere in this job (Find tap dismisses IME).
     with Rec("r20_facilities"):
         launch_app(); login_demo(); back_to_home()
         tap("facilities", scroll=True, wait=3)
         check("facilities_screen", seen("where should we look", "facilities near you"))
-        ok = type_into_edittext("411001")
-        if ok and not seen("411001", wait=1.5):
-            say("PIN not in field after type; retrying once"); ok = type_into_edittext("411001")
-        check("pin_field", ok and seen("411001", wait=1.5))
+        ok = False
+        for attempt in range(3):
+            root = dump()
+            et = None; find_top = None
+            for e in root.iter("node"):
+                m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+                if not m: continue
+                x1, y1, x2, y2 = map(int, m.groups())
+                if "EditText" in (e.get("class") or "") and et is None: et = (x1, y1, x2, y2)
+                if (e.get("text") or "").strip().lower() == "find" and find_top is None: find_top = y1
+            if et is None:
+                say("PIN field not visible; scroll+retry"); swipe_down_content(); time.sleep(1); continue
+            ty = et[1] + 70
+            if find_top: ty = min(ty, find_top - 30)
+            sh(f"input tap {SW//2} {ty}"); time.sleep(1.0)
+            sh("input text 411001"); time.sleep(1.0)
+            if seen("411001", wait=1.5): ok = True; break
+            say(f"PIN not in field (attempt {attempt+1})")
+        check("pin_field", ok)
         shot("pin_typed")
-        tap("find", scroll=False, tries=2, wait=20)
-        if seen("place not found", "could not", wait=2):
-            say("PIN geocode failed; trying GPS"); tap("use my gps location", scroll=False, wait=20)
-        check("results", seen("hospital", "clinic", "km", wait=30))
+        if ok:
+            tap("find", scroll=False, tries=3, wait=4)
+            # outcomes: busy "Searching within 10 km..." -> "Directions" rows, "Place not found -",
+            # "No hospitals or clinics found", "Showing the last loaded list". GPS fallback on geocode fail.
+            found = False
+            for _ in range(20):
+                if seen("place not found", wait=1.5):
+                    say("PIN geocode failed; trying GPS"); tap("use my gps location", scroll=False, wait=3)
+                    tap("while using the app", scroll=False, tries=2, wait=3)  # permission dialog if shown
+                    break
+                if seen("directions", "no hospitals or clinics found", "showing the last loaded list", wait=1.5):
+                    found = True; break
+            if not found:
+                for _ in range(20):
+                    if seen("directions", "no hospitals or clinics found", "no blood bank", "showing the last loaded list", "could not get your gps", wait=2): break
+            # tightened gate: result evidence AND still on the facilities screen (home-grid substring
+            # matches caused the false PASS in run46079453154)
+            check("results", seen("directions", "no hospitals or clinics found", "no blood bank", wait=2)
+                  and seen("where should we look", wait=1))
+        else:
+            check("results", False)
         shot("facilities_list"); swipe_down_content(); time.sleep(1.5); shot("facilities_list2")
         back_to_home()
 
