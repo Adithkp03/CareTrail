@@ -40,7 +40,7 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
             catch (_: Exception) { error = "Could not save reminders. Please try again." }
         }
         if (editing != null) {
-            MedicationEditor(editing!!, error, cancel = { editing = null; error = "" }) { medication ->
+            MedicationEditor(l, editing!!, error, cancel = { editing = null; error = "" }) { medication ->
                 val next = plan.copy(medications = plan.medications.filterNot { it.id == medication.id } + medication)
                 save(next)
                 if (error.isEmpty()) editing = null
@@ -64,13 +64,13 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
                 editing = MedicationReminder(id = UUID.randomUUID().toString(), name = "")
             }
             Spacer(gap(12))
-            TodayDoses(plan) { rec ->
+            TodayDoses(l, plan) { rec ->
                 save(plan.copy(doses = (plan.doses.filterNot { it.medicationId == rec.medicationId && it.scheduledAt == rec.scheduledAt } + rec).takeLast(500)))
             }
             Spacer(gap(12))
-            HydrationSettings(plan.hydration) { save(plan.copy(hydration = it)) }
+            HydrationSettings(l, plan.hydration) { save(plan.copy(hydration = it)) }
             Spacer(gap(12))
-            DailyNotificationPermission()
+            DailyNotificationPermission(l)
             if (error.isNotEmpty()) Note(error)
             Spacer(gap(12))
             PrimaryButton(l.tr(if (plan.medications.isEmpty() && !plan.hydration.enabled) "Skip for now" else "Continue")) {
@@ -82,11 +82,11 @@ fun DailyRemindersScreen(vm: AppViewModel, onboarding: Boolean, done: () -> Unit
 }
 
 @Composable
-private fun HydrationSettings(h: HydrationReminder, save: (HydrationReminder) -> Unit) {
+private fun HydrationSettings(l: L, h: HydrationReminder, save: (HydrationReminder) -> Unit) {
     CTCard {
-        SectionTitle("Hydration reminders")
+        SectionTitle(l.tr("Hydration reminders"))
         Row {
-            Text("Gentle nudges for water", modifier = Modifier.weight(1f))
+            Text(l.tr("Gentle nudges for water"), modifier = Modifier.weight(1f))
             Switch(checked = h.enabled, onCheckedChange = { save(h.copy(enabled = it)) })
         }
         if (h.enabled) {
@@ -95,7 +95,7 @@ private fun HydrationSettings(h: HydrationReminder, save: (HydrationReminder) ->
             val valid = LocalTime.parse(end) > LocalTime.parse(start)
             TimeChoice("First reminder", start) { start = it }
             TimeChoice("Stop reminders", end) { end = it }
-            if (!valid) Note("Choose a stop time later than the first reminder.")
+            if (!valid) Note(l.tr("Choose a stop time later than the first reminder."))
             Text("Remind me every ${h.intervalMinutes} minutes")
             listOf(30, 60, 90, 120, 180).forEach { minutes ->
                 TextButton(onClick = { save(h.copy(intervalMinutes = minutes)) }) { Text(if (minutes == h.intervalMinutes) "$minutes minutes ✓" else "$minutes minutes") }
@@ -107,19 +107,19 @@ private fun HydrationSettings(h: HydrationReminder, save: (HydrationReminder) ->
 }
 
 @Composable
-fun DailyNotificationPermission() {
+fun DailyNotificationPermission(l: L) {
     val ctx = LocalContext.current
     var granted by remember { mutableStateOf(Notifier.granted(ctx)) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     Muted("Android may delay reminders to save battery. Tap a notification to review your schedule.")
-    if (!granted) TextButton(onClick = { permission.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow notifications") }
+    if (!granted) TextButton(onClick = { permission.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text(l.tr("Allow notifications")) }
     TextButton(onClick = { ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }) {
-        Text("Notification settings")
+        Text(l.tr("Notification settings"))
     }
 }
 
 @Composable
-private fun MedicationEditor(initial: MedicationReminder, error: String, cancel: () -> Unit, save: (MedicationReminder) -> Unit) {
+private fun MedicationEditor(l: L, initial: MedicationReminder, error: String, cancel: () -> Unit, save: (MedicationReminder) -> Unit) {
     var step by rememberSaveable(initial.id) { mutableIntStateOf(0) }
     var name by rememberSaveable(initial.id) { mutableStateOf(initial.name) }
     var form by rememberSaveable(initial.id) { mutableStateOf(initial.form) }
@@ -138,7 +138,7 @@ private fun MedicationEditor(initial: MedicationReminder, error: String, cancel:
         when (step) {
             0 -> {
                 CTField(name, { name = it.take(80) }, "Medication name")
-                Text("Medication form")
+                Text(l.tr("Medication form"))
                 listOf("Tablet", "Capsule", "Liquid", "Other").forEach { option ->
                     Row { RadioButton(form == option, { form = option }); TextButton(onClick = { form = option }) { Text(option) } }
                 }
@@ -146,8 +146,8 @@ private fun MedicationEditor(initial: MedicationReminder, error: String, cancel:
             1 -> {
                 DateChoice("Start date", start) { start = it }
                 DateChoice("End date (optional)", end) { end = it }
-                if (end.isNotEmpty()) TextButton(onClick = { end = "" }) { Text("No end date") }
-                Text("Repeat on")
+                if (end.isNotEmpty()) TextButton(onClick = { end = "" }) { Text(l.tr("No end date")) }
+                Text(l.tr("Repeat on"))
                 Row {
                     (1..7).forEach { day ->
                         FilterChip(selected = day in days, onClick = { days = if (day in days) days - day else days + day },
@@ -158,17 +158,17 @@ private fun MedicationEditor(initial: MedicationReminder, error: String, cancel:
                 times.forEachIndexed { index, time ->
                     Row {
                         TimeChoice("Dose ${index + 1}", time) { value -> times = times.mapIndexed { i, old -> if (i == index) value else old } }
-                        if (times.size > 1) TextButton(onClick = { times = times.filterIndexed { i, _ -> i != index } }) { Text("Remove") }
+                        if (times.size > 1) TextButton(onClick = { times = times.filterIndexed { i, _ -> i != index } }) { Text(l.tr("Remove")) }
                     }
                 }
-                if (times.size < 8) TextButton(onClick = { times = times + LocalTime.parse(times.last()).plusHours(4).toString() }) { Text("Add daily time") }
-                if (!validDates) Note("End date must be on or after the start date.")
-                if (times.distinct().size != times.size) Note("Choose a different time for each dose.")
+                if (times.size < 8) TextButton(onClick = { times = times + LocalTime.parse(times.last()).plusHours(4).toString() }) { Text(l.tr("Add daily time")) }
+                if (!validDates) Note(l.tr("End date must be on or after the start date."))
+                if (times.distinct().size != times.size) Note(l.tr("Choose a different time for each dose."))
             }
             2 -> {
                 CTField(instructions, { instructions = it.take(500) }, "Instructions from your prescription (optional)", singleLine = false)
                 DateChoice("Refill reminder at 09:00 (optional)", refill) { refill = it }
-                if (refill.isNotBlank()) TextButton(onClick = { refill = "" }) { Text("Remove refill reminder") }
+                if (refill.isNotBlank()) TextButton(onClick = { refill = "" }) { Text(l.tr("Remove refill reminder")) }
                 Muted("Use the dose and instructions given by your clinician.")
             }
         }
@@ -182,7 +182,7 @@ private fun MedicationEditor(initial: MedicationReminder, error: String, cancel:
 }
 
 @Composable
-internal fun TodayDoses(plan: DailyReminderPlan, mark: (DoseRecord) -> Unit) {
+internal fun TodayDoses(l: L, plan: DailyReminderPlan, mark: (DoseRecord) -> Unit) {
     val today = plan.medications.flatMap { m ->
         ReminderTimes.dosesOn(m, LocalDate.now()).map { t ->
             Triple(m, t, plan.doses.lastOrNull { it.medicationId == m.id && it.scheduledAt == t.toString() })
@@ -190,16 +190,16 @@ internal fun TodayDoses(plan: DailyReminderPlan, mark: (DoseRecord) -> Unit) {
     }.sortedBy { it.second }
     if (today.isEmpty()) return
     CTCard {
-        SectionTitle("Today's doses")
+        SectionTitle(l.tr("Today's doses"))
         today.forEach { (m, t, rec) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("${m.name} · ${t.toLocalTime()}")
-                    if (rec != null) Muted(if (rec.status == "taken") "Marked taken" else "Marked skipped")
+                    if (rec != null) Muted(if (rec.status == "taken") l.tr("Marked taken") else l.tr("Marked skipped"))
                 }
                 if (rec == null) {
-                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "taken", LocalDateTime.now().toString())) }) { Text("Taken") }
-                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "skipped", LocalDateTime.now().toString())) }) { Text("Skip") }
+                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "taken", LocalDateTime.now().toString())) }) { Text(l.tr("Taken")) }
+                    TextButton(onClick = { mark(DoseRecord(m.id, m.name, t.toString(), "skipped", LocalDateTime.now().toString())) }) { Text(l.tr("Skip")) }
                 }
             }
         }
