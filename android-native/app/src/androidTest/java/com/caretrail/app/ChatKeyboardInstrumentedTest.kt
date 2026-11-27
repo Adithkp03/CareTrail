@@ -3,15 +3,17 @@ package com.caretrail.app
 import android.app.Application
 import android.graphics.Bitmap
 import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.caretrail.app.ui.AssistantScreen
@@ -37,7 +39,7 @@ import org.junit.Test
  */
 class ChatKeyboardInstrumentedTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private fun fakeNav() = Nav(
         home = {}, timeline = {}, reminders = {}, movements = {}, care = {}, prep = {},
@@ -82,14 +84,14 @@ class ChatKeyboardInstrumentedTest {
 
             // Keyboard shown => window (and compose root) shrinks under adjustResize.
             composeRule.waitUntil(10_000) {
-                composeRule.onRoot().getUnclippedBoundsInRoot().height < rootBefore.height - 80
+                composeRule.onRoot().getUnclippedBoundsInRoot().height < rootBefore.height - 80.dp
             }
             composeRule.waitForIdle()
 
             val rootAfter = composeRule.onRoot().getUnclippedBoundsInRoot()
             val composer = composeRule.onNodeWithText("Ask anything…").getUnclippedBoundsInRoot()
-            assertTrue("composer pushed off top: $composer vs $rootAfter", composer.top >= rootAfter.top - 1f)
-            assertTrue("composer hidden under keyboard: $composer vs $rootAfter", composer.bottom <= rootAfter.bottom + 1f)
+            assertTrue("composer pushed off top: $composer vs $rootAfter", composer.top >= rootAfter.top - 1.dp)
+            assertTrue("composer hidden under keyboard: $composer vs $rootAfter", composer.bottom <= rootAfter.bottom + 1.dp)
             composeRule.onNodeWithText("Ask anything…").assertIsDisplayed()
 
             val bmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
