@@ -25,7 +25,7 @@ jobs:
       - id: set
         run: |
           scenes="${{ github.event.inputs.scenes }}"
-          if [ -z "$scenes" ]; then scenes="signup,timeline,upload_attention,assistant,reminders,facilities,profile,birth_baby,wellness,mindful,vault"; fi
+          if [ -z "$scenes" ]; then scenes="timeline"; fi
           json=$(echo "$scenes" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))' | jq -c '{job: .}')
           echo "matrix=$json" >> "$GITHUB_OUTPUT"
 
