@@ -17,9 +17,16 @@ def adb(*args, check=False):
     return subprocess.run(["adb", *args], capture_output=True, text=True, check=check).stdout
 def sh(cmd): return adb("shell", cmd)
 n_dump = 0
-def dump():
+def dump(_depth=0):
     global n_dump
     sh("uiautomator dump /sdcard/u.xml"); xml = sh("cat /sdcard/u.xml")
+    if ("isn't responding" in xml or "is not responding" in xml) and _depth < 4:
+        say("ANR dialog detected, tapping Wait")
+        m = re.search(r'text="Wait"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml)
+        if m:
+            x1, y1, x2, y2 = map(int, m.groups()); sh(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
+        else: sh("input keyevent 4")
+        time.sleep(3); return dump(_depth + 1)
     n_dump += 1
     open(f"{OUT}/dump{n_dump:03d}.xml", "w").write(xml)
     try: return ET.fromstring(xml[xml.index("<"):])
@@ -47,6 +54,17 @@ def type_into(label, text):
         sh("input text '" + text.replace(" ", "%s") + "'"); time.sleep(0.8); sh("input keyevent 4"); time.sleep(0.8)
 def shot(name):
     sh(f"screencap -p /sdcard/{name}.png"); adb("pull", f"/sdcard/{name}.png", f"{OUT}/{name}.png")
+RESULTS = {}
+def seen(*texts, wait=2.0):
+    """True if ANY of the texts is currently on screen (case-insensitive)."""
+    time.sleep(wait)
+    for _ in range(2):
+        root = dump(); blob = " ".join(t for t, *_ in nodes(root))
+        if any(x.lower() in blob for x in texts): return True
+        time.sleep(1.5)
+    return False
+def check(scene, name, ok):
+    RESULTS.setdefault(scene, {})[name] = bool(ok); say("CHECK", scene, name, "PASS" if ok else "FAIL")
 class Rec:
     def __init__(s, name): s.name = name
     def __enter__(s):
@@ -60,6 +78,13 @@ def call(method, path, body=None, headers=None):
                                  headers={"Content-Type": "application/json", **(headers or {})})
     return json.load(urllib.request.urlopen(req, timeout=30))
 
+adb("wait-for-device")
+for _ in range(120):
+    if sh("getprop sys.boot_completed").strip() == "1": break
+    time.sleep(2)
+say("boot completed; settling"); time.sleep(40)
+sh("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS"); sh("input keyevent 3"); time.sleep(3)
+for _ in range(3): dump()  # clears any launcher ANR before the first scene
 adb("install", "-r", "android-native/app/build/outputs/apk/debug/app-debug.apk")
 for perm in ["POST_NOTIFICATIONS", "ACCESS_FINE_LOCATION"]: sh(f"pm grant {PKG} android.permission.{perm}")
 sh("settings put global window_animation_scale 0")
@@ -67,18 +92,22 @@ sh("settings put global window_animation_scale 0")
 with Rec("scene1_login"):
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(7); shot("welcome")
     if not find("try the demo"): tap("log in", scroll=False, wait=2)
+    check("scene1", "login_screen", seen("try the demo"))
     tap("try the demo", wait=8); shot("home")
+    check("scene1", "home_after_login", seen("quick access", "see this week", "now"))
 
 with Rec("scene2_link_doctor"):
     tap("doctor view", wait=3)
     type_into("doctor account email", "dr.demo@example.org")
     tap("give doctor access", wait=4); shot("doctor_linked")
+    check("scene2", "grant_confirmed", seen("doctor now has access"))
     sh("input keyevent 4"); time.sleep(2)
 
 with Rec("scene3_ask_doctor"):
     tap("ask your doctor", wait=3)
     type_into("type your question", QUESTION)
     tap("send to", wait=4); shot("question_sent")
+    check("scene3", "question_listed", seen("your questions", "waiting for your doctor"))
     sh("input keyevent 4"); time.sleep(1)
 
 # Doctor acts on the web portal (recorded separately); same API the web page calls.
@@ -94,20 +123,30 @@ try:
 except Exception as e: say("DOCTOR API STEP FAILED:", e)
 
 with Rec("scene4_doctor_reply_seen"):
-    tap("ask your doctor", wait=3); shot("answer_seen"); time.sleep(2)
-    # Home was composed before the doctor replied, so relaunch for fresh data
-    # before acknowledging the new instruction (button label: "Acknowledge").
-    sh(f"am force-stop {PKG}"); time.sleep(1)
-    sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(8); shot("home_reloaded")
+    sh(f"am force-stop {PKG}"); time.sleep(2); sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1"); time.sleep(8)
+    tap("ask your doctor", wait=3); shot("answer_seen")
+    check("scene4", "doctor_reply_visible", seen("please do not change the dose"))
+    time.sleep(2); sh("input keyevent 4"); time.sleep(2)
+    check("scene4", "instruction_visible", seen("repeat haemoglobin", "instructions from your doctor"))
     tap("acknowledge", wait=3); shot("instruction_ack")
+    check("scene4", "acknowledged", seen("you acknowledged"))
 
 with Rec("scene5_referral"):
     tap("referral transfer", wait=3); shot("ref_initial")
+    check("scene5", "referral_screen", seen("referral transfer", "patient-carried"))
     tap("prepare my referral", wait=3); sh("input swipe 540 1700 540 1100 400"); time.sleep(1.5); shot("ref_prepared")
+    check("scene5", "summary_shown", seen("review before export", "caretrail referral summary"))
     tap("export acknowledged", wait=1.5)
     tap("save unencrypted referral json", wait=4); shot("ref_picker_save")
     tap("save", scroll=False, wait=3); shot("ref_saved")
     tap("preview a received referral", wait=4); shot("ref_picker_open")
     tap("caretrail-referral", scroll=False, wait=4); shot("ref_received")
     time.sleep(2)
-say("done")
+json.dump(RESULTS, open(f"{OUT}/results.json", "w"), indent=1)
+bad = [(sc, k) for sc, d in RESULTS.items() for k, v in d.items() if not v]
+for sc in {b[0] for b in bad}:
+    for f in os.listdir(OUT):
+        if f.startswith({"scene1":"scene1_","scene2":"scene2_","scene3":"scene3_","scene4":"scene4_","scene5":"scene5_"}[sc]) and f.endswith(".mp4"):
+            os.rename(f"{OUT}/{f}", f"{OUT}/FAILED_{f}")
+say("FAILED CHECKS:", bad if bad else "none"); say("done")
+sys.exit(1 if bad else 0)
