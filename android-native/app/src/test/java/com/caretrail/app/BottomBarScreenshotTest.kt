@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import com.caretrail.app.data.AppJson
 import com.caretrail.app.data.Gestation
@@ -135,6 +136,13 @@ class BottomBarScreenshotTest {
             composeRule.waitForIdle()
             composeRule.onNodeWithText("Hi, Anjali").assertIsDisplayed()
             composeRule.onNodeWithText("See this week's care", substring = true).assertIsDisplayed()
+            composeRule.onNodeWithText("Help assistant").assertExists()
+            composeRule.onNodeWithText("Ask your doctor").assertExists()
+            composeRule.onRoot().captureRoboImage()
+            // The action cards sit below the fold at 320x720: scroll them into
+            // view and capture again so small-screen spacing is proven too.
+            composeRule.onNodeWithText("Ask your doctor").performScrollTo()
+            composeRule.waitForIdle()
             composeRule.onNodeWithText("Help assistant").assertIsDisplayed()
             composeRule.onNodeWithText("Ask your doctor").assertIsDisplayed()
             composeRule.onRoot().captureRoboImage()
