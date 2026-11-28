@@ -101,6 +101,7 @@ class Document(Base):
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="stored")  # stored | extracting | extracted
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True)  # patient | clinician
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

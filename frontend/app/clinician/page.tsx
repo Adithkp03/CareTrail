@@ -35,6 +35,10 @@ function ClinicianView() {
   const [questions, setQuestions] = useState<Q[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [roster, setRoster] = useState<Roster[] | null>(null);
+  type Doc = {document_id: string; filename: string; content_type: string; source: string; status: string; uploaded_at: string};
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
   useEffect(() => { setToken(sessionStorage.getItem(STORAGE_KEY) || ""); }, []);
   const h = { Authorization: `Bearer ${token}` };
   async function loadRoster(tok = token) {
@@ -49,6 +53,7 @@ function ClinicianView() {
       setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage(""); setLoadedJourney(id);
       const notes = await clinicianApi<{items: typeof instructions}>(`/clinician/journeys/${encodeURIComponent(id)}/instructions`, {headers:h}); setInstructions(notes.items);
       const qs = await clinicianApi<{items: Q[]}>(`/clinician/journeys/${encodeURIComponent(id)}/questions`, {headers:h}); setQuestions(qs.items);
+      const ds = await clinicianApi<{items: Doc[]}>(`/clinician/journeys/${encodeURIComponent(id)}/documents`, {headers:h}); setDocs(ds.items);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Review unavailable"); }
   }
   async function sendAnswer(q: Q) {
@@ -76,6 +81,7 @@ function ClinicianView() {
       setPatient(result.patient); setFlags(result.flags); setTftNote(result.tft_clinician_note); setMessage(""); setLoadedJourney(journeyId);
       const notes = await clinicianApi<{items: typeof instructions}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/instructions`, {headers:h});setInstructions(notes.items);
       const qs = await clinicianApi<{items: Q[]}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/questions`, {headers:h}); setQuestions(qs.items);
+      const ds = await clinicianApi<{items: Doc[]}>(`/clinician/journeys/${encodeURIComponent(journeyId)}/documents`, {headers:h}); setDocs(ds.items);
     } catch (err) { setPatient(""); setFlags([]); setTftNote(""); setInstructions([]); setQuestions([]); setLoadedJourney(""); setMessage(err instanceof Error ? err.message : "Review unavailable"); }
   }
   async function sendInstruction() {
@@ -84,6 +90,28 @@ function ClinicianView() {
     setPosting(true);
     try {await clinicianApi(`/clinician/journeys/${encodeURIComponent(loadedJourney)}/instructions`, {method:"POST",headers:h,body:JSON.stringify({note:instruction.trim()})});setInstruction("");await load();setMessage("Instruction sent to the patient.");}
     catch(err){setMessage(err instanceof Error?err.message:"Could not send instruction");}finally{setPosting(false);}
+  }
+  async function uploadDoc() {
+    if (!docFile || !loadedJourney) return;
+    if (!confirm(`Upload ${docFile.name} to ${patient}'s record?`)) return;
+    setUploading(true);
+    try {
+      const form = new FormData(); form.append("file", docFile);
+      const res = await fetch(`${API}/clinician/journeys/${encodeURIComponent(loadedJourney)}/documents/upload`, {method: "POST", headers: h, body: form});
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || `Upload failed (${res.status})`);
+      setMessage(body.duplicate_of ? "That exact file is already on this record." : "EHR document added to the patient's record.");
+      setDocFile(null);
+      const ds = await clinicianApi<{items: Doc[]}>(`/clinician/journeys/${encodeURIComponent(loadedJourney)}/documents`, {headers: h}); setDocs(ds.items);
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Upload failed"); }
+    finally { setUploading(false); }
+  }
+  async function viewDoc(d: Doc) {
+    try {
+      const res = await fetch(`${API}/clinician/documents/${d.document_id}/original`, {headers: h});
+      if (!res.ok) throw new Error(`Could not open file (${res.status})`);
+      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Could not open file"); }
   }
   async function signOff(flag: Flag) {
     if (!confirm(`Sign off ${flag.label}: ${flag.value} ${flag.unit} for ${patient}?`)) return;
@@ -102,7 +130,7 @@ function ClinicianView() {
       <input className="w-full rounded-xl border p-3" type="password" aria-label="Password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
       <button className="rounded-xl bg-brand px-4 py-2 text-white">Sign in</button>
     </form> : <div className="ct-card mt-5 space-y-3 rounded-3xl bg-white p-5">
-      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");setInstructions([]); setQuestions([]); setLoadedJourney("");setInstruction("");}}>Sign out</button>
+      <button className="text-brand underline" onClick={()=>{sessionStorage.removeItem(STORAGE_KEY); setToken(""); setPatient(""); setFlags([]); setTftNote("");setInstructions([]); setQuestions([]); setLoadedJourney("");setInstruction(""); setDocs([]); setDocFile(null);}}>Sign out</button>
       <section aria-label="Your patients">
         <h2 className="font-semibold">Your patients{roster ? ` (${roster.length})` : ""}</h2>
         {roster && !roster.length && <p className="mt-1 text-sm text-ink/70">No patient has shared a journey with you yet. A patient grants access from the Doctor view in their app.</p>}
@@ -141,6 +169,21 @@ function ClinicianView() {
             <textarea aria-label="Your answer" className="min-h-20 w-full rounded-xl border bg-white p-2 text-sm" maxLength={4000} placeholder="Write your answer for the patient" value={answers[q.id] || ""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))} />
             <button disabled={!(answers[q.id]||"").trim()} onClick={()=>void sendAnswer(q)} className="mt-1 rounded-xl bg-brand px-3 py-1.5 text-sm text-white disabled:opacity-50">Review and send answer</button>
           </div>}
+        </article>)}</div>
+      </section>}
+      {patient && loadedJourney===journeyId && <section className="rounded-2xl border border-brand/20 bg-brand-soft p-4">
+        <h2 className="font-semibold">Patient records (EHR)</h2>
+        <p className="mt-1 text-xs text-ink/70">Upload a record to {patient}'s journey or open files already on it. Files you add here become part of the patient's record.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input aria-label="EHR file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt" className="max-w-full text-sm" onChange={e=>setDocFile(e.target.files?.[0] || null)} />
+          <button disabled={uploading||!docFile} onClick={()=>void uploadDoc()} className="rounded-xl bg-brand px-3 py-1.5 text-sm text-white disabled:opacity-50">{uploading?"Uploading...":"Review and upload"}</button>
+        </div>
+        <p className="mt-1 text-xs text-ink/60">PDF or image, up to 10 MB.</p>
+        {!docs.length && <p className="mt-2 text-sm text-ink/70">No records on this journey yet.</p>}
+        <div className="mt-2 space-y-2">{docs.map(d=><article key={d.document_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 text-sm">
+          <div className="min-w-0"><p className="break-all font-medium">{d.filename}</p>
+          <p className="text-xs text-ink/60">{new Date(d.uploaded_at).toLocaleString()} · {d.source==="clinician"?"Uploaded by you":"From the patient"}</p></div>
+          <button className="rounded-lg border border-brand px-3 py-1 text-sm text-brand" onClick={()=>void viewDoc(d)}>Open</button>
         </article>)}</div>
       </section>}
       {flags.map(f=><article className="rounded-2xl border border-ink/10 bg-[#f5f7f9] p-4" key={f.observation_id}>
