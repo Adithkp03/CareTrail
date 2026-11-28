@@ -39,6 +39,28 @@ function ClinicianView() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [uploading, setUploading] = useState(false);
   const [docFile, setDocFile] = useState<File | null>(null);
+  const SPECIALTIES = [
+    {id: "fetal-medicine", label: "Fetal medicine specialist", why: "Detailed ultrasound scans and checks of the baby's growth and development."},
+    {id: "endocrinology", label: "Endocrinologist", why: "Care for thyroid conditions and diabetes, including during pregnancy."},
+    {id: "cardiology", label: "Cardiologist", why: "Evaluation of heart conditions, including blood pressure concerns."},
+    {id: "dietitian", label: "Dietitian", why: "Nutrition planning for pregnancy needs such as anaemia or gestational diabetes."},
+  ];
+  const DEMO_HOSPITALS = [
+    {name: "Seaside Community Hospital (fictional)", note: "Illustrative: government-aided, low cost, about 6 km away"},
+    {name: "Sunrise District Clinic (fictional)", note: "Illustrative: walk-in visits, low cost, about 3 km away"},
+    {name: "MotherCare Multispeciality (fictional)", note: "Illustrative: mid-range private, teleconsult available"},
+  ];
+  const [refSpecialty, setRefSpecialty] = useState("");
+  const [refHospital, setRefHospital] = useState("");
+  const [refNote, setRefNote] = useState("");
+  const [referrals, setReferrals] = useState<{specialty: string; hospital: string; note: string; at: string}[]>([]);
+  function addReferral() {
+    const sp = SPECIALTIES.find(x => x.id === refSpecialty);
+    if (!sp || !refHospital) return;
+    setReferrals(r => [{specialty: sp.label, hospital: refHospital, note: refNote.trim(), at: new Date().toLocaleString()}, ...r]);
+    setRefSpecialty(""); setRefHospital(""); setRefNote("");
+    setMessage("Demo referral prepared below. It was not sent to any real provider.");
+  }
   useEffect(() => { setToken(sessionStorage.getItem(STORAGE_KEY) || ""); }, []);
   const h = { Authorization: `Bearer ${token}` };
   async function loadRoster(tok = token) {
@@ -184,6 +206,32 @@ function ClinicianView() {
           <div className="min-w-0"><p className="break-all font-medium">{d.filename}</p>
           <p className="text-xs text-ink/60">{new Date(d.uploaded_at).toLocaleString()} · {d.source==="clinician"?"Uploaded by you":"From the patient"}</p></div>
           <button className="rounded-lg border border-brand px-3 py-1 text-sm text-brand" onClick={()=>void viewDoc(d)}>Open</button>
+        </article>)}</div>
+      </section>}
+      {patient && loadedJourney===journeyId && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+        <h2 className="font-semibold">Specialist referral (demo)</h2>
+        <p className="mt-1 text-xs text-ink/70">Demo preview with fictional hospitals and illustrative cost notes. Options are fictional, not ranked, and no real provider is contacted. Verified hospitals and clinical referral rules are added after clinical review.</p>
+        <label className="mt-3 block text-sm" htmlFor="ref-specialty">Specialty</label>
+        <select id="ref-specialty" className="mt-1 w-full rounded-xl border bg-white p-3 text-sm" value={refSpecialty} onChange={e=>{setRefSpecialty(e.target.value); setRefHospital("");}}>
+          <option value="">Choose a specialty</option>
+          {SPECIALTIES.map(sp=><option key={sp.id} value={sp.id}>{sp.label}</option>)}
+        </select>
+        {refSpecialty && <p className="mt-1 rounded-lg bg-white p-2 text-xs text-ink/70">{SPECIALTIES.find(sp=>sp.id===refSpecialty)?.why}</p>}
+        {refSpecialty && <>
+          <label className="mt-3 block text-sm" htmlFor="ref-hospital">Hospital (fictional demo options)</label>
+          <select id="ref-hospital" className="mt-1 w-full rounded-xl border bg-white p-3 text-sm" value={refHospital} onChange={e=>setRefHospital(e.target.value)}>
+            <option value="">Choose a hospital</option>
+            {DEMO_HOSPITALS.map(h=><option key={h.name} value={h.name}>{h.name} - {h.note}</option>)}
+          </select>
+          <label className="mt-3 block text-sm" htmlFor="ref-note">Note for the referral (optional)</label>
+          <textarea id="ref-note" className="mt-1 min-h-16 w-full rounded-xl border bg-white p-2 text-sm" maxLength={1000} value={refNote} onChange={e=>setRefNote(e.target.value)} />
+          <button disabled={!refHospital} onClick={addReferral} className="mt-2 rounded-xl bg-brand px-4 py-2 text-sm text-white disabled:opacity-50">Prepare demo referral</button>
+        </>}
+        <div className="mt-3 space-y-2">{referrals.map((r,i)=><article key={i} className="rounded-xl bg-white p-3 text-sm">
+          <p className="font-medium">Refer {patient} to {r.specialty}</p>
+          <p className="mt-0.5 text-xs text-ink/70">{r.hospital} · {r.at}</p>
+          {r.note && <p className="mt-1 whitespace-pre-wrap break-words">{r.note}</p>}
+          <p className="mt-1 text-xs text-amber-800">Demo only - not sent to any real provider and not saved.</p>
         </article>)}</div>
       </section>}
       {flags.map(f=><article className="rounded-2xl border border-ink/10 bg-[#f5f7f9] p-4" key={f.observation_id}>
