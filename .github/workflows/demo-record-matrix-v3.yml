@@ -46,20 +46,25 @@ jobs:
       - name: Build TEST debug APK once (isolated backend, no production keys)
         run: gradle -p android-native assembleDebug --no-daemon -PcaretrailTestVariant=true -PcaretrailApi=http://10.0.2.2:8000
       - name: Move test APK aside
-        run: mv android-native/app/build/outputs/apk/debug/app-debug.apk android-native/app/build/outputs/apk/debug/app-debug-test.apk
+        # OUT of the gradle output dir: the second build's stale-output cleanup
+        # deleted it there last run (apk artifact held only the live APK).
+        run: mv android-native/app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/app-debug-test.apk"
       - name: Build PRODUCTION-variant debug APK (language_voice scene only)
         # Same variant real users run; API_URL defaults to the live backend. Needed because
         # the test variant refuses a production URL by design, and genuine Sarvam TTS only
         # exists on the keyed live backend (user-approved <= Rs.10 prepaid draw).
         run: |
           gradle -p android-native assembleDebug --no-daemon
-          mv android-native/app/build/outputs/apk/debug/app-debug.apk android-native/app/build/outputs/apk/debug/app-debug-live.apk
+          mv android-native/app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/app-debug-live.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: caretrail-test-apk
-          path: |
-            android-native/app/build/outputs/apk/debug/app-debug-test.apk
-            android-native/app/build/outputs/apk/debug/app-debug-live.apk
+          path: app-debug-test.apk
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caretrail-live-apk
+          path: app-debug-live.apk
           retention-days: 1
 
   record:
@@ -79,7 +84,7 @@ jobs:
       - name: Download prebuilt APK
         uses: actions/download-artifact@v4
         with:
-          name: caretrail-test-apk
+          name: ${{ matrix.job == 'language_voice' && 'caretrail-live-apk' || 'caretrail-test-apk' }}
           path: .
 
       - uses: actions/setup-python@v5
