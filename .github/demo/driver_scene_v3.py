@@ -193,6 +193,12 @@ def seen(*texts, wait=2.0):
     return False
 def check(name, ok):
     RESULTS.setdefault(JOB, {})[name] = bool(ok); say("CHECK", JOB, name, "PASS" if ok else "FAIL")
+class BailScene(Exception): pass
+def gate(name, ok):
+    check(name, ok)
+    if not ok:
+        say("GATE FAIL", JOB, name, "- aborting scene early")
+        raise BailScene(name)
 HOME_MARKERS = ("your pregnancy journey", "after birth: mother and baby", "quick access")
 def at_home():
     return any(find(m, band=(0.02, 0.999)) for m in HOME_MARKERS)
@@ -279,6 +285,10 @@ def setup_device():
     say("boot completed; settling"); time.sleep(20)
     sh("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS"); sh("input keyevent 3"); time.sleep(3)
     adb("install", "-r", APK)
+    if PKG not in sh(f"pm list packages {PKG}"):
+        say("FATAL install/verify failed for", PKG, "- aborting before filming")
+        json.dump(RESULTS, open(f"{OUT}/results-{JOB}.json", "w"), indent=1)
+        sys.exit(1)
     sh(f"pm clear {PKG}"); time.sleep(2)   # fresh state: no half-onboarded account can resume
     for perm in ["POST_NOTIFICATIONS", "ACCESS_FINE_LOCATION"]: sh(f"pm grant {PKG} android.permission.{perm}")
     sh("settings put global window_animation_scale 0")
@@ -611,58 +621,62 @@ elif JOB == "language_voice":
             if sum(1 for ch in blob if "\u0d00" <= ch <= "\u0d7f") >= minchars: return True
             time.sleep(1.5)
         return False
-    with Rec("r26_language_voice"):
-        launch_app(); time.sleep(4)
-        check("welcome", seen("caretrail", wait=3)); shot("welcome_en")
-        check("lang_picker", tap("english", scroll=False, band=(0.1, 0.999), tries=3, wait=2))
-        tap("മലയാളം", scroll=False, tries=4, wait=3)
-        check("welcome_ml", seen("മലയാളം", wait=3)); shot("welcome_ml")
-        tap("ലോഗിൻ", scroll=False, tries=3, wait=4); shot("login_ml")
-        tap("ഡെമോ കാണൂ", scroll=False, tries=4, wait=14)
-        check("home_ml", seen("ഹോം", wait=8))
-        shot("home_ml"); swipe_down_content(); time.sleep(1); shot("home_ml2"); to_top()
-        # help assistant in Malayalam (tile label is the curated ml string, Translator.kt)
-        tap("ഹെൽപ്പ് അസിസ്റ്റന്റ്", scroll=True, tries=8, wait=4)
-        if not find_edittext():
-            root = dump()   # first-run consent card: tap its PrimaryButton (ml label varies)
-            hit = False
-            for e in (root.iter("node") if root is not None else []):
-                if "Button" in (e.get("class") or "") and e.get("clickable") == "true":
-                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
-                    if m:
-                        x1, y1, x2, y2 = map(int, m.groups())
-                        if 0.3 * SH < (y1 + y2) // 2 < 0.9 * SH:
-                            sh(f"input tap {(x1+x2)//2} {(y1+y2)//2}"); say("consent button tapped"); hit = True; time.sleep(3); break
-            if not hit: say("no consent button found")
-        check("assistant_open", find_edittext() is not None)
-        p = find_edittext()
-        if p:
-            sh(f"input tap {p[0]} {p[1]}"); time.sleep(0.8)
-            sh("input text 'When%sis%my%next%scan%due'"); time.sleep(0.8); sh("input keyevent 4"); time.sleep(0.8)
-            tap_send_in_row("when is my next scan due")
-        ok_ans = False
-        for _ in range(10):
-            if seen_ml(20, wait=3): ok_ans = True; break
-        check("assistant_ml_answer", ok_ans); shot("assistant_ml")
-        sh("input keyevent 4"); time.sleep(2)
-        check("home_ml_back", seen("ഹോം", wait=4))
-        tap("ഇപ്പോൾ", scroll=True, tries=8, wait=4)   # NOW card -> milestone detail (JourneyScreens.kt:257)
-        check("milestone_ml", seen("കേൾക്കൂ", wait=6)); shot("milestone_ml")
-        lp = find("കേൾക്കൂ")
-        if lp:
-            sh(f"input tap {lp[0]} {lp[1]}"); say("listen tapped", lp); time.sleep(4)
-            playing = False
-            for _ in range(8):
-                root = dump(); blob = " ".join(t for t, *_ in nodes(root))
-                if "കേൾക്കൂ" not in blob:   # button left its Listen state = preparing/playing (Stop state)
-                    playing = True; break
-                time.sleep(3)
-            check("listen_playing", playing); shot("listen_playing")
-            time.sleep(6)
-            sh(f"input tap {lp[0]} {lp[1]}"); time.sleep(2)   # stop
-        else:
-            check("listen_playing", False)
-        shot("language_voice_end")
+    try:
+        with Rec("r26_language_voice"):
+            launch_app(); time.sleep(4)
+            check("welcome", seen("caretrail", wait=3)); shot("welcome_en")
+            check("lang_picker", tap("english", scroll=False, band=(0.1, 0.999), tries=3, wait=2))
+            tap("മലയാളം", scroll=False, tries=4, wait=3)
+            check("welcome_ml", seen("മലയാളം", wait=3)); shot("welcome_ml")
+            tap("ലോഗിൻ", scroll=False, tries=3, wait=4); shot("login_ml")
+            tap("ഡെമോ കാണൂ", scroll=False, tries=4, wait=14)
+            tap("ഇപ്പോൾ ഒഴിവാക്കുക", scroll=False, tries=3, wait=4)   # live app lands on ml reminders-onboarding after demo login; skip it
+            gate("home_ml", seen("ഹോം", wait=8))
+            shot("home_ml"); swipe_down_content(); time.sleep(1); shot("home_ml2"); to_top()
+            # help assistant in Malayalam (tile label is the curated ml string, Translator.kt)
+            tap("ഹെൽപ്പ് അസിസ്റ്റന്റ്", scroll=True, tries=8, wait=4)
+            if not find_edittext():
+                root = dump()   # first-run consent card: tap its PrimaryButton (ml label varies)
+                hit = False
+                for e in (root.iter("node") if root is not None else []):
+                    if "Button" in (e.get("class") or "") and e.get("clickable") == "true":
+                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if 0.3 * SH < (y1 + y2) // 2 < 0.9 * SH:
+                                sh(f"input tap {(x1+x2)//2} {(y1+y2)//2}"); say("consent button tapped"); hit = True; time.sleep(3); break
+                if not hit: say("no consent button found")
+            gate("assistant_open", find_edittext() is not None)
+            p = find_edittext()
+            if p:
+                sh(f"input tap {p[0]} {p[1]}"); time.sleep(0.8)
+                sh("input text 'When%sis%my%next%scan%due'"); time.sleep(0.8); sh("input keyevent 4"); time.sleep(0.8)
+                tap_send_in_row("when is my next scan due")
+            ok_ans = False
+            for _ in range(10):
+                if seen_ml(20, wait=3): ok_ans = True; break
+            check("assistant_ml_answer", ok_ans); shot("assistant_ml")
+            sh("input keyevent 4"); time.sleep(2)
+            gate("home_ml_back", seen("ഹോം", wait=4))
+            tap("ഇപ്പോൾ", scroll=True, tries=8, wait=4)   # NOW card -> milestone detail (JourneyScreens.kt:257)
+            gate("milestone_ml", seen("കേൾക്കൂ", wait=6)); shot("milestone_ml")
+            lp = find("കേൾക്കൂ")
+            if lp:
+                sh(f"input tap {lp[0]} {lp[1]}"); say("listen tapped", lp); time.sleep(4)
+                playing = False
+                for _ in range(8):
+                    root = dump(); blob = " ".join(t for t, *_ in nodes(root))
+                    if "കേൾക്കൂ" not in blob:   # button left its Listen state = preparing/playing (Stop state)
+                        playing = True; break
+                    time.sleep(3)
+                check("listen_playing", playing); shot("listen_playing")
+                time.sleep(6)
+                sh(f"input tap {lp[0]} {lp[1]}"); time.sleep(2)   # stop
+            else:
+                check("listen_playing", False)
+            shot("language_voice_end")
+    except BailScene as b:
+        say("scene aborted at gate:", b)
     # unrecorded: genuine TTS bytes from the same live endpoint the app plays,
     # plus the provider-call delta proving the spend stayed inside the Rs.10 cap
     audio_bytes = 0; traces_delta = -1
@@ -693,30 +707,33 @@ elif JOB == "asha_link":
     # r27: government-scheme panel + ASHA/VHN linking (OfficialSupportPanel.kt;
     # Sprint1Screens.kt:217-232; Sprint3Screens.kt:166-186). Isolated backend,
     # local store only - no Sarvam, no chargeable calls. Synthetic worker contacts.
-    with Rec("r27_asha"):
-        launch_app(); login_demo(); back_to_home()
-        tap("government support: official guidance", scroll=True, tries=10, wait=3)
-        check("schemes_panel", seen("pmmvy", "jsy", "jssk", wait=4))
-        shot("schemes"); swipe_down_content(); time.sleep(1.5); shot("schemes2"); to_top()
-        back_to_home()
-        tap("facilities", scroll=True, wait=3)
-        check("facilities_screen", seen("facilities near you", wait=4))
-        check("workers_empty", seen("add your asha", wait=3)); shot("workers_empty")
-        tap("open first-visit checklist", scroll=False, tries=3, wait=4)
-        check("checklist", seen("register your pregnancy", "asha", wait=5))
-        type_into("asha name", "Demo Asha")
-        type_into("asha phone", "9000000010")
-        type_into("vhn name", "Demo Vhn")
-        type_into("vhn phone", "9000000011")
-        shot("checklist_workers")
-        sh("input keyevent 4"); time.sleep(2)
-        check("back_at_facilities", seen("facilities near you", wait=4))
-        okw = seen("demo asha", wait=4)
-        if not okw:
-            swipe_down_content(); okw = seen("demo asha", wait=2)
-        check("workers_linked", okw); shot("workers_linked")
-        back_to_home()
-
+    try:
+        with Rec("r27_asha"):
+            launch_app(); login_demo(); back_to_home()
+            gate("home", at_home())
+            tap("government support: official guidance", scroll=True, tries=10, wait=3)
+            gate("schemes_panel", seen("pmmvy", "jsy", "jssk", wait=4))
+            shot("schemes"); swipe_down_content(); time.sleep(1.5); shot("schemes2"); to_top()
+            back_to_home()
+            tap("facilities", scroll=True, wait=3)
+            gate("facilities_screen", seen("facilities near you", wait=4))
+            check("workers_empty", seen("add your asha", wait=3)); shot("workers_empty")
+            tap("open first-visit checklist", scroll=False, tries=3, wait=4)
+            gate("checklist", seen("register your pregnancy", "asha", wait=5))
+            type_into("asha name", "Demo Asha")
+            type_into("asha phone", "9000000010")
+            type_into("vhn name", "Demo Vhn")
+            type_into("vhn phone", "9000000011")
+            shot("checklist_workers")
+            sh("input keyevent 4"); time.sleep(2)
+            check("back_at_facilities", seen("facilities near you", wait=4))
+            okw = seen("demo asha", wait=4)
+            if not okw:
+                swipe_down_content(); okw = seen("demo asha", wait=2)
+            check("workers_linked", okw); shot("workers_linked")
+            back_to_home()
+    except BailScene as b:
+        say("scene aborted at gate:", b)
 else:
     say("UNKNOWN JOB", JOB); sys.exit(2)
 
