@@ -731,6 +731,12 @@ elif JOB == "asha_link":
             if not okw:
                 swipe_down_content(); okw = seen("demo asha", wait=2)
             check("workers_linked", okw); shot("workers_linked")
+            # one-tap Call beat (Sprint3Screens.kt: dial() fires ACTION_DIAL; system dialer, no call placed)
+            cp = find("call")
+            check("call_button", cp is not None)
+            if cp:
+                sh(f"input tap {cp[0]} {cp[1]}"); time.sleep(4); shot("call_dialer")
+                sh("input keyevent 4"); time.sleep(2)
             back_to_home()
     except BailScene as b:
         say("scene aborted at gate:", b)
