@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       scenes:
-        description: 'Comma-separated jobs: signup,timeline,upload_attention,assistant,reminders,facilities,profile,birth_baby,wellness,mindful,vault (empty = all)'
+        description: 'Comma-separated jobs: signup,timeline,upload_attention,assistant,reminders,facilities,profile,birth_baby,wellness,mindful,vault,language_voice,asha_link (empty = all)'
         required: false
         default: ''
 
@@ -25,7 +25,7 @@ jobs:
       - id: set
         run: |
           scenes="${{ github.event.inputs.scenes }}"
-          if [ -z "$scenes" ]; then scenes="upload_attention,facilities"; fi
+          if [ -z "$scenes" ]; then scenes="language_voice,asha_link"; fi
           json=$(echo "$scenes" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))' | jq -c '{job: .}')
           echo "matrix=$json" >> "$GITHUB_OUTPUT"
 
@@ -45,10 +45,21 @@ jobs:
         run: sed -i 's/usesCleartextTraffic="false"/usesCleartextTraffic="true"/' android-native/app/src/main/AndroidManifest.xml
       - name: Build TEST debug APK once (isolated backend, no production keys)
         run: gradle -p android-native assembleDebug --no-daemon -PcaretrailTestVariant=true -PcaretrailApi=http://10.0.2.2:8000
+      - name: Move test APK aside
+        run: mv android-native/app/build/outputs/apk/debug/app-debug.apk android-native/app/build/outputs/apk/debug/app-debug-test.apk
+      - name: Build PRODUCTION-variant debug APK (language_voice scene only)
+        # Same variant real users run; API_URL defaults to the live backend. Needed because
+        # the test variant refuses a production URL by design, and genuine Sarvam TTS only
+        # exists on the keyed live backend (user-approved <= Rs.10 prepaid draw).
+        run: |
+          gradle -p android-native assembleDebug --no-daemon
+          mv android-native/app/build/outputs/apk/debug/app-debug.apk android-native/app/build/outputs/apk/debug/app-debug-live.apk
       - uses: actions/upload-artifact@v4
         with:
           name: caretrail-test-apk
-          path: android-native/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android-native/app/build/outputs/apk/debug/app-debug-test.apk
+            android-native/app/build/outputs/apk/debug/app-debug-live.apk
           retention-days: 1
 
   record:
@@ -108,7 +119,7 @@ jobs:
           disable-animations: true
           # android-emulator-runner executes each script line in its own sh -c:
           # keep it one line. Artifacts land in /tmp/demo-out on the runner.
-          script: CARETRAIL_APK=app-debug.apk CARETRAIL_SAMPLE=backend/app/sample_reports/cbc_malayalam_low_hb.txt python3 .github/demo/driver_scene_v3.py ${{ matrix.job }}
+          script: if [ "${{ matrix.job }}" = "language_voice" ]; then export CARETRAIL_APK=app-debug-live.apk; else export CARETRAIL_APK=app-debug-test.apk; fi; CARETRAIL_SAMPLE=backend/app/sample_reports/cbc_malayalam_low_hb.txt python3 .github/demo/driver_scene_v3.py ${{ matrix.job }}
 
       - name: Upload artifacts
         if: always()               # partial results, dumps and log survive a recording failure
