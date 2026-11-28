@@ -46,3 +46,34 @@ def test_other_patient_cannot_grant_or_access_review(client):
     c = provision(client)
     assert client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(b)).status_code == 404
     assert client.post(f"/journeys/{j}/clinicians", json={"clinician_email": "none@example.test"}, headers=auth(a)).status_code == 404
+
+
+def test_clinician_ehr_documents(client):
+    import io
+    p = signup(client)["token"]
+    j = client.post("/journeys", json={"lmp": "2026-04-20"}, headers=auth(p)).json()["journey_id"]
+    c = provision(client)
+    doc = client.post("/clinician/login", json={"email": c.email, "password": "correct horse 123"}).json()["token"]
+    # No grant yet: every route is a 404
+    assert client.get(f"/clinician/journeys/{j}/documents", headers=auth(doc)).status_code == 404
+    assert client.post(f"/clinician/journeys/{j}/documents/upload", headers=auth(doc), files={"file": ("ehr.pdf", io.BytesIO(b"pdf-one"), "application/pdf")}).status_code == 404
+    assert client.post(f"/journeys/{j}/clinicians", json={"clinician_email": c.email}, headers=auth(p)).status_code == 201
+    # Upload
+    r = client.post(f"/clinician/journeys/{j}/documents/upload", headers=auth(doc), files={"file": ("ehr-summary.pdf", io.BytesIO(b"%PDF fake ehr bytes"), "application/pdf")})
+    assert r.status_code == 200, r.text
+    did = r.json()["document_id"]
+    assert r.json()["source"] == "clinician"
+    # Exact same bytes dedupe
+    r2 = client.post(f"/clinician/journeys/{j}/documents/upload", headers=auth(doc), files={"file": ("ehr-summary.pdf", io.BytesIO(b"%PDF fake ehr bytes"), "application/pdf")})
+    assert r2.json()["duplicate_of"] == did
+    # List shows it with clinician source
+    items = client.get(f"/clinician/journeys/{j}/documents", headers=auth(doc)).json()["items"]
+    assert [i["document_id"] for i in items] == [did]
+    # Original bytes served
+    r3 = client.get(f"/clinician/documents/{did}/original", headers=auth(doc))
+    assert r3.status_code == 200 and r3.content == b"%PDF fake ehr bytes"
+    # Patient tokens get nothing on clinician routes
+    assert client.get(f"/clinician/journeys/{j}/documents", headers=auth(p)).status_code == 401
+    # Oversize rejected
+    big = io.BytesIO(b"x" * (10 * 1024 * 1024 + 1))
+    assert client.post(f"/clinician/journeys/{j}/documents/upload", headers=auth(doc), files={"file": ("big.pdf", big, "application/pdf")}).status_code == 413
