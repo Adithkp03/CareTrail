@@ -25,7 +25,7 @@ import xml.etree.ElementTree as ET
 
 JOB = sys.argv[1] if len(sys.argv) > 1 else "timeline"
 OUT = "/tmp/demo-out"; os.makedirs(OUT, exist_ok=True)
-PKG = "com.caretrail.native.test"
+PKG = "com.caretrail.native" if (len(sys.argv) > 1 and sys.argv[1] == "language_voice") else "com.caretrail.native.test"
 APK = os.environ.get("CARETRAIL_APK", "app-debug.apk")
 SAMPLE = os.environ.get("CARETRAIL_SAMPLE", "cbc_malayalam_low_hb.txt")
 log = open(f"{OUT}/driver-{JOB}.log", "w")
@@ -576,6 +576,145 @@ elif JOB == "vault":
         tap("report vault", scroll=True, tries=8, wait=3)
         check("vault_screen", seen("report vault", "cbc_malayalam_low_hb", wait=4))
         shot("vault"); swipe_down_content(); time.sleep(1.5); shot("vault2")
+        back_to_home()
+
+elif JOB == "language_voice":
+    # r26: welcome LangPicker -> Malayalam UI -> demo login -> ml home -> help
+    # assistant (ml answer) -> NOW milestone -> Listen (genuine Sarvam ml TTS).
+    # PRODUCTION-variant APK (com.caretrail.native) against the LIVE demo backend:
+    # translation + TTS are genuinely Sarvam-served (user-approved <= Rs.10
+    # prepaid-credit draw: WhatsApp wamid.HBgMOTE5NjQ1Nzc0OTM2FQIAEhggQUNCMDIyQjVGMDdDMTlBRjhDMTZFQkE3OTcwQjg3MEYA
+    # "Yes", 2026-11-28 06:44:16 IST, quoting the Rs.10 question). No mic/STT: the headless
+    # emulator has no audio input. Genuine audio bytes + the patient-scoped
+    # /ai-traces provider-call delta (spend verification) are fetched after filming.
+    import urllib.request
+    API = os.environ.get("CARETRAIL_LIVE_API", "https://caretrail-adith-k-ps-projects.vercel.app")
+    def api(method, path, body=None, token=None, raw=False):
+        r = urllib.request.Request(API + path, method=method)
+        r.add_header("Content-Type", "application/json")
+        if token: r.add_header("Authorization", "Bearer " + token)
+        data = json.dumps(body).encode() if body is not None else None
+        with urllib.request.urlopen(r, data=data, timeout=60) as resp:
+            b = resp.read()
+            return b if raw else json.loads(b.decode() or "{}")
+    tok = None; traces_before = -1
+    try:
+        tok = api("POST", "/auth/login", {"phone": "9000000001", "password": "demo1234"})["token"]
+        traces_before = len(api("GET", "/ai-traces?limit=100", token=tok)["traces"])
+        say("ai-traces before:", traces_before)
+    except Exception as e:
+        say("api preflight warn:", type(e).__name__, str(e)[:150])
+    def seen_ml(minchars=20, wait=2.0):
+        time.sleep(wait)
+        for _ in range(2):
+            root = dump(); blob = " ".join(t for t, *_ in nodes(root))
+            if sum(1 for ch in blob if "\u0d00" <= ch <= "\u0d7f") >= minchars: return True
+            time.sleep(1.5)
+        return False
+    with Rec("r26_language_voice"):
+        launch_app(); time.sleep(4)
+        check("welcome", seen("caretrail", wait=3)); shot("welcome_en")
+        check("lang_picker", tap("english", scroll=False, band=(0.1, 0.999), tries=3, wait=2))
+        tap("മലയാളം", scroll=False, tries=4, wait=3)
+        check("welcome_ml", seen("മലയാളം", wait=3)); shot("welcome_ml")
+        tap("ലോഗിൻ", scroll=False, tries=3, wait=4); shot("login_ml")
+        tap("ഡെമോ കാണൂ", scroll=False, tries=4, wait=14)
+        check("home_ml", seen("ഹോം", wait=8))
+        shot("home_ml"); swipe_down_content(); time.sleep(1); shot("home_ml2"); to_top()
+        # help assistant in Malayalam (tile label is the curated ml string, Translator.kt)
+        tap("ഹെൽപ്പ് അസിസ്റ്റന്റ്", scroll=True, tries=8, wait=4)
+        if not find_edittext():
+            root = dump()   # first-run consent card: tap its PrimaryButton (ml label varies)
+            hit = False
+            for e in (root.iter("node") if root is not None else []):
+                if "Button" in (e.get("class") or "") and e.get("clickable") == "true":
+                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", e.get("bounds") or "")
+                    if m:
+                        x1, y1, x2, y2 = map(int, m.groups())
+                        if 0.3 * SH < (y1 + y2) // 2 < 0.9 * SH:
+                            sh(f"input tap {(x1+x2)//2} {(y1+y2)//2}"); say("consent button tapped"); hit = True; time.sleep(3); break
+            if not hit: say("no consent button found")
+        check("assistant_open", find_edittext() is not None)
+        p = find_edittext()
+        if p:
+            sh(f"input tap {p[0]} {p[1]}"); time.sleep(0.8)
+            sh("input text 'When%sis%my%next%scan%due'"); time.sleep(0.8); sh("input keyevent 4"); time.sleep(0.8)
+            tap_send_in_row("when is my next scan due")
+        ok_ans = False
+        for _ in range(10):
+            if seen_ml(20, wait=3): ok_ans = True; break
+        check("assistant_ml_answer", ok_ans); shot("assistant_ml")
+        sh("input keyevent 4"); time.sleep(2)
+        check("home_ml_back", seen("ഹോം", wait=4))
+        tap("ഇപ്പോൾ", scroll=True, tries=8, wait=4)   # NOW card -> milestone detail (JourneyScreens.kt:257)
+        check("milestone_ml", seen("കേൾക്കൂ", wait=6)); shot("milestone_ml")
+        lp = find("കേൾക്കൂ")
+        if lp:
+            sh(f"input tap {lp[0]} {lp[1]}"); say("listen tapped", lp); time.sleep(4)
+            playing = False
+            for _ in range(8):
+                root = dump(); blob = " ".join(t for t, *_ in nodes(root))
+                if "കേൾക്കൂ" not in blob:   # button left its Listen state = preparing/playing (Stop state)
+                    playing = True; break
+                time.sleep(3)
+            check("listen_playing", playing); shot("listen_playing")
+            time.sleep(6)
+            sh(f"input tap {lp[0]} {lp[1]}"); time.sleep(2)   # stop
+        else:
+            check("listen_playing", False)
+        shot("language_voice_end")
+    # unrecorded: genuine TTS bytes from the same live endpoint the app plays,
+    # plus the provider-call delta proving the spend stayed inside the Rs.10 cap
+    audio_bytes = 0; traces_delta = -1
+    try:
+        if tok is None:
+            tok = api("POST", "/auth/login", {"phone": "9000000001", "password": "demo1234"})["token"]
+        journeys = api("GET", "/journeys", token=tok)["journeys"]
+        jid = journeys[0]["journey_id"]
+        detail = api("GET", f"/journey/{jid}", token=tok)
+        mid = None
+        for m in detail["milestones"]:
+            if m["status"] == "now": mid = m["id"]; break
+        if mid is None: mid = detail["milestones"][0]["id"]
+        say("audio milestone:", mid)
+        data = api("GET", f"/milestones/{mid}/explanation/audio?lang=ml", token=tok, raw=True)
+        if data and len(data) > 500:
+            open(f"{OUT}/audio_explanation_ml.mp3", "wb").write(data); audio_bytes = len(data)
+        traces_after = len(api("GET", "/ai-traces?limit=100", token=tok)["traces"])
+        traces_delta = traces_after - traces_before if traces_before >= 0 else -1
+        say("ai-traces after:", traces_after, "delta:", traces_delta)
+    except Exception as e:
+        say("audio fetch warn:", type(e).__name__, str(e)[:150])
+    check("audio_fetched", audio_bytes > 500)
+    # translate cache makes most calls free; 40 provider calls worst case ~= Rs.5-6
+    check("traces_within_cap", 0 <= traces_delta <= 40)
+
+elif JOB == "asha_link":
+    # r27: government-scheme panel + ASHA/VHN linking (OfficialSupportPanel.kt;
+    # Sprint1Screens.kt:217-232; Sprint3Screens.kt:166-186). Isolated backend,
+    # local store only - no Sarvam, no chargeable calls. Synthetic worker contacts.
+    with Rec("r27_asha"):
+        launch_app(); login_demo(); back_to_home()
+        tap("government support: official guidance", scroll=True, tries=10, wait=3)
+        check("schemes_panel", seen("pmmvy", "jsy", "jssk", wait=4))
+        shot("schemes"); swipe_down_content(); time.sleep(1.5); shot("schemes2"); to_top()
+        back_to_home()
+        tap("facilities", scroll=True, wait=3)
+        check("facilities_screen", seen("facilities near you", wait=4))
+        check("workers_empty", seen("add your asha", wait=3)); shot("workers_empty")
+        tap("open first-visit checklist", scroll=False, tries=3, wait=4)
+        check("checklist", seen("register your pregnancy", "asha", wait=5))
+        type_into("asha name", "Demo Asha")
+        type_into("asha phone", "9000000010")
+        type_into("vhn name", "Demo Vhn")
+        type_into("vhn phone", "9000000011")
+        shot("checklist_workers")
+        sh("input keyevent 4"); time.sleep(2)
+        check("back_at_facilities", seen("facilities near you", wait=4))
+        okw = seen("demo asha", wait=4)
+        if not okw:
+            swipe_down_content(); okw = seen("demo asha", wait=2)
+        check("workers_linked", okw); shot("workers_linked")
         back_to_home()
 
 else:
