@@ -630,6 +630,14 @@ elif JOB == "language_voice":
             check("welcome_ml", seen("മലയാളം", wait=3)); shot("welcome_ml")
             tap("ലോഗിൻ", scroll=False, tries=3, wait=4); shot("login_ml")
             tap("ഡെമോ കാണൂ", scroll=False, tries=4, wait=14)
+            # live serverless backend: demo login can outlast one tap window (run 46095293780
+            # bailed here while the runner-side API was healthy). Retry while the login
+            # screen's demo button is still visible before giving up.
+            for _retry in range(4):
+                time.sleep(3)
+                if not find("ഡെമോ കാണൂ", band=(0.3, 0.999)): break
+                say("still on login after demo tap, retry", _retry + 1)
+                tap("ഡെമോ കാണൂ", scroll=False, tries=2, wait=10)
             tap("ഇപ്പോൾ ഒഴിവാക്കുക", scroll=False, tries=3, wait=4)   # live app lands on ml reminders-onboarding after demo login; skip it
             gate("home_ml", seen("ഹോം", wait=8))
             shot("home_ml"); swipe_down_content(); time.sleep(1); shot("home_ml2"); to_top()
