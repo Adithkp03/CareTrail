@@ -142,7 +142,7 @@ function ClinicianView() {
       await load(); void loadRoster();
     } catch (err) { setMessage(err instanceof Error ? err.message : "Sign-off failed"); }
   }
-  return <main className="pt-7">
+  return <main className="relative left-1/2 w-screen -translate-x-1/2 pt-7"><div className="mx-auto max-w-md px-5 md:max-w-3xl lg:max-w-5xl">
     <a className="mb-6 inline-flex items-center gap-2 text-sm text-brand" href="/">← CareTrail</a>
     <div className="ct-hero rounded-3xl p-5 text-white">
     <h1 className="text-2xl font-semibold">Clinician review</h1>
@@ -240,6 +240,6 @@ function ClinicianView() {
       </article>)}
     </div>}
     {message && <p className="mt-3 text-sm" role="status">{message}</p>}
-  </main>;
+  </div></main>;
 }
 export default function ClinicianPage() { return <Suspense fallback={<main>Loading...</main>}><ClinicianView /></Suspense>; }
